@@ -15,12 +15,15 @@ from collections.abc import Callable, Generator
 from typing import Any
 from unittest import mock
 
+import name_reference
 import pytest
 from matcher_db import Lic, seeded_db
 from rapidfuzz import fuzz, process
 
 from licenseid import shorttext
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, name_index
+from licenseid.nameindex import build_name_index
+from licenseid.normalize import normalize_text
 from licenseid.shorttext import match_short_text
 
 
@@ -168,7 +171,9 @@ def test_the_prefilter_cuts_at_the_threshold(text: str, threshold: float) -> Non
     (a bonus is added only to a score at or above it)."""
     spy = mock.Mock(spec=process, wraps=process)
     with mock.patch.object(shorttext, "process", spy):
-        shorttext._rows_at_threshold([], text, threshold, len(text.split()))
+        shorttext._rows_at_threshold(
+            build_name_index([]), text, threshold, len(text.split())
+        )
     assert spy.extract.call_args_list
     assert {c.kwargs["score_cutoff"] for c in spy.extract.call_args_list} == {threshold}
 
@@ -203,22 +208,147 @@ def test_the_prefilter_keeps_every_row_the_loop_keeps(db: LicenseDatabase) -> No
     """The prefilter is a superset of the rows with a score at the threshold,
     found the long way (every row, every scorer)."""
     rows = db.get_all_names_and_ids()
+    index = name_index(db)
     kept = 0
     for text in [*CUTOFF_INPUTS, *(text for text, _ in EDGE_INPUTS)]:
         words = text.split()
         threshold = 90.0 if len(words) <= 2 else 85.0
-        stems = shorttext._grant_left_out(rows, set(words))
-        partial = shorttext._partial_names(rows, words, stems)
+        stems = name_reference.grant_left_out(rows, set(words))
+        partial = name_reference.partial_names(rows, words, stems)
         scored = {
             i
             for i, row in enumerate(rows)
             if max(
-                shorttext._name_scores(text, row, threshold, len(words) == 1, partial)
+                shorttext._name_scores(
+                    text, row, threshold, len(words) == 1, frozenset(partial)
+                )
             )
             >= threshold
         }
         kept += len(scored)
         assert scored <= set(
-            shorttext._rows_at_threshold(rows, text, threshold, len(words))
+            shorttext._rows_at_threshold(index, text, threshold, len(words))
         )
     assert kept >= 6  # the comparison reaches rows
+
+
+# -- the index of names ----------------------------------------------------
+
+# Names whose words are held by others, and the GPL names without a grant.
+INDEX_QUERIES = [
+    "mit license",
+    "mit",
+    "the",
+    "license",
+    "gnu general public license v2.0",
+    "gnu general public license v3",
+    "gnu general public license v2.0 only",
+    "gnu affero general public license",
+    "gnu free documentation license v1.3",
+    "gnu public license v2.0 only",
+    "apache license",
+    "bsd 3 clause license",
+    "gpl 2.0",
+    "gpl-2.0-only",
+    "gpl 2 0 +",
+    "mit+",
+    "",
+]
+
+
+def test_the_index_holds_what_each_call_worked_out(
+    corpus_db: LicenseDatabase,
+) -> None:
+    """Every field of the index equals the per-call code it replaced, for each
+    row of the whole List and for names that hold one another's words."""
+    rows = corpus_db.get_all_names_and_ids()
+    index = name_index(corpus_db)
+    assert index.rows is rows  # the very list, never another read
+    assert list(index.ids) == [row["norm_license_id"] for row in rows]
+    assert list(index.names) == [row["norm_name"] for row in rows]
+    assert [set(w) for w in index.words] == [set(r["norm_name"].split()) for r in rows]
+    assert index.live_names == name_reference.live_names(rows)
+    queries = [*INDEX_QUERIES, *(row["norm_name"] for row in rows)]
+    found = 0
+    for text in queries:
+        words = text.split()
+        expected = name_reference.grant_left_out(rows, set(words))
+        stems = index.left_out.get(frozenset(words), frozenset())
+        assert stems == expected
+        found += bool(expected)
+        assert shorttext._partial_names(
+            index, words, stems
+        ) == name_reference.partial_names(rows, words, expected)
+        for plus in (False, True):
+            old = name_reference.exact_id_row(rows, text, plus)
+            positions = index.upper_ids.get(text.upper(), ())
+            new = next(
+                (
+                    index.rows[i]
+                    for i in positions
+                    if index.rows[i]["license_id"].endswith("+") == plus
+                ),
+                None,
+            )
+            assert new is old
+    assert found >= 4  # the GPL and GFDL names reach the grant rule
+
+
+def test_the_index_of_a_seeded_database_equals_the_per_call_code() -> None:
+    rows = [
+        Lic("GPL-2.0-only", "GNU General Public License v2.0 only"),
+        Lic("GPL-2.0-or-later", "GNU General Public License v2.0 or later"),
+        Lic("GPL-2.0", "GNU General Public License v2.0", is_deprecated=True),
+        Lic("MIT", "MIT License"),
+        Lic("Twin-1.0", "MIT License", is_deprecated=True),
+        Lic("Plus+", "Plus License"),
+    ]
+    for path in seeded_db("test_shorttext_index", rows):
+        db = LicenseDatabase(path)
+        listed = db.get_all_names_and_ids()
+        index = name_index(db)
+        assert index.rows is listed
+        for text in ["gnu general public license v2.0", "mit license", "plus"]:
+            words = text.split()
+            stems = index.left_out.get(frozenset(words), frozenset())
+            assert stems == name_reference.grant_left_out(listed, set(words))
+            assert shorttext._partial_names(
+                index, words, stems
+            ) == name_reference.partial_names(listed, words, set(stems))
+        spoken = frozenset(normalize_text("GNU General Public License v2.0").split())
+        assert index.left_out[spoken] == {"GPL-2.0"}
+        assert index.live_names == name_reference.live_names(listed)
+
+
+def test_the_index_is_immutable(db: LicenseDatabase) -> None:
+    index = name_index(db)
+    assert all(isinstance(t, tuple) for t in (index.ids, index.names, index.words))
+    assert isinstance(index.live_names, frozenset)
+    with pytest.raises(TypeError):
+        index.upper_ids["x"] = ()  # type: ignore[index]
+    with pytest.raises(TypeError):
+        index.left_out[frozenset()] = frozenset()  # type: ignore[index]
+
+
+@pytest.mark.parametrize(
+    ("text", "found"),
+    [
+        ("GPL-2.0", "GPL-2.0"),  # the "+" row is first in the table, passed over
+        ("GPL-2.0+", "GPL-2.0+"),
+        ("Zed+", None),  # a "+" the one row has not
+        ("Nothing", None),
+    ],
+)
+def test_the_exact_id_row_keeps_the_plus_operator_apart(
+    text: str, found: str | None
+) -> None:
+    rows = [Lic("GPL-2.0+", "GNU GPL plus"), Lic("GPL-2.0", "GNU GPL"), Lic("Zed", "Z")]
+    for path in seeded_db("test_shorttext_plus", rows):
+        db = LicenseDatabase(path)
+        norm = normalize_text(text)
+        row = shorttext._exact_id_row(name_index(db), norm, text)
+        assert (row["license_id"] if row else None) == found
+        old = name_reference.exact_id_row(
+            db.get_all_names_and_ids(), norm, text.endswith("+")
+        )
+        assert row is old

@@ -16,8 +16,8 @@ and this project adheres to
 - **Breaking:** licenseid reads only a database of its own build; an older
   one exits 2 with `database: build vN outdated`. Migration: run `licenseid
   update` once after upgrading
-- `detect()` on a declared value is about a quarter faster (462 PyPI values:
-  1.39 s to 1.06 s); every answer, score and warning is unchanged
+- `detect()` on a declared value is about two fifths faster (462 PyPI values:
+  1.39 s to 0.84 s); every answer, score and warning is unchanged
 - Database build 8 (3.4 MB more) stores the word 3-gram postings of every
   licence text
 - `import licenseid` and `licenseid --version` start in about a third of the

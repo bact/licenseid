@@ -8,10 +8,11 @@ license ID or name."""
 
 from rapidfuzz import fuzz, process
 
-from licenseid.database import LicenseDatabase, exception_words
+from licenseid.database import LicenseDatabase, exception_words, name_index
 from licenseid.exprflags import judged_id
 from licenseid.looseid import loose_id, mark_guessed, resolved_id
 from licenseid.namehits import NameHits, settle
+from licenseid.nameindex import NameIndex
 from licenseid.plusoperator import grant_stem, strip_plus_operator
 from licenseid.ranking import DEP_PENALTY
 from licenseid.resolvereason import ends_a_word_with_plus
@@ -25,9 +26,6 @@ EXACT_MATCH_SCORE = 1.02
 # The native scorers of :func:`_rows_at_threshold`, kept as they are:
 # ``process.extract`` runs only a RapidFuzz scorer in C.
 _RATIO, _PARTIAL, _TOKEN_SET = fuzz.ratio, fuzz.partial_ratio, fuzz.token_set_ratio
-
-# The words that end a List name with its grant, normalised.
-_GRANT_WORDS = (" only", " or later")
 
 
 def exact_id_match(license_id: str) -> RawMatch:
@@ -82,14 +80,15 @@ def match_name_tier(
     loose = match_version_key(db, raw)
     if loose:
         return NameHits(loose, False)
-    all_metadata = db.get_all_names_and_ids()
+    index = name_index(db)
+    all_metadata = index.rows
     # Case-fold exact ID match: a score > 1.0, so the Tier 0 caller
     # recognises it as a definitive hit.
-    exact = _exact_id_row(all_metadata, norm_input, raw)
+    exact = _exact_id_row(index, norm_input, raw)
     if exact is not None:
         return NameHits([_id_hit(db, exact, resolved_id(db, exact), raw)], False)
     words = norm_input.split()
-    ranked, stems = _ranked_names(db, all_metadata, norm_input, words)
+    ranked, stems = _ranked_names(db, index, norm_input, words)
     if decided_name(ranked) is not None and not _grant_left_out_alone(
         ranked, stems, raw
     ):
@@ -99,23 +98,23 @@ def match_name_tier(
 
 def _ranked_names(
     db: LicenseDatabase,
-    all_metadata: list[LicenseNameId],
+    index: NameIndex,
     norm_input: str,
     words: list[str],
-) -> tuple[list[RawMatch], set[str]]:
+) -> tuple[list[RawMatch], frozenset[str]]:
     """The name and ID hits of *norm_input* (its *words*) at or above the
     threshold, best first, and the licences whose name it is without their
-    grant (:func:`_grant_left_out`)."""
+    grant (``licenseid.nameindex``)."""
     ranked: list[RawMatch] = []
     threshold = 90.0 if len(words) <= 2 else 85.0
     # The names of rows in use: a deprecated row that shares one is not the
     # exact answer, the row that replaced it is.
-    live_names = {m["norm_name"] for m in all_metadata if not m["is_deprecated"]}
-    stems = _grant_left_out(all_metadata, set(words))
-    partial = _partial_names(all_metadata, words, stems)
+    live_names = index.live_names
+    stems = index.left_out.get(frozenset(words), frozenset())
+    partial = _partial_names(index, words, stems)
 
-    for index in _rows_at_threshold(all_metadata, norm_input, threshold, len(words)):
-        meta = all_metadata[index]
+    for position in _rows_at_threshold(index, norm_input, threshold, len(words)):
+        meta = index.rows[position]
         name_norm = meta["norm_name"]
         score_id, score_id_partial, score_name_exact, score_name_flex = _name_scores(
             norm_input, meta, threshold, len(words) == 1, partial
@@ -155,9 +154,9 @@ def _ranked_names(
 
 
 def _rows_at_threshold(
-    rows: list[LicenseNameId], norm_input: str, threshold: float, word_count: int
+    index: NameIndex, norm_input: str, threshold: float, word_count: int
 ) -> list[int]:
-    """The positions in *rows*, in order, of every row that any score of
+    """The positions in the rows of *index*, in order, of every row that any score of
     :func:`_name_scores` can lift to *threshold* or more: ID, name and token
     set against the name, and for one word the partial ID. RapidFuzz drops
     the rest in one native pass, so the Python loop of :func:`_ranked_names`
@@ -165,11 +164,9 @@ def _rows_at_threshold(
     the loop is: a bonus is added only to a score at or above it, so a row
     under it is never kept by one. A superset of the rows the loop keeps (the
     token set of a name that :func:`_partial_names` set aside is 0 there)."""
-    ids = [row["norm_license_id"] for row in rows]
-    names = [row["norm_name"] for row in rows]
-    scored = [(_RATIO, ids), (_RATIO, names), (_TOKEN_SET, names)]
+    scored = [(_RATIO, index.ids), (_RATIO, index.names), (_TOKEN_SET, index.names)]
     if word_count == 1:
-        scored.append((_PARTIAL, ids))
+        scored.append((_PARTIAL, index.ids))
     found: set[int] = set()
     for scorer, choices in scored:
         found.update(
@@ -191,7 +188,7 @@ def _name_scores(
     meta: LicenseNameId,
     threshold: float,
     one_word: bool,
-    partial: set[str],
+    partial: frozenset[str],
 ) -> tuple[float, float, float, float]:
     """The ID, partial ID (*one_word* only), exact name and flex name scores
     of *norm_input* against *meta*, 0 to 100; 0 below *threshold*."""
@@ -226,8 +223,8 @@ def _name_scores(
 
 
 def _partial_names(
-    rows: list[LicenseNameId], words: list[str], stems: set[str]
-) -> set[str]:
+    index: NameIndex, words: list[str], stems: frozenset[str]
+) -> frozenset[str]:
     """The names that hold every one of *words* and more, unless they name
     one licence: the words are no name in use, only one name holds them,
     and they are at least half its words ("GNU Public License v2.0 only").
@@ -236,71 +233,38 @@ def _partial_names(
     GPL (22 names), and "MIT License" in six besides MIT's own. The
     words of a deprecated name of its own ("GNU Affero General Public
     License v3.0") are held by the names that replaced it (its -only and
-    -or-later): those are kept. So are the names of the
-    licences of *stems* (_grant_left_out), whose name the words are without
-    its grant, and only those: GPL-2.0-with-GCC-exception also holds "GNU
+    -or-later): those are kept. So are the names of the licences of
+    *stems* (``nameindex.NameIndex.left_out``), whose name the words are
+    without its grant, and only those: GPL-2.0-with-GCC-exception also holds "GNU
     General Public License v2.0", and the GFDL-1.3 names with invariants
     hold "GNU Free Documentation License v1.3", the name of the deprecated
     GFDL-1.3."""
-    query = set(words)
-    pairs = [(row, set(row["norm_name"].split())) for row in rows]
-    named = {bool(row["is_deprecated"]) for row, name in pairs if name == query}
-    held = [row for row, name in pairs if query < name]
+    query = frozenset(words)
+    rows, names = index.rows, index.words
+    named = {bool(r["is_deprecated"]) for r, name in zip(rows, names) if name == query}
+    held = [r for r, name in zip(rows, names) if query < name]
     # More than one licence of *stems* gets no answer (_grant_left_out_alone).
     if False not in named and stems:
-        return {
+        return frozenset(
             row["norm_name"]
             for row in held
             if grant_stem(row["license_id"]) not in stems
-        }
+        )
     if named == {True}:
-        return set()  # a deprecated name, and no name in use
-    holders = {row["norm_name"] for row in held}
+        return frozenset()  # a deprecated name, and no name in use
+    holders = frozenset(row["norm_name"] for row in held)
     if (
         len(holders) == 1
         and not named
         and 2 * len(query) >= len(set(next(iter(holders)).split()))
     ):
-        return set()
+        return frozenset()
     return holders
 
 
-def _grant_left_out(rows: list[LicenseNameId], query: set[str]) -> set[str]:
-    """The licences (plusoperator.grant_stem) that have both an -only and an
-    -or-later row in use whose name is the words of *query* and its grant:
-    "GNU General Public License v2.0" is GPL-2.0-only's name without
-    "only", and GPL-2.0-or-later's without "or later". Every other word
-    must be there ("GNU Affero General Public License" states no version),
-    and both grants, or the guess could not be the one decided."""
-    grants: dict[str, set[str]] = {}
-    for row in rows:
-        name = row["norm_name"]
-        stem = grant_stem(row["license_id"])
-        if row["is_deprecated"] or stem == row["license_id"]:
-            continue
-        for grant in _GRANT_WORDS:
-            if name.endswith(grant) and query in _spellings(name[: -len(grant)]):
-                grants.setdefault(stem, set()).add(grant)
-    return {stem for stem, found in grants.items() if len(found) == len(_GRANT_WORDS)}
-
-
-def _spellings(name: str) -> list[set[str]]:
-    """The word sets that state *name* (a List name without its grant): its
-    words, and without a last "0" after "vN", where "GNU General Public
-    License v3" is "v3.0" (the rule PR #168 set for "v2.0")."""
-    words = name.split()
-    spelled = [set(words)]
-    if len(words) > 1 and words[-1] == "0" and _is_v_number(words[-2]):
-        spelled.append(set(words[:-1]))
-    return spelled
-
-
-def _is_v_number(word: str) -> bool:
-    """Whether *word* is "v" and digits (``v3``)."""
-    return word.startswith("v") and word[1:].isdigit()
-
-
-def _grant_left_out_alone(ranked: list[RawMatch], stems: set[str], text: str) -> bool:
+def _grant_left_out_alone(
+    ranked: list[RawMatch], stems: frozenset[str], text: str
+) -> bool:
     """Whether *ranked*, whose first two results are one licence's -only and
     -or-later tied, may stand: *text* is the name of the one licence of
     *stems* without its grant, it has no "+" (normalize_text dropped it,
@@ -332,9 +296,7 @@ def decided_name(found: list[RawMatch]) -> str | None:
     return license_id if tied and by_name and guessed else None
 
 
-def _exact_id_row(
-    rows: list[LicenseNameId], norm_input: str, text: str
-) -> LicenseNameId | None:
+def _exact_id_row(index: NameIndex, norm_input: str, text: str) -> LicenseNameId | None:
     """The row whose normalised ID is *norm_input*, ASCII case folded.
     normalize_text() drops a "+", so GPL-2.0 and GPL-2.0+ share one: a row
     with a "+" answers a *text* with the "+" operator (as identifiers reads
@@ -344,13 +306,11 @@ def _exact_id_row(
     one.)"""
     norm_upper = norm_input.upper()
     plus = strip_plus_operator(text) != text
-    found = [
-        row
-        for row in rows
-        if row["norm_license_id"].upper() == norm_upper
-        and row["license_id"].endswith("+") == plus
-    ]
-    return found[0] if found else None
+    for position in index.upper_ids.get(norm_upper, ()):
+        row = index.rows[position]
+        if row["license_id"].endswith("+") == plus:
+            return row
+    return None
 
 
 def _id_hit(

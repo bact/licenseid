@@ -23,6 +23,7 @@ from licenseid.dbschema import LICENSE_FLAGS
 from licenseid.gramselect import ListFlags
 from licenseid.gramstore import GramCache
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
+from licenseid.nameindex import NameIndex, build_name_index
 from licenseid.normalize import normalize_text
 from licenseid.textgrams import GramTable
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
@@ -49,13 +50,14 @@ class _Keyed:
     tables: names_and_ids() by a key of each ID, and the rows of
     ``license_urls`` with their index by a key of each URL. One key of each
     is kept; a call with another builds its index again. The words of the
-    exceptions, the text parts and the corpus of texts are here too: they
-    are read for one generation as well."""
+    exceptions, the text parts, the corpus of texts and the index of names
+    are here too: they are read for one generation as well."""
 
     __slots__ = (
         "exception_words",
         "flags",
         "grams",
+        "name_index",
         "names",
         "text_corpus",
         "text_parts",
@@ -69,6 +71,7 @@ class _Keyed:
         self.url_rows: list[UrlRow] | None = None
         self.exception_words: list[frozenset[str]] | None = None
         self.flags: dict[str, ListFlags] | None = None
+        self.name_index: NameIndex | None = None
         self.text_parts: dict[str, TextParts] | None = None
         self.text_corpus: TextCorpus | None = None
         # Also checked per call against the stamp read in its transaction.
@@ -201,6 +204,10 @@ class TableCache:
     def names_and_ids(self) -> list[LicenseNameId]:
         """Every licence's ID, name and flags, for short-text matching."""
         self._check_stamp()
+        return self._read_names()
+
+    def _read_names(self) -> list[LicenseNameId]:
+        """names_and_ids() for a caller that has checked the stamp."""
         generation, names = self._generation, self._names_and_ids
         if names is None:
             with self._connections.connection() as conn:
@@ -217,6 +224,23 @@ class TableCache:
             if generation == self._generation:
                 self._names_and_ids = names
         return names
+
+    def name_index(self) -> NameIndex:
+        """What Tier 0 reads from names_and_ids() (its ``rows``, the very
+        list), worked out once per rebuild: see
+        :class:`licenseid.nameindex.NameIndex`. It is immutable, so a caller
+        may share it between threads."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        names = self._read_names()
+        index = holder.name_index
+        # An index of other rows (a rebuild between the two reads above) is
+        # none of this call's.
+        if index is None or index.rows is not names:
+            index = build_name_index(names)
+            if generation == self._generation:
+                holder.name_index = index
+        return index
 
     def text_parts(self) -> dict[str, TextParts]:
         """The core and the twins of each licence's text, by ID (exact

@@ -62,6 +62,7 @@ from licenseid.types import (
 from licenseid.warning import warn
 
 if TYPE_CHECKING:
+    from licenseid.nameindex import NameIndex
     from licenseid.releasesource import UpdateRequest
     from licenseid.textcorpus import TextCorpus
 
@@ -659,3 +660,10 @@ def text_corpus(db: LicenseDatabase) -> "TextCorpus":
     holds whole (see ``dbcache.TableCache.text_corpus``): built at its first
     use, once per rebuild of the tables."""
     return db._tables.text_corpus()  # pylint: disable=protected-access
+
+
+def name_index(db: LicenseDatabase) -> "NameIndex":
+    """What the name tier reads from the names of *db*, worked out once per
+    rebuild of its tables (see ``dbcache.TableCache.name_index``); its
+    ``rows`` are ``db.get_all_names_and_ids()``."""
+    return db._tables.name_index()  # pylint: disable=protected-access

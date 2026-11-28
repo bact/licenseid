@@ -74,8 +74,10 @@ in another module.
 - Detection: `detector` (the pipeline), `keptdetector` (`licenseid.detect()`,
   one detector per default database), `detectrequest` (checks of a call needing
   no database), `resolvefirst` (input `resolve()` reads whole; the cut of a
-  short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
-  0 stand: tied names) and `namerules` (what beside one name doubts it),
+  short refused one), `shorttext` (Tier 0) and `nameindex` (what it reads from
+  the names, once per database: `TableCache.name_index`), `namehits` (which
+  name hits of Tier 0 stand: tied names) and `namerules` (what beside one name
+  doubts it),
   `retrieval` (Tier 1: one gram lookup a call, filters, markers and hints)
   with `gramselect` (which texts Tier 2 scores: filters first, none under
   0.1, the first 3 and those within 0.05, at most 20; the bound on grams

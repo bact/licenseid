@@ -9,6 +9,7 @@
 
 import contextlib
 import sqlite3
+import threading
 from collections.abc import Callable, Generator
 from typing import Any
 from unittest import mock
@@ -16,6 +17,7 @@ from unittest import mock
 import pytest
 from db_variants import stamp_rebuild
 from matcher_db import Lic, seeded_db
+from seed_sql import fill_norm_columns
 
 from licenseid.database import LicenseDatabase, exception_words
 from licenseid.dbcache import TableCache
@@ -209,8 +211,19 @@ def test_a_row_with_no_id_is_skipped() -> None:
         (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.url_rows),
         (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.urls),
         (lambda t: t.active_ids_by_name(), lambda t: t._active_by_name),
+        (lambda t: t.name_index(), lambda t: t._keyed.name_index),
     ],
-    ids=["ids", "index", "names", "deprecated", "keyed", "url-rows", "urls", "by-name"],
+    ids=[
+        "ids",
+        "index",
+        "names",
+        "deprecated",
+        "keyed",
+        "url-rows",
+        "urls",
+        "by-name",
+        "name-index",
+    ],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
     db: LicenseDatabase,
@@ -251,3 +264,81 @@ def test_the_words_of_the_exceptions_are_read_once_per_rebuild(
             frozenset({"qux", "ex"}),
             frozenset({"qux", "exception"}),
         ]
+
+
+def _renamed(db: LicenseDatabase, stamp: str | None) -> None:
+    """Rewrite the names of the rows, as another process's update."""
+    with sqlite3.connect(db.db_path, uri=True) as conn:
+        conn.execute("UPDATE licenses SET name = 'Zed License' WHERE license_id='MIT'")
+        conn.execute("UPDATE licenses SET norm_name = 'zed license'")
+        conn.execute("UPDATE licenses SET norm_license_id = 'zed'")
+        stamp_rebuild(conn, stamp)
+
+
+@pytest.mark.parametrize("in_block", [True, False], ids=["next-match", "api-call"])
+def test_the_name_index_is_dropped_by_a_rebuild(
+    db: LicenseDatabase, in_block: bool
+) -> None:
+    """Rows renamed by an update: the old names never serve the new rows."""
+    tables = db._tables
+    first = tables.name_index()
+    assert first is tables.name_index()  # built once
+    assert first.names[0] == "mit license"
+    _renamed(db, "2026-10-02T00:00:00")
+    with db.reading() if in_block else contextlib.nullcontext():
+        second = tables.name_index()
+        assert second is not first
+        assert second.rows is db.get_all_names_and_ids()
+        assert set(second.names) == {"zed license"}
+        assert set(second.upper_ids) == {"ZED"}
+        assert second.live_names == {"zed license"}
+        assert second is tables.name_index()
+
+
+def test_the_name_index_of_a_changed_stamp_is_built_for_the_new_rows(
+    db: LicenseDatabase,
+) -> None:
+    """The stamp changes between the read of the rows and the index."""
+    tables = db._tables
+    tables.name_index()
+    _renamed(db, "2026-10-03T00:00:00")
+    index = tables.name_index()
+    assert index.rows is tables.names_and_ids()
+    assert index.names == ("zed license",) * 3
+
+
+def test_eight_threads_using_the_name_index_first_get_one_answer(
+    db: LicenseDatabase,
+) -> None:
+    tables, found = db._tables, []
+    start = threading.Barrier(8)
+
+    def first_use() -> None:
+        start.wait()
+        found.append(tables.name_index())
+
+    threads = [threading.Thread(target=first_use) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(found) == 8
+    assert all(index == found[0] for index in found)
+    # Threads may each build one; one is kept, whole, and it equals them all.
+    assert tables.name_index() == found[0]
+    assert tables.name_index() is tables._keyed.name_index
+    assert tables.name_index().names == (
+        "mit license",
+        "apache license 2 0",
+        "made up k license",
+    )
+
+
+def test_a_database_seeded_by_sql_has_a_name_index() -> None:
+    for path in seeded_db("test_db_lookup_sql", ROWS):
+        with sqlite3.connect(path, uri=True) as conn:
+            conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Q-1', 'Q')")
+            fill_norm_columns(conn)
+        index = LicenseDatabase(path)._tables.name_index()
+        assert index.ids[-1] == "q 1"
+        assert index.upper_ids["Q 1"] == (3,)
