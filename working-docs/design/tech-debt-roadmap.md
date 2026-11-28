@@ -26,7 +26,8 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
 PR #247): the new detection engine of release 0.10.0, then item 68, then
 items 69 and 70 (decided 2026-11-27). Items 71 to 75 were found while
-that engine was built; 72 waits on 71. The open items
+that engine was built; 72 waits on 71. Items 76 to 78 (2026-11-28) are
+for after 0.10.0. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
@@ -214,7 +215,12 @@ quality check).
   of item 22, 2026-10-02). Snap the window to word boundaries here too.
 - Impact 3, Risk 2, Effort 3.
 - Full plan:
-  [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
+After the engine of 0.10.0 (2026-11-28): the two inputs of the CPU table
+(`roadmap:11`) take 17.79 s to 0.05 s in the final gate run
+(`L27-vs-0.9.4-final.txt`, against 0.9.4). Tier 2 aligns a region the word codes
+locate (`../implementation/word-region.md`), and `--diff` widens its
+window to whole tokens. Open: the by-hand read of `--diff` output on
+fragments, which the final run did not measure.
 
 ## 7. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 
@@ -361,6 +367,13 @@ From the review of PR #239 (2026-11-24); none answers worse than `main`.
 Details: `../implementation/accuracy-optimizations.md` sections 12 and 13.
 Impact 2, Risk 2, Effort 3.
 
+After the engine of 0.10.0 (2026-11-28): the nine inputs of
+`roadmap:61` take 3.76 s to 0.11 s (`L27-vs-0.9.4-final.txt`). The notice-free
+query is removed with the FTS5 query, so the cost part goes; where the
+report shows a first row (MIT, ISC, 0BSD, HPND, RHeCos-1.1 and others
+under copyright lines) it is the same on both sides. Open: cores alike
+(OLDAP) is untouched; the recall cases are not read apart from this run.
+
 ## 62. 100,000 `License:` lines on the test database take 25 min — Priority 12
 
 Found by `--run-benchmark` before 0.9.2 (2026-11-24); it fails on v0.9.0 and
@@ -385,6 +398,13 @@ lock around the first load if a measurement shows a cost.
 
 Impact 1, Risk 1, Effort 2.
 
+After the engine of 0.10.0 (2026-11-28): the store of loaded entries is
+filled under a lock, a call reads its texts one by one (2 to 4 ms, not
+the whole corpus), and the corpus a search reads stays immutable
+(`../implementation/texts-per-candidate.md`). The final Threads gate: 4
+threads, 150 items, 0 differing, errors 0. Open: no count of duplicate
+loads under concurrent first calls was taken.
+
 ## 66. A misshaped optional table breaks `-v` and `update` — Priority 8
 
 A `text_codes` (or `license_urls`) table that licenseid did not make, with
@@ -402,6 +422,13 @@ is a text match of 40 tokens or more (`firsttext`), so a misshaped table fails
 them on such an input as it fails `-v`.
 
 Impact 1, Risk 1, Effort 2.
+
+After the engine of 0.10.0 (2026-11-28): `text_codes` is a required
+table of one shape. A misshaped table of the new ones, `text_codes`
+included, reads as missing: the file is not ready and `update` drops it
+and rebuilds (`dbschema.has_shape`; `../implementation/gram-postings.md`
+section 3). Open: `license_urls` and the original `detect -v` case are
+not shown in the notes of this work.
 
 ## 68. `TEXTS` as ranking evidence — Priority 18
 
@@ -431,6 +458,15 @@ fragments of the HPND family that name a neighbour once the variable parts
 cost nothing (item 64's fixture numbers) must not become answers.
 
 Impact 3, Risk 3, Effort 3.
+
+After the engine of 0.10.0 (2026-11-28): a text found whole ranks first
+(task T5). `roadmap:68`, 27 inputs, takes 14.59 s to 0.44 s; the HPND
+family gate shows no new answer; labels agree 182 to 193
+(`L27-vs-0.9.4-final.txt`).
+Of the 14 real files with one text in `TEXTS` (measured on the T5 tree,
+`../implementation/whole-text-first.md` section 6): 8 answer, 4 name it
+in the top row under 0.85, 2 stay as they were (guard). Open: those 2,
+and `real:f3b34c66` at 211 ms (item 78); the 25 files were not read again.
 
 ## 69. A Mozilla Public License header as a notice — Priority 16
 
@@ -604,6 +640,132 @@ of a normal call; "old" means 0.9.4 does the same.
 Done when: each is fixed or decided not to be, with a test.
 
 Impact 2, Risk 3, Effort 4.
+
+## 76. Repeated inputs: measure them, then keep their answers — Priority 15
+
+Asked 2026-11-28, for after 0.10.0. A process that keeps licenseid loaded and
+calls it on many packages meets the same input again and again: a declared
+value (`MIT`, `Apache-2.0`), or a licence file that is the same byte for byte
+(the Apache-2.0 or a GNU text). Each call pays in full. The speed gates of
+0.10.0 measure distinct inputs only (`benchmarks/speedgate`), so they show
+nothing of this.
+
+First measure, do not guess: how often an input repeats, among the declared
+values of `tools/pypi_licence_sample` (`fetch` keeps each package's value,
+`analyze` the counts) and among the licence files of real manifests, and
+what one repeated call costs now (`resolve()`, `detect(license_id=...)`,
+`detect()` on a text).
+
+Then, only if the share is high, keep answers by input. What a kept answer
+must not change:
+
+- Warnings. A call gives its `LicenseIdWarning`s each time (`variant not
+  stated`, `deprecated ID`): a kept answer gives them again.
+- The result. It is a mutable dict: a caller gets its own copy.
+- The key: the input (its hash for a text), every option, `variant`, and
+  the database's stamp, so `update` ends what was kept
+  (`listsource.file_stamp` keys the choice of list so already).
+- A bound by count and by size, and one behaviour under threads.
+
+Not a `functools.cache` on the scorers: the memo of Tier 2
+(`similarity._scored_once`) lives for one call on purpose. A cache of the
+process keyed by the input and a licence text keeps every input it saw, and
+two files that differ by a copyright line never meet in it. One CLI call
+starts with nothing kept: this item is for the library.
+
+Done when: the share of repeated inputs is in
+`working-docs/paper-notes/`, and a cache is built with those four points
+tested, or the item is closed with the numbers that say it does not pay.
+
+Impact 3, Risk 2, Effort 3.
+
+## 77. A text that holds another List text, its own part edited — Priority 15
+
+Found 2026-11-28 by the review of 0.10.0; left to after it (decided the same
+day). Thirteen pairs of List texts hold one another whole: `MPL-1.1` in
+`NPL-1.1`, `Caldera-no-preamble` in `Caldera`, `SSLeay-standalone` in
+`OpenSSL`, `ANTLR-PD` in `ANTLR-PD-fallback`, `SSH-short` in `SSH-OpenSSH`,
+`Linux-man-pages-copyleft-2-para` in four texts, the `GPL-3.0` text in the
+`LGPL-3.0` one. The gram score is the share of the smaller side, so the
+inner text scores 1.0 and the outer one, which shares more grams, can fall
+out of the selection. With every fifth word of the outer text's own part
+replaced, `NPL-1.1` answers `MPL-1.1` (0.96), `Caldera` answers
+`Caldera-no-preamble` (0.86) and `ANTLR-PD-fallback` answers `ANTLR-PD`
+(0.92); 0.9.4 answers them right. Edits a file would have (a fork renamed,
+the amendments edited: 10 inputs) move nothing.
+
+A fix was built and taken out again. Its rules: Tier 2 also scores the one
+text that shares strictly the most grams, and a runner-up whose text holds
+the text found whole is not left out (decision Q1). They brought back 8
+answers. An independent review then found 17 right answers turned wrong and
+7 wrong answers where there was none, at 0.85:
+
+- The inner text with the first words that follow it in an outer text, or
+  without its first five to seven words, answers an outer text at 1.0
+  (`Linux-man-pages-copyleft-2-para` as `Latex2e-translated-notice`,
+  `SSH-short` as `SSH-OpenSSH`): Tier 2 aligns a short input with the best
+  window of a long text, and the inner text, compared whole, gets 0.99.
+- A whole short licence with a fragment of a long one answers the long one
+  (`ISC` with a tenth of `CC-BY-SA-4.0`: 0.91), while `TEXTS` names the
+  short one.
+- The added text costs up to 24 times the call on such inputs (5 ms to
+  0.12 s).
+
+A narrower form was measured on the review's sets only (not the speed gates,
+not the golden): add the text that shares the most grams only where its text
+holds a selected text, and keep a runner-up that holds the text found only
+where it shares strictly more grams than every member of the group and every
+other such runner-up. It gives back all 24 and keeps `NPL-1.1`, `Caldera`
+and `OpenSSL`; `ANTLR-PD-fallback` and a `Sleepycat` fragment stay lost. It
+is two rules for thirteen pairs: weigh that against closing the item.
+
+The inputs, both reviews' scripts, the answers of each tree and the rules as
+built are kept outside the repository (`.claude/speed-0-10/reviews/`). The
+`HPND-sell-variant-MIT-disclaimer-rev` fragment that 0.10.0 answers as
+`HPND-sell-variant` (0.97) is a neighbour, not this: no text there holds
+the other.
+
+Done when: the nested inputs answer the outer text with no answer lost on
+the review's sets, the speed gates and the golden, or the item is closed as
+inputs no file has.
+
+Impact 2, Risk 3, Effort 3.
+
+## 78. Engine leftovers of the 0.10.0 review — Priority 12
+
+Found 2026-11-28 in the review of the 0.10.0 engine; left to after it. The
+figures are CPU time of one call, measured on 0.10.0 and 0.9.4.
+
+- A short text that quotes a long licence costs whole alignments:
+  `freertos-exception-2.0` with 3 % of its words changed takes 0.18 s, 2.6
+  times 0.9.4 (0.07 s). The gram score selects three GNU texts of 19,000 to
+  25,000 characters, the words do not place the input in them (word
+  alignment under 60), and each gets a character alignment of about 70 ms;
+  0.9.4 only probed them. A cure moves scores.
+- The real file of item 68 (`real:f3b34c66`) spends its time in one alignment
+  of the whole Apache-2.0 text, the same call 0.9.4 makes: no bound by counts
+  keeps the score (under 0.6 the alignment score is the similarity). It takes
+  211 ms against the plan's limit of 200 (2,059 ms in 0.9.4): accepted for
+  0.10.0 by the maintainer on 2026-11-28.
+- Memory on a very long input stays above 0.9.4: 300,000 Han characters peak
+  at 90 MB against 69 MB; 1 MB of two-letter words at 121 to 138 MB against
+  118 MB.
+- Old, same in 0.9.4: a 3.6 MB minified blob with no white space answers
+  `MIT` (0.9025) through the name tier (1.8 s now, 49.7 s in 0.9.4); a Han or
+  kana text wrapped again every 17 characters scores 0.49 to 0.85; fragments
+  of `EUPL-1.2` answer `EUPL-1.1` (0.89).
+- `popular=` passed to `variants.settle_free_text` at the Tier 0 call in
+  `detector` decides nothing (short-text rows carry no popularity); at Tier 2
+  it settles only an exact tie of scores between popularity 0 and 1 (marker
+  candidates). A candidate for removal.
+- Under the answer bar, on 12 many-text files distorted by 5 %, no text is
+  found whole and the rows are what the selection gives; lower thresholds
+  (0.8, 0.75) answer 17 and 18 files right and 8 and 9 wrong, about as 0.9.4
+  (20 and 22 right, 8 and 10 wrong).
+
+Done when: each is fixed or decided not to be, with its number measured again.
+
+Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 

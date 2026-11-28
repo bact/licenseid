@@ -9,6 +9,7 @@ sort. Roadmap item 8."""
 # pylint: disable=redefined-outer-name,missing-function-docstring
 # pylint: disable=protected-access,too-many-arguments,too-many-positional-arguments
 
+import sqlite3
 from collections.abc import Generator
 from pathlib import Path
 
@@ -322,6 +323,52 @@ def twin_names_db() -> Generator[str, None, None]:
 def test_short_text_ties_are_broken_by_license_id(twin_names_db: str) -> None:
     results = LicenseDetector(twin_names_db).detect("Twin Name License")
     assert [r["expression"] for r in results] == ["A-1.0", "B-1.0"]
+    assert results[0]["score"] == results[1]["score"]
+
+
+TWIN_TEXT = (
+    "permission is hereby granted to any person obtaining a copy of this software"
+    " to deal in the software without restriction subject to the following"
+    " conditions the above notice shall be included in all copies"
+)
+
+
+@pytest.fixture(name="twin_texts_db")
+def _twin_texts_db() -> Generator[str, None, None]:
+    """Two licences of one name and one text, ``B-1.0`` the popular one."""
+    rows = [Lic(f"{x}-1.0", "Twin Name License", search_text=TWIN_TEXT) for x in "AB"]
+    yield from seeded_db("test_ordering_popular", rows)
+
+
+@pytest.mark.parametrize(
+    ("popularity", "popular", "expected"),
+    [
+        ({"A-1.0": 0, "B-1.0": 1}, True, ["B-1.0", "A-1.0"]),
+        ({"A-1.0": 1, "B-1.0": 0}, True, ["A-1.0", "B-1.0"]),
+        ({"A-1.0": 0, "B-1.0": 1}, False, ["A-1.0", "B-1.0"]),
+    ],
+    ids=["b-popular", "a-popular", "popularity-off"],
+)
+def test_a_free_text_tie_is_settled_by_popularity_when_it_counts(
+    twin_texts_db: str,
+    popularity: dict[str, int],
+    popular: bool,
+    expected: list[str],
+) -> None:
+    """The popularity of 0 and of 1 give the score the same bonus
+    (``log10(max(1, n))``), so only the sort key tells them apart. Tier 2
+    passes the flag to the settling of the variant, which sorts again:
+    without it the popular twin goes back by ID. (A Tier 0 result carries
+    no ``pop_score``, so the flag changes nothing there.)"""
+    with sqlite3.connect(twin_texts_db, uri=True) as conn:
+        for lid, count in popularity.items():
+            conn.execute(
+                "UPDATE licenses SET pop_score = ? WHERE license_id = ?", (count, lid)
+            )
+    results = LicenseDetector(twin_texts_db, enable_popularity=popular).detect(
+        text=TWIN_TEXT
+    )
+    assert [r["expression"] for r in results[:2]] == expected
     assert results[0]["score"] == results[1]["score"]
 
 

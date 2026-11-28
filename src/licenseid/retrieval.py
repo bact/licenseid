@@ -44,8 +44,8 @@ from licenseid.types import CandidateMatch, DetectOptions
 
 # The first hints given are added with their text (they rank on their
 # similarity); a later one has none and scores 0. Each costs a Tier 2 pass
-# (MIT text on the real List: 0.8 s with no hint, 1.6-2.0 s with 50, 3.4-3.8 s
-# with 200, about 10 s with all 740 IDs), so the text stops at 50.
+# (MIT text on the real List: 0.007 s with no hint, 0.1 s with 10, 0.4 s with
+# 50, and the same with 200 or all 739 other IDs), so the text stops at 50.
 MAX_HINTS_WITH_TEXT: Final = 50
 
 

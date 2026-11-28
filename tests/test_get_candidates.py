@@ -22,6 +22,7 @@ from seed_sql import fill_norm_columns
 from licenseid import database, retrieval
 from licenseid.detector import LicenseDetector
 from licenseid.textgrams import GramTable
+from licenseid.textnames import text_groups
 from licenseid.types import DetectOptions
 
 
@@ -225,6 +226,23 @@ def test_get_candidates_exclude_list_filters_named_id(
 
 
 # --- hints (added after the filters by retrieval.hinted_candidates) ---
+
+
+def test_a_text_found_whole_narrows_to_a_licence_that_has_no_twin(
+    db_path: str, matcher: LicenseDetector
+) -> None:
+    """A licence alone has no ``same_text`` (``records.same_text_of``): its
+    group is itself, so Tier 2 scores its text and not the selection."""
+    _seed(db_path, "A-1.0", _words(60, "alpha"))
+    _seed(db_path, "B-1.0", _words(60, "beta"))
+    assert not text_groups(matcher.db, ["A-1.0"])
+
+    got = _candidates(matcher, DetectOptions(), _words(60, "alpha"))
+
+    assert got.narrowed is not None
+    assert got.narrowed.group == frozenset({"A-1.0"})
+    assert [row.license_id for row in got.narrowed.rows] == ["A-1.0"]
+    assert [c["license_id"] for c in got.found] == ["A-1.0"]
 
 
 def test_get_candidates_adds_no_hint(db_path: str, matcher: LicenseDetector) -> None:

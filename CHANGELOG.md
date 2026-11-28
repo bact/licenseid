@@ -43,8 +43,11 @@ and this project adheres to
   output is unchanged
 - `detect()` on free text finds its candidates by the word 3-grams it shares
   with each licence text, and aligns a fragment where its words place it in
-  a text: 15 times faster on 868 licence texts and files (353 s to 23 s of
-  CPU), from 7 to 21 times by kind of input
+  a text: 17 times faster on 868 licence texts and files (340 s to 20 s of
+  CPU), from 7 to 24 times by kind of input
+- A text near several GNU licences is about twice as fast (`GPL-CC-1.0` with
+  8 % of its words changed: 0.91 s to 0.36 s of CPU), and a 300,000 character
+  Han text peaks at 90 MB, not 130 MB: `detect()` scores a shared text once
 - `detect()` looks for whole licence texts first: an MIT file with a few more
   lines answers `MIT`, not `JSON`; the rows under it are three near texts, each
   scoring under it
@@ -56,8 +59,8 @@ and this project adheres to
 - `detect --diff` shows the part of the licence text from a whole word to a
   whole word, no longer from inside one
 - `detect()` on free text reads only the stored licence texts it compares,
-  each checked on its own: one `licenseid detect` of an MIT file takes 156 ms
-  (836 ms in 0.9.4)
+  each checked on its own: one `licenseid detect` of an MIT file takes 93 ms
+  (770 ms in 0.9.4)
 
 ## [0.9.4] - 2026-11-27
 

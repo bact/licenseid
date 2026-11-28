@@ -1,21 +1,49 @@
 ---
 Created: 2026-11-27
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-status: planned
+status: built, not released
 ---
 
 # Speed plan for 0.10.0
 
 Status: plan of 2026-11-27, agreed by the maintainer that day (sections 4
-and 5), nothing built. Base: release 0.9.4 (`527df38`);
+and 5); built by 2026-11-28, not released. The body below stays the plan as
+agreed: where the build differs, the Outcome and the notes it names decide.
+Base: release 0.9.4 (`527df38`);
 the measurements ran on `11b89de`, the same code under another version
 string. The roadmap calls this work "the new detection engine of release
 0.10.0" (decided 2026-11-27) and orders items 68, 69 and 70 after it;
 section 10 says how each open item fits.
+
+Outcome (2026-11-28), final gate run against 0.9.4 (not in the repository):
+
+- Passed (gate names of section 6.2): Core CPU 340.5 s to 19.5 s, 17.5 times
+  (need 12); Real file median 329 to 8.7 ms; One call, slowest of 8 files
+  177 ms, MIT 93, BSD-3-Clause 110; No class slower (worst 1.06, A/A 0.994);
+  Labels agree 182 to 193, other 19 to 14; Prose, TEXTS, Item 68, Damage,
+  Threads, Versions; Memory 97 MB (107); Database 17.9 MB (24.7).
+- Failed, three, each decided. Fixtures at 0.85, right 419 to 418: the
+  plan's exception. Roadmap inputs: `real:f3b34c66:LICENSE` 211 ms against
+  200 (2,059 in 0.9.4), one alignment of the Apache-2.0 text: accepted for
+  0.10.0 on 2026-11-28, item 78.
+  Standard headers (no gate of 6.2), right / wrong / none 56 / 11 / 12 to
+  54 / 10 / 15 as given, 52 / 13 / 14 to 49 / 15 / 15 cut: accepted on
+  2026-11-27 "for now, then cure later": item 71.
+- Not measured in that run: Values (462 PyPI values, 1.39 to 0.84 s
+  earlier), Accuracy test and Golden (pass in the suite), `--diff`,
+  Storage alone, Platforms (Windows not run).
+- Beyond the plan: the filter rule for `exclude`, `only_common` and
+  `only_spdx`, with name hits under `exclude` (item 74); `update` never
+  rewrites the database of a newer build.
+- Taken out: a rule for texts that hold another List text (an independent
+  review: 17 right answers wrong, 7 none to wrong, for 8 gained): item 77.
+- Detail: the notes `gram-postings`, `gram-candidates`, `word-region`,
+  `whole-text-first`, `texts-per-candidate` and `plain-text-table` in
+  `../implementation/`; `speed-0-10-evidence.md`; roadmap items 71 to 78.
 
 Every number is measured; the measurements, their method and their
 corrections are in [`speed-0-10-evidence.md`](speed-0-10-evidence.md).

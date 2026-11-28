@@ -218,6 +218,11 @@ DAMAGE: dict[str, str] = {
     "blob-number-out-of-range": "UPDATE text_postings SET ids = x'0400'",
     # || joins as text: the cast gives the bytes back.
     "blob-number-twice": "UPDATE text_postings SET ids = CAST(ids || ids AS BLOB)",
+    # One number once too often: a text named 1 time more than it has grams.
+    "blob-number-once-too-often": (
+        "UPDATE text_postings SET ids = CAST(ids || ids AS BLOB)"
+        " WHERE h = (SELECT min(h) FROM text_postings)"
+    ),
     "blob-text": "UPDATE text_postings SET ids = hex(ids)",
     "blob-null": "UPDATE text_postings SET ids = NULL",
     "postings-emptied": "DELETE FROM text_postings",

@@ -60,10 +60,10 @@ expression cannot be judged and the others do not decide it
 (`MIT OR LicenseRef-x` is `True`, `MIT AND LicenseRef-x` is `None`).
 
 `detect()` applies no threshold and no top: it returns every candidate it
-ranks (dozens for a LICENSE file), best first. Filter on `score` and
-`exact` yourself; the `is_*()` predicates use a bar of 0.85. A file of the
-texts of several licences whose first text is not the top result's returns
-`[]` ([output.md](output.md), `TEXTS`).
+ranks (one to nine for a licence text, four for most), best first. Filter
+on `score` and `exact` yourself; the `is_*()` predicates use a bar of 0.85.
+A file of the texts of several licences whose first text is not the top
+result's returns `[]` ([output.md](output.md), `TEXTS`).
 
 `texts()` (`licenseid.texts()`, or `LicenseDetector.texts()`) lists the
 List texts an input holds whole, with no answer to name first, as the
@@ -204,13 +204,14 @@ input, as any candidate does, for the first 50 entries of `hint` (a set in
 sorted order; a bare deprecated ID counts as its two twins; an ID given
 twice, with no row, or dropped by `exclude`, `only_spdx` or `only_common`
 uses no place). Each costs a pass of the
-second tier: on the full List the MIT text takes about twice as long with 50
-hints as with none (1 s and 0.4 s on one laptop), and each further text
-adds to it. That is why an entry beyond the fiftieth is added with no
-text and scores 0, last. A deprecated row that has no text does too: a bare
-`GPL-2.0` (kept as written under `variant="as-written"`), or a `-with-` ID
-such as `GPL-2.0-with-classpath-exception`. Under the other variants a bare
-deprecated ID stands for its two twins, which have text.
+second tier: on the full List the MIT text takes 0.007 s with no hint, 0.1 s
+with 10 and 0.4 s with 50 (on one laptop), about 8 ms for each hinted text.
+No entry beyond the fiftieth adds to it: it is added with no text and scores
+0, last (0.4 s with 200 hints, and with all of the List's IDs). A deprecated row
+that has no text does too: a bare `GPL-2.0` (kept as written under
+`variant="as-written"`), or a `-with-` ID such as
+`GPL-2.0-with-classpath-exception`. Under the other variants a bare deprecated
+ID stands for its two twins, which have text.
 
 To record a licence a package *declares* (a `license` field, a model card),
 use `licenseid.resolve()`. It returns the SPDX expression and each step taken,

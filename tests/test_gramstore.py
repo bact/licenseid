@@ -211,6 +211,33 @@ def test_a_blob_that_does_not_read_is_damage(blob: object) -> None:
         checked_blob(blob, 2)
 
 
+@pytest.mark.parametrize(
+    ("copies", "damaged"), [(1, False), (2, True)], ids=["once", "twice"]
+)
+def test_a_text_is_named_at_most_as_often_as_it_has_grams(
+    copies: int, damaged: bool
+) -> None:
+    """A-1.0 holds 10 distinct grams: asked for all of them, 10 numbers
+    name it. One more, a blob that holds its number twice, is damage."""
+    with _connection(TEXTS) as conn:
+        index = load(conn)
+        assert isinstance(index, StoredPostings)
+        assert index.sizes[0] == 10
+        grams = input_grams(TEXTS["A-1.0"])
+        assert len(grams) == 10
+        (blob,) = conn.execute(
+            "SELECT ids FROM text_postings WHERE h = ?", (grams[-1],)
+        ).fetchone()
+        conn.execute(
+            "UPDATE text_postings SET ids = ? WHERE h = ?", (blob * copies, grams[-1])
+        )
+        if damaged:
+            with pytest.raises(Damaged):
+                index.shared(conn, grams)
+        else:
+            assert index.shared(conn, grams)[0] == 10
+
+
 def test_a_blob_of_whole_items_reads() -> None:
     assert checked_blob(b"\x01\x00", 2) == b"\x01\x00"
 
