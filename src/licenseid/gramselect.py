@@ -24,12 +24,18 @@ the text)``. Then, in this order (plan of 0.10.0, section 3.1):
    scores the earlier row first (``textgrams.ranked``), never an order a
    hash gives.
 
+The whole-text search of ``TEXTS`` reads the texts :func:`searched` gives,
+of the unfiltered table (``licenseid.textcandidates``). When it finds exactly
+one text, Tier 2 scores that text's same-text group and runner-ups instead
+of the selection (:func:`narrowed`), unless the guard holds.
+
 The markers and the hinted licences join after these, also when the bar left
 none (``licenseid.retrieval.add_free_text``). An input of very many distinct
 grams has only its first :data:`GRAM_LIMIT` looked up.
 """
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from fractions import Fraction
 from math import isclose
 from typing import Final, NamedTuple
 
@@ -53,6 +59,21 @@ MOST: Final = 20
 #: over ``textlocate.MAX_INPUT_TOKENS`` tokens). No List text comes near it
 #: (GPL-3.0 has about 5,000 distinct grams).
 GRAM_LIMIT: Final = 50_000
+#: The whole-text search reads the first texts by score, this many...
+SEARCHED_TOP: Final = 20
+#: ... and every text the input holds this share of the grams of, or of its
+#: core's where that is smaller: a file of many texts holds each whole, far
+#: down the scores (``TEXTS`` equal to a search of every text on the 868
+#: inputs of the core set and the 165 of the many-text set).
+HELD: Final = 0.5
+#: No narrowing when another text shares more than this times the grams the
+#: text found shares: a shorter text held whole inside a fragment of a longer
+#: one (``SSH-short`` in an ``SSH-OpenSSH`` head). Any margin from 1.02 to
+#: 1.25 gives the same result.
+GUARD_MARGIN: Final = Fraction(11, 10)
+#: Texts Tier 2 scores beside a text found whole, in gram order, each scoring
+#: :data:`NONE_BAR` or more (decision D3 of the plan).
+RUNNER_UPS: Final = 3
 
 
 class ListFlags(NamedTuple):
@@ -113,3 +134,76 @@ def selected(rows: Sequence[GramScore]) -> list[GramScore]:
         for at, row in enumerate(order[:MOST])
         if at < TOP or row.score >= edge or isclose(row.score, edge)
     ]
+
+
+def is_held(row: GramScore, core_grams: Callable[[str], int | None]) -> bool:
+    """Whether the input holds :data:`HELD` of the grams of *row*'s text, or
+    of its core's where that is smaller (*core_grams* by licence ID; None:
+    no core). The core is asked only when the text alone falls short."""
+    if row.shared >= HELD * row.size:
+        return True
+    core = core_grams(row.license_id)
+    return core is not None and row.shared >= HELD * min(core, row.size)
+
+
+def searched(
+    rows: Sequence[GramScore], core_grams: Callable[[str], int | None]
+) -> list[str]:
+    """The licence IDs whose texts the whole-text search reads: of *rows*
+    (unfiltered), the first :data:`SEARCHED_TOP` by score and every other
+    one :func:`is_held`, best first."""
+    order = ranked(rows)
+    return [
+        row.license_id
+        for at, row in enumerate(order)
+        if at < SEARCHED_TOP or is_held(row, core_grams)
+    ]
+
+
+def guarded(rows: Iterable[GramScore], group: Collection[str]) -> bool:
+    """Whether a text of *rows* shares more than :data:`GUARD_MARGIN` times
+    the grams that *group*, the same-text group of the one text found,
+    shares with the input at best (so no member of it does): then the found
+    text explains less of the input than that one, and Tier 2 is not
+    narrowed to it."""
+    rows = list(rows)
+    own = max((row.shared for row in rows if row.license_id in group), default=0)
+    # In whole numbers: a Fraction a row costs a millisecond on a long input.
+    limit = own * GUARD_MARGIN.numerator
+    return any(row.shared * GUARD_MARGIN.denominator > limit for row in rows)
+
+
+class Narrowed(NamedTuple):
+    """What Tier 2 scores beside a text found whole."""
+
+    #: The texts to score: the group's first, then the runner-ups.
+    rows: tuple[GramScore, ...]
+    #: The IDs of the found text's same-text group.
+    group: frozenset[str]
+    #: The IDs of the runner-ups: each is left out where it scores as high as
+    #: the group or higher (decision Q1 of the plan).
+    runner_ups: frozenset[str]
+
+
+def narrowed(
+    rows: Sequence[GramScore], passed: Sequence[GramScore], group: Collection[str]
+) -> Narrowed | None:
+    """The texts Tier 2 scores when the search found one text, *group* its
+    same-text group: the members of *group* the filters left (*passed*, the
+    filtered *rows*), then the first :data:`RUNNER_UPS` others of *passed*
+    by score that reach :data:`NONE_BAR`. None, the selection then, when the
+    filters took every member out or :func:`guarded` holds."""
+    if guarded(rows, group):
+        return None
+    order = ranked(passed)
+    own = [row for row in order if row.license_id in group]
+    if not own:
+        return None
+    rivals = [
+        row for row in order if row.license_id not in group and row.score >= NONE_BAR
+    ][:RUNNER_UPS]
+    return Narrowed(
+        tuple(own + rivals),
+        frozenset(group),
+        frozenset(row.license_id for row in rivals),
+    )

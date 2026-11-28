@@ -7,7 +7,7 @@
 tie-breaker that runs after ranking."""
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 
 from licenseid.grantsubject import (
     NO_GRANT,
@@ -176,3 +176,18 @@ def apply_version_suffix_tiebreaker(
         ranked.sort(key=ranking_key(enable_pop))
 
     return ranked
+
+
+def under_found(
+    ranked: list[InternalMatch], group: Collection[str], runner_ups: Collection[str]
+) -> list[InternalMatch]:
+    """*ranked* without the runner-ups (*runner_ups*, the IDs Tier 2 scored
+    beside a text found whole) that score as high as the best of that text's
+    same-text group (*group*) or higher: a runner-up ranks under the text
+    found, with its own score, or is left out (decision Q1 of the plan of
+    0.10.0: every later step sorts and filters by score). Unchanged when no
+    member of *group* is ranked."""
+    best = max((m["score"] for m in ranked if m["license_id"] in group), default=None)
+    if best is None:
+        return ranked
+    return [m for m in ranked if m["license_id"] not in runner_ups or m["score"] < best]

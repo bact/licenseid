@@ -118,7 +118,17 @@ declared values, SPDX expressions and the matching pipeline.
     up, once, in the postings `licenseid update` stores. Every List text that
     shares a gram scores `shared / min(grams of the input, grams of the
     text)`. `exclude`, `only_spdx` and `only_common` take their licences out
-    first. A best score under 0.1 gives no candidate; else the second tier
+    first. A best score under 0.1 gives no candidate. Else the input is
+    first searched for whole texts (`TEXTS`, below) among the texts of the
+    first 20 scores and every text it holds half of the runs of three words
+    of (or of its core's, where that is smaller), whatever the filters.
+    Where that search finds one text alone, the second tier scores the
+    licences of that text that the filters leave and three others, the next
+    by score that reach 0.1; one of those three that scores as high as the
+    text found or higher is left out, so the text found answers. It does not
+    when another text shares more than 1.1 times the runs of words the text
+    found shares (a short text held whole inside part of a longer one), nor
+    when the filters took the text found out. Otherwise the second tier
     scores the first 3 texts by score and every text within 0.05 of the
     best, at most 20 (equal scores in table order). The candidates of
     markers and hints join after them. Only the first 50,000 distinct grams
@@ -143,8 +153,10 @@ declared values, SPDX expressions and the matching pipeline.
     where it does not stay, a candidate whose text is not among those found
     is dropped. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and their
     ranges, is in [output.md](output.md#default-and-verbose-text).
-  - **Whole texts (`TEXTS`)**: After the ranking, the input is searched for
-    every whole text of the List, without a database query per text. Words
+  - **Whole texts (`TEXTS`)**: Before the ranking, the input is searched
+    for the whole texts among the candidates of Tier 1 above (one set an
+    input: a text the input holds whole shares every run of its words with
+    it), without a database query per text. Words
     become one code each; a text is first sampled by its word 5-grams, and
     one that the input holds has most of them. The word 5-grams of such a
     text vote for an offset, and neighbouring offsets with enough votes make a
@@ -180,7 +192,7 @@ declared values, SPDX expressions and the matching pipeline.
     only for a critical word still counts as that look-alike's rival.
     The texts are named in the order the input first gives each.
   - **First text**: When the top result is a text match, not exact, of an
-    input of 40 words or more, that search runs for every output (the `is-*`
+    input of 40 words or more, that search is read for every output (the `is-*`
     commands and the terse `detect` too). Where it finds the texts of two
     licences or more (licences of one text count as one), the results stand
     only when the first text found is the answer's; otherwise there is no

@@ -81,7 +81,11 @@ in another module.
   `retrieval` (Tier 1: one gram lookup a call, filters, markers and hints)
   with `gramselect` (which texts Tier 2 scores: filters first, none under
   0.1, the first 3 and those within 0.05, at most 20; the bound on grams
-  read), `textcorpus` (word codes) and `textstore` (stored),
+  read; whole text first: the texts searched, the guard, one text found
+  narrows to its group and three runner-ups, `ranking.under_found` leaves
+  out one that scores as high), `textcandidates` (one candidate set an input
+  for every reader of `wholetexts.found_texts`, unfiltered; a search an
+  answer group), `textcorpus` (word codes) and `textstore` (stored),
   `textgrams` (tokens, word 3-grams and their hashes, the gram score) and
   `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,

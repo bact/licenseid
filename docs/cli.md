@@ -169,6 +169,10 @@ Common options:
   the licence texts the input holds ([output.md](output.md)). Under
   `REASON=several texts` there is no result to show at any threshold.
 - `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
+  Where the input holds one licence text whole, the results after the
+  licences of that text are at most three others, those that share the most
+  runs of three words with the input, each scoring under the answer: one
+  that scores as high is left out ([how-it-works.md](how-it-works.md)).
 - `--exact`: Keep only exact results (`EXACT=true`, see [output.md](output.md)).
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
 - `--variant auto|as-written|only|or-later`: What to answer for a licence

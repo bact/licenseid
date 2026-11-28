@@ -25,8 +25,9 @@ from licenseid.cli import cli
 pytestmark = pytest.mark.terse_cli
 
 MORE = A + " extra words here"  # A-1.0 by text, not exactly
-# Forty words no licence holds: no candidate, but searched.
-GIBBERISH = " ".join(f"zqx{n}vk" for n in range(40))
+# Forty words no licence holds after one gram of A-1.0's (and B-1.0's): no
+# candidate (a score of 1/42, under the none bar), but a text to search.
+GIBBERISH = "permission is granted " + " ".join(f"zqx{n}vk" for n in range(40))
 
 
 @pytest.fixture
@@ -111,7 +112,9 @@ def test_the_terse_output_makes_no_second_search(
     found_rows.rows, found_rows.first = ["A-1.0", "B-1.0"], "B-1.0"
     result = _run(db_path, "--text", MORE)
     assert (result.exit_code, result.stdout) == (1, "\n")
-    assert len(found_rows.calls) == 1  # the rule's; nothing printed needs more
+    # Tier 2's search, then the rule's (two texts found); nothing printed
+    # needs more.
+    assert [answer for _, answer in found_rows.calls] == ["", "A-1.0"]
 
 
 def test_a_declared_id_of_no_answer_is_not_searched(

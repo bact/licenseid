@@ -26,6 +26,9 @@ and this project adheres to
   with each licence text, and aligns a fragment where its words place it in
   a text: 15 times faster on 868 licence texts and files (353 s to 23 s of
   CPU), from 7 to 21 times by kind of input
+- `detect()` looks for whole licence texts first: an MIT file with a few more
+  lines answers `MIT`, not `JSON`; the rows under it are three near texts, each
+  scoring under it
 - `detect()` on free text no longer lists a far, low-scoring row; an input that
   shares too few runs of three words with any text has `REASON` `no match`, no
   longer `below threshold`, and lists nothing

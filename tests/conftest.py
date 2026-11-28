@@ -31,13 +31,11 @@ from seed_sql import fill_norm_columns
 
 from licenseid import (
     console,
-    firsttext,
     keptdetector,
     listindex,
     listsource,
-    markerfloor,
     spdxdata,
-    textnames,
+    textcandidates,
     warning,
 )
 from licenseid.cli import cli
@@ -127,8 +125,8 @@ class FoundRows:
 
 @pytest.fixture
 def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
-    """Stand in for ``wholetexts.found_texts`` (as ``textnames``,
-    ``markerfloor`` and ``firsttext`` call it) and for the corpus the
+    """Stand in for ``wholetexts.found_texts`` (as ``textcandidates`` calls
+    it for ``textnames``, ``markerfloor`` and ``firsttext``) and for the corpus the
     database builds (a real one, which Tier 2's word regions read): the
     test sets ``rows`` (and ``first``), and reads ``calls`` and ``built``. A
     detector made before the test would keep a corpus of its own: use a new
@@ -147,9 +145,7 @@ def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
             return None
         return Found(list(fake.rows), fake.first or answer_id)
 
-    monkeypatch.setattr(textnames, "found_texts", search)
-    monkeypatch.setattr(markerfloor, "found_texts", search)
-    monkeypatch.setattr(firsttext, "found_texts", search)
+    monkeypatch.setattr(textcandidates, "found_texts", search)
     monkeypatch.setattr(TextCorpus, "build", staticmethod(build))
     return fake
 

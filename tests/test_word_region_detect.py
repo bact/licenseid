@@ -32,8 +32,10 @@ from rapidfuzz import fuzz
 from timing import slack
 
 from licenseid import similarity, wordregion
+from licenseid.database import candidate_rows
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
+from licenseid.retrieval import text_candidates
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.textcorpus import TextCorpus
 from licenseid.textgrams import split_words
@@ -138,9 +140,10 @@ def test_the_input_is_coded_once_a_call() -> None:
 
 def _ranked(candidate: CandidateMatch) -> list[tuple[str, float]]:
     detector = long_text_detector()
+    norm = normalize_text(FRAGMENTS["middle"])
     with detector.db.reading():
         ranked = detector._rank_candidates(  # pylint: disable=protected-access
-            [candidate], normalize_text(FRAGMENTS["middle"]), DetectOptions()
+            [candidate], text_candidates(detector.db, norm, norm), DetectOptions()
         )
     return [(r["license_id"], r["similarity"]) for r in ranked]
 
@@ -363,9 +366,13 @@ def test_a_japanese_text_is_not_aligned_by_words_with_an_english_one() -> None:
     """One code a Han or kana character: a Japanese input has as many codes
     as characters, and aligning them with an English text's codes cost as
     much as the character steps. They share no code, so no word alignment
-    is made (``wordregion.best_possible``)."""
+    is made (``wordregion.best_possible``). Ranked beside an English text by
+    hand: ``detect()`` finds the Japanese text whole and scores no English
+    one beside it (no runner-up shares a tenth of its grams)."""
     text = _text("CC-BY-SA-2.1-JP")
     norm = normalize_text(text)
+    detector = long_text_detector()
+    assert detector.detect(text)[0]["expression"] == "CC-BY-SA-2.1-JP"
     bounds: list[float] = []
     real = wordregion.best_possible
 
@@ -381,9 +388,14 @@ def test_a_japanese_text_is_not_aligned_by_words_with_an_english_one() -> None:
             autospec=True,
             side_effect=fuzz.partial_ratio_alignment,
         ) as alignment,
+        detector.db.reading(),
     ):
-        results = long_text_detector().detect(text)
-    assert results[0]["expression"] == "CC-BY-SA-2.1-JP"
+        ranked = detector._rank_candidates(  # pylint: disable=protected-access
+            candidate_rows(detector.db, ["CC-BY-SA-2.1-JP", "Apache-2.0"]),
+            text_candidates(detector.db, norm, norm),
+            DetectOptions(),
+        )
+    assert ranked[0]["license_id"] == "CC-BY-SA-2.1-JP"
     assert bounds
     assert all(bound < 20 for bound in bounds)
     assert all(call.args[0] == norm for call in alignment.call_args_list)

@@ -21,12 +21,13 @@ critical words and the tokens of ``licenseid.textgrams``.
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from itertools import accumulate
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
 from licenseid.similarity import CRITICAL_TOKENS
-from licenseid.textgrams import TOKEN, split_words
+from licenseid.textgrams import GRAM_SIZE, TOKEN, split_words
 
 #: The code of an input word that no List text holds: it matches nothing.
 UNKNOWN: Final = "\0"
@@ -191,6 +192,16 @@ class CodedText:
                 right = chars.bounds(end, end + 1)[0] if inner else len(self.text)
                 least -= right - left - (1 if start and inner else 0)
         object.__setattr__(self, "least", least)
+
+    @cached_property
+    def gram_count(self) -> int:
+        """The distinct word 3-grams of the text (a gram of codes is one of
+        words, as ``licenseid.gramstore`` counts a text's size), worked out
+        at the first question and kept."""
+        codes = self.codes
+        return len(
+            {codes[at : at + GRAM_SIZE] for at in range(len(codes) - GRAM_SIZE + 1)}
+        )
 
 
 def _token_runs(regions: Sequence[VarRegion]) -> list[Span]:

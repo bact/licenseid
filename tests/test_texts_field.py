@@ -30,6 +30,8 @@ from licenseid.database import text_corpus
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.result import json_line, no_detection_line, text_line
+from licenseid.retrieval import text_candidates
+from licenseid.textcandidates import TextCandidates
 from licenseid.types import Variant
 
 MORE = A + " extra words here"  # A-1.0 by text, not exactly
@@ -49,7 +51,9 @@ def test_every_result_has_the_texts_and_a_list_of_its_own(
     assert [r["texts"] for r in results] == [["A-1.0", "B-1.0"]] * 2
     results[0]["texts"].append("changed")  # type: ignore[union-attr]
     assert results[1]["texts"] == ["A-1.0", "B-1.0"]
-    assert len(found_rows.calls) == 1  # one search for the call, not per result
+    # One search for the call, not per result: Tier 2's, with no answer
+    # (``textcandidates``), then the answer's, as it found several texts.
+    assert [answer for _, answer in found_rows.calls] == ["", "A-1.0"]
 
 
 def test_the_search_gets_the_normalised_input_and_the_answers_row(
@@ -57,7 +61,9 @@ def test_the_search_gets_the_normalised_input_and_the_answers_row(
 ) -> None:
     found_rows.rows = ["A-1.0"]
     LicenseDetector(db_path).detect(text=MORE)
-    assert found_rows.calls == [(normalize_text(MORE), "A-1.0")]
+    # The search before Tier 2 has no answer; it found the answer's text
+    # alone, so it stands for the answer's (``textcandidates``).
+    assert found_rows.calls == [(normalize_text(MORE), "")]
 
 
 def test_nothing_found_is_none_on_every_result(
@@ -75,7 +81,8 @@ def test_an_exact_answer_holds_its_own_text_and_is_not_searched(
     results = LicenseDetector(db_path).detect(text=A)
     assert (results[0]["expression"], results[0]["exact"]) == ("A-1.0", True)
     assert [r["texts"] for r in results] == [["A-1.0"]] * len(results)
-    assert not found_rows.calls
+    # Only the search before Tier 2 (whole text first), with no answer.
+    assert [answer for _, answer in found_rows.calls] == [""]
 
 
 @pytest.mark.parametrize(
@@ -305,12 +312,17 @@ def _text_result(license_id: str, *, exact: bool = False, method: str = "text") 
     }
 
 
+def _more(db: Any) -> TextCandidates:
+    """The whole-text search of ``MORE``."""
+    return text_candidates(db, MORE, normalize_text(MORE))
+
+
 def _held(db_path: str, result: Any, variant: Variant = "auto") -> list[str] | None:
     """``TEXTS`` of *result* as ``detect()`` makes it: the search of
     ``firsttext``, then the names of ``textnames``."""
     db = LicenseDetector(db_path).db
     with db.reading():
-        settled, found = firsttext.settle_texts([result], normalize_text(MORE), db)
+        settled, found = firsttext.settle_texts([result], _more(db), db)
         return textnames.held_texts(db, settled, variant, found)
 
 
@@ -325,7 +337,7 @@ def test_only_a_text_match_is_searched(db_path: str, found_rows: FoundRows) -> N
 
 def test_no_result_is_no_texts(db_path: str, found_rows: FoundRows) -> None:
     db = LicenseDetector(db_path).db
-    assert firsttext.settle_texts([], normalize_text(MORE), db) == ([], None)
+    assert firsttext.settle_texts([], _more(db), db) == ([], None)
     assert textnames.held_texts(db, [], "auto", None) is None
     assert not found_rows.calls
 

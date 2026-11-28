@@ -36,7 +36,7 @@ from licenseid.markerfloor import doubt_floors
 from licenseid.markers import MarkerDetector
 from licenseid.namehits import refusal_answer
 from licenseid.normalize import normalize_text
-from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
+from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key, under_found
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
 from licenseid.resolvereason import is_plus_refusal, no_text_answer, refuses_text_match
@@ -44,7 +44,12 @@ from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.resolveurl import urls_as_ids
 from licenseid.result import public_result
-from licenseid.retrieval import Candidates, add_free_text, get_candidates
+from licenseid.retrieval import (
+    Candidates,
+    add_free_text,
+    get_candidates,
+    text_candidates,
+)
 from licenseid.shorttext import (
     EXACT_MATCH_SCORE,
     exact_id_match,
@@ -58,6 +63,7 @@ from licenseid.similarity import (
     score_candidates,
     with_core,
 )
+from licenseid.textcandidates import TextCandidates
 from licenseid.textnames import held_texts, input_texts, skipped
 from licenseid.types import (
     CandidateMatch,
@@ -342,11 +348,13 @@ class LicenseDetector:
         ctx: _MatchContext,
         marker_candidates: list[CandidateMatch],
         marker_boosts: dict[str, float],
-    ) -> tuple[list[InternalMatch], bool]:
+    ) -> tuple[list[InternalMatch], TextCandidates]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
-        (Precision Ranking), and whether Tier 1 read only some of the
-        input's grams. Never short-circuits detect()."""
-        candidates, bounded = self._get_candidates(ctx.request, ctx.target_text)
+        (Precision Ranking), and the whole-text search of the input, which
+        every reader of ``TEXTS`` shares. Never short-circuits detect()."""
+        texts = text_candidates(self.db, ctx.target_text, ctx.norm_input)
+        found = get_candidates(self.db, ctx.request, ctx.target_text, texts)
+        candidates = found.found
 
         # Merge the marker candidates, then the hinted ones, not already among
         # the gram candidates, also when there are none. A prose marker is
@@ -359,12 +367,16 @@ class LicenseDetector:
         # confidence floor for mixed content (marker is primary signal).
         ranked = self._rank_candidates(
             candidates,
-            ctx.norm_input,
+            texts,
             ctx.request,
             marker_boosts=marker_boosts,
             is_pure=ctx.is_pure,
         )
-        return ranked, bounded
+        if found.narrowed is not None:  # its runner-ups rank under the text
+            ranked = under_found(
+                ranked, found.narrowed.group, found.narrowed.runner_ups
+            )
+        return ranked, texts
 
     def detect(
         self,
@@ -511,30 +523,33 @@ class LicenseDetector:
         if short_text_result:  # a name hit is free text: exclude drops it
             excluded = excluded_ids(ctx.request.get("exclude", []))
             short_text_result = free_text_hits(short_text_result, excluded) or None
+        pop = ctx.request.get("enable_popularity", self.enable_popularity)
         if short_text_result is not None:
             return settle_free_text(
-                short_text_result, ctx.target_text, ctx.is_pure, ctx.request
+                short_text_result,
+                ctx.target_text,
+                ctx.is_pure,
+                ctx.request,
+                popular=pop,
             )
 
         # Tier 1: Broad Recall, then Tier 2: Precision Ranking; not for a
         # short input resolve() refused (resolvefirst).
         if too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text):
             return []
-        ranked, bounded = self._run_tier1_and_tier2(
-            ctx, marker_candidates, marker_boosts
-        )
+        ranked, texts = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
 
         # Tiebreaker: -only vs -or-later when scores are identical
-        pop = ctx.request.get("enable_popularity", self.enable_popularity)
         ranked = apply_version_suffix_tiebreaker(
             ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
-        settled = settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
-        found: Found | None = None  # past the bound of grams read: no TEXTS
-        if not bounded:
-            # In a file of several licence texts, a text answer stands only
-            # when its text comes first (firsttext); its one search gives TEXTS.
-            settled, found = settle_texts(settled, ctx.norm_input, self.db)
+        settled = settle_free_text(
+            ranked, ctx.target_text, ctx.is_pure, ctx.request, popular=pop
+        )
+        # In a file of several licence texts, a text answer stands only when
+        # its text comes first (firsttext); its search gives TEXTS (none past
+        # the bound of grams read).
+        settled, found = settle_texts(settled, texts, self.db)
         return self._with_texts(settled, ctx, found)
 
     def _with_texts(
@@ -569,7 +584,8 @@ class LicenseDetector:
         file_path = check_request(text, None, file_path, {"variant": variant})
         target_text = target_text_of(text, file_path)
         with self.db.reading():
-            return input_texts(self.db, normalize_text(target_text), variant)
+            texts = text_candidates(self.db, target_text)
+            return input_texts(self.db, texts, variant)
 
     def _resolve_record(
         self,
@@ -661,13 +677,15 @@ class LicenseDetector:
     def _rank_candidates(
         self,
         candidates: list[CandidateMatch],
-        norm_input: str,
+        texts: TextCandidates,
         data: DetectOptions,
         marker_boosts: dict[str, float] | None = None,
         is_pure: bool = True,
     ) -> list[InternalMatch]:
         """Rank candidates using dynamic sliding window and
-        marker-boosted scoring."""
+        marker-boosted scoring; *texts* is the whole-text search of the
+        normalised input (``TextCandidates.norm_input``)."""
+        norm_input = texts.norm_input
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         parts = text_parts(self.db)
         # The corpus is read at the first candidate a word region is asked of.
@@ -679,7 +697,7 @@ class LicenseDetector:
             is_pure,
             enable_popularity,
         )
-        ranked = doubt_floors(ranked, norm_input, self.db)
+        ranked = doubt_floors(ranked, texts, self.db)
         boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked

@@ -200,9 +200,9 @@ def _tier1_misses_bsd_1(monkeypatch: pytest.MonkeyPatch) -> None:
     candidates of a filled BSD-1-Clause text."""
 
     def without_bsd_1(*args: Any, **kwargs: Any) -> Candidates:
-        found, bounded = get_candidates(*args, **kwargs)
-        return Candidates(
-            [c for c in found if c["license_id"] != "BSD-1-Clause"], bounded
+        got = get_candidates(*args, **kwargs)
+        return got._replace(
+            found=[c for c in got.found if c["license_id"] != "BSD-1-Clause"]
         )
 
     monkeypatch.setattr(detector, "get_candidates", without_bsd_1)

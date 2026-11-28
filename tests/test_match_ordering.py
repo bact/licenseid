@@ -23,6 +23,7 @@ from licenseid.classify import has_or_later_language
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import disambiguate_deprecated_id
 from licenseid.ranking import DEP_PENALTY, apply_version_suffix_tiebreaker
+from licenseid.retrieval import text_candidates
 from licenseid.types import CandidateMatch, DetectOptions, InternalMatch
 
 
@@ -61,7 +62,9 @@ def rank(
     request = DetectOptions()
     if enable_popularity is not None:
         request["enable_popularity"] = enable_popularity
-    return ordering_matcher._rank_candidates(candidates, "x", request)
+    return ordering_matcher._rank_candidates(
+        candidates, text_candidates(ordering_matcher.db, "x", "x"), request
+    )
 
 
 # -- The ranking key (_rank_candidates) -----------------------------------

@@ -5,9 +5,14 @@
 
 """Tier 1 retrieval: the List texts that share word 3-grams with an input,
 as ``licenseid.gramselect`` selects them, and the hinted candidates,
-filtered the same way."""
+filtered the same way.
 
-from collections.abc import Collection, Iterable
+Whole text first (plan of 0.10.0, section 3.1, steps 5 to 7): when the
+search of ``TEXTS`` (``licenseid.textcandidates``) finds exactly one text in
+the input, Tier 2 scores that text's same-text group and three runner-ups
+(``gramselect.narrowed``), which rank under it; otherwise the selection."""
+
+from collections.abc import Collection, Iterable, Sequence
 from typing import Final, NamedTuple
 
 from licenseid.database import (
@@ -15,19 +20,25 @@ from licenseid.database import (
     candidate_rows,
     gram_scores,
     list_flags,
+    text_corpus,
 )
 from licenseid.exprflags import with_judged_flags
 from licenseid.gramselect import (
     GRAM_LIMIT,
     Filters,
     ListFlags,
+    Narrowed,
     filtered,
+    narrowed,
     passes,
     selected,
 )
 from licenseid.idoptions import excluded_ids, folded
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text, strip_comment_prefixes
+from licenseid.textcandidates import TextCandidates
+from licenseid.textgrams import GramScore
+from licenseid.textnames import text_groups
 from licenseid.types import CandidateMatch, DetectOptions
 
 # The first hints given are added with their text (they rank on their
@@ -136,6 +147,9 @@ class Candidates(NamedTuple):
     #: Whether the input had more distinct grams than were looked up
     #: (``gramselect.GRAM_LIMIT``): then ``TEXTS`` is None.
     bounded: bool
+    #: The text found whole that Tier 2 was narrowed to, with its runner-ups;
+    #: None when Tier 2 scores the selection.
+    narrowed: Narrowed | None = None
 
 
 def filters_of(options: DetectOptions) -> Filters:
@@ -154,15 +168,55 @@ def gram_text(text: str) -> str:
     return normalize_text(strip_comment_prefixes(text))
 
 
+def text_candidates(
+    db: LicenseDatabase, text: str, norm_input: str | None = None
+) -> TextCandidates:
+    """The whole-text search of *text* (*norm_input*: its normalised form,
+    if the caller has it): the grams of :func:`gram_text` are looked up at
+    its first use, once."""
+    return TextCandidates(
+        normalize_text(text) if norm_input is None else norm_input,
+        lambda: gram_scores(db, gram_text(text), GRAM_LIMIT),
+        lambda: text_corpus(db),
+    )
+
+
+def _narrowed(
+    db: LicenseDatabase, texts: TextCandidates, passed: list[GramScore]
+) -> Narrowed | None:
+    """Tier 2 narrowed to the one text the search of *texts* finds, with no
+    answer to rank first, or None (no text, several, the guard, or the
+    filters took it out: *passed* is the filtered table)."""
+    found = texts.found("")
+    if found is None or len(found.rows) != 1:
+        return None
+    row = found.rows[0]
+    group = text_groups(db, [row]).get(row) or (row,)
+    return narrowed(texts.table.rows, passed, group)
+
+
 def get_candidates(
-    db: LicenseDatabase, options: DetectOptions, text: str
+    db: LicenseDatabase,
+    options: DetectOptions,
+    text: str,
+    texts: TextCandidates | None = None,
 ) -> Candidates:
     """The candidates of Tier 1 for *text*: the grams of :func:`gram_text`
     looked up once, the score table filtered by *options* (``exclude``,
-    ``only_spdx``, ``only_common``), then the texts ``gramselect.selected``
-    keeps, best first, each with its text and row."""
-    table = gram_scores(db, gram_text(text), GRAM_LIMIT)
-    rows = selected(filtered(table.rows, list_flags(db), filters_of(options)))
+    ``only_spdx``, ``only_common``), then the texts ``gramselect.narrowed``
+    keeps when the whole-text search of *texts* (made here if not given)
+    finds one text, else those ``gramselect.selected`` keeps, best first,
+    each with its text and row. Neither under the none bar."""
+    texts = text_candidates(db, text) if texts is None else texts
+    table = texts.table
+    passed = filtered(table.rows, list_flags(db), filters_of(options))
+    rows: Sequence[GramScore] = selected(passed)
+    # Under the none bar no text is a candidate, found whole or not.
+    narrow = _narrowed(db, texts, passed) if rows else None
+    if narrow is not None:
+        rows = narrow.rows
     return Candidates(
-        candidate_rows(db, [row.license_id for row in rows]), table.bounded
+        candidate_rows(db, [row.license_id for row in rows]),
+        table.bounded,
+        narrow,
     )

@@ -112,9 +112,13 @@ def answers(detector: LicenseDetector, **kwargs: Any) -> list[str]:
     return [r["expression"] for r in detector.detect(**kwargs)]
 
 
-# BODY's answers, best first: the top 3 by gram score (X11 is fourth, over
-# 0.05 under MIT). With MIT excluded, the selection is of the rest: REST.
+# BODY's answers, best first: BODY holds MIT's text whole, so Tier 2 scores
+# MIT and the three runner-ups by gram score (whole text first), which rank
+# under it: FOUND. NEAR is the top 3 by gram score (X11 is fourth, over 0.05
+# under MIT). With MIT excluded no text found is left, and the selection is
+# of the rest: REST.
 NEAR = ["MIT", "JSON", "MIT-0"]
+FOUND = [*NEAR, "X11"]
 REST = ["JSON", "MIT-0", "X11"]
 GPL = "GPL-2.0-only"
 
@@ -122,33 +126,36 @@ GPL = "GPL-2.0-only"
 @pytest.mark.parametrize(
     ("options", "expected"),
     [
-        ({}, NEAR),
+        ({}, FOUND),
         ({"exclude": ["MIT"]}, REST),
         # DECISION: exclude and hint both fold case (IDs are case-insensitive).
         ({"exclude": ["mit"]}, REST),
-        ({"exclude": ["Nope-1.0"]}, NEAR),
-        ({"exclude": [*NEAR, "X11"]}, []),
-        ({"hint": ["MIT"]}, NEAR),  # already a candidate: nothing added
-        ({"hint": ["Nope-1.0"]}, NEAR),  # no row: nothing added
-        ({"hint": [GPL]}, [*NEAR, GPL]),  # added last, scored on its text
-        ({"hint": ["gpl-2.0-only"]}, [*NEAR, GPL]),
-        ({"hint": ["mit"]}, NEAR),  # folded: already a candidate
-        ({"hint": [GPL, GPL]}, [*NEAR, GPL]),  # an ID given twice, once
-        ({"hint": [GPL, "gpl-2.0-only"]}, [*NEAR, GPL]),
+        ({"exclude": ["Nope-1.0"]}, FOUND),
+        ({"exclude": FOUND}, []),
+        ({"hint": ["MIT"]}, FOUND),  # already a candidate: nothing added
+        ({"hint": ["Nope-1.0"]}, FOUND),  # no row: nothing added
+        ({"hint": [GPL]}, [*FOUND, GPL]),  # added last, scored on its text
+        ({"hint": ["gpl-2.0-only"]}, [*FOUND, GPL]),
+        ({"hint": ["mit"]}, FOUND),  # folded: already a candidate
+        ({"hint": [GPL, GPL]}, [*FOUND, GPL]),  # an ID given twice, once
+        ({"hint": [GPL, "gpl-2.0-only"]}, [*FOUND, GPL]),
         # DECISION: every filter wins: a hint is a candidate that passes
         # them, so it never undoes exclude.
         ({"exclude": ["MIT"], "hint": ["MIT"]}, REST),
         ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
         # Nor does a hint pass only_common or only_spdx (on by default).
         ({"only_common": True, "hint": ["JSON"]}, ["MIT", "MIT-0", "X11"]),
-        # Acme-MIT (0.99) joins the top 3: MIT-0 (0.94) is no longer in it.
-        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON"]),
-        ({"only_spdx": True, "hint": ["Acme-MIT"]}, NEAR),
-        ({"hint": ["Acme-MIT"]}, NEAR),  # only_spdx is on by default
-        ({"only_spdx": False, "hint": ["Acme-MIT"]}, ["MIT", "Acme-MIT", "JSON"]),
+        # Acme-MIT (0.99) is the first runner-up: X11 is no longer one.
+        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON", "MIT-0"]),
+        ({"only_spdx": True, "hint": ["Acme-MIT"]}, FOUND),
+        ({"hint": ["Acme-MIT"]}, FOUND),  # only_spdx is on by default
+        (
+            {"only_spdx": False, "hint": ["Acme-MIT"]},
+            ["MIT", "Acme-MIT", "JSON", "MIT-0"],
+        ),
         ({"only_common": True, "exclude": ["MIT"]}, ["MIT-0", "X11"]),
         # No tie here, so popularity (a nudge of 1e-4 at most) moves nothing.
-        ({"enable_popularity": True}, NEAR),
+        ({"enable_popularity": True}, FOUND),
     ],
     ids=repr,
 )
@@ -275,7 +282,7 @@ EMPTY: list[Any] = [[], (), set(), frozenset()]
 def test_an_empty_collection_is_no_option(
     detector: LicenseDetector, name: str, empty: object
 ) -> None:
-    assert answers(detector, text=BODY, **{name: empty}) == NEAR
+    assert answers(detector, text=BODY, **{name: empty}) == FOUND
 
 
 @pytest.mark.parametrize("kind", [list, tuple, set, frozenset])
@@ -431,6 +438,7 @@ def test_texts_ignores_every_option_that_filters_candidates(
         "GPL-2.0-only",
         "GPL-2.0",
     }  # the deprecated one too: here it has a text
-    assert [norm for norm, _ in found_rows.calls] == [
+    # Several texts found: the search with no answer, then the answer's.
+    assert {norm for norm, _ in found_rows.calls} == {
         normalize_text(MIT + " Acme words")
-    ]
+    }
