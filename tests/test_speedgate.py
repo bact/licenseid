@@ -431,6 +431,39 @@ def test_damage_is_judged_against_the_intact_build_or_its_reference() -> None:
     assert gate.status == gates.FAIL and "codes changed" in gate.detail
 
 
+@pytest.mark.parametrize(
+    ("change", "failed"),
+    [
+        ({}, False),
+        ({"grams": {"MIT": {"digest": "y", "rows": 3}}}, True),
+        ({"bytes_same": False}, True),
+        ({"grams_error": "exit 1"}, True),
+        ({"grams": None}, False),  # a side without the tables: no field at all
+    ],
+)
+def test_damage_judges_gram_tables_and_the_file_bytes(
+    change: dict[str, Any], failed: bool
+) -> None:
+    cases = {"damage:MIT": case(1, "MIT")}
+    tables = {"MIT": {"digest": "x", "rows": 3}}
+    plain = {"applicable": True, "cases": cases}
+    intact = {**plain, "grams": tables, "bytes_same": True}
+    damaged = {**intact, **change}
+    if change.get("grams", 1) is None:
+        intact, damaged = plain, dict(plain)
+    kinds = {
+        "none": intact,
+        "postings table emptied": damaged,
+        "postings without a stamp": {"applicable": False},
+    }
+    gate = gates.damage({"damage": {"kinds": kinds}})
+    assert (gate.status == gates.FAIL) is failed
+    if failed:
+        assert "postings table emptied" in gate.detail
+    else:
+        assert "2 kinds equal their reference; 1 not applicable" in gate.detail
+
+
 def test_threads_and_memory_and_size() -> None:
     good = {
         "threads": 4,

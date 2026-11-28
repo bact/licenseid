@@ -249,6 +249,15 @@ def item_68(base: Sets, cand: Sets) -> Gate:
     )
 
 
+def grams_differ(result: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Whether a damaged copy's gram tables are not the expected ones, its
+    tables could not be read, or the file's bytes changed. A side without
+    the tables has none of these fields: nothing differs."""
+    if "grams_error" in result or result.get("bytes_same") is False:
+        return True
+    return "grams" in expected and result.get("grams") != expected["grams"]
+
+
 def damage(cand: Sets) -> Gate:
     """Damage: every case equals the intact build of the same side."""
     kinds = (cand.get("damage") or {}).get("kinds")
@@ -260,8 +269,9 @@ def damage(cand: Sets) -> Gate:
         expected = kinds.get(name + REFERENCE, {"cases": intact})
         if not result.get("applicable", True):
             skipped.append(name)
-        elif not name.endswith(REFERENCE) and moved_answers(
-            name, cases_of(expected), cases_of(result)
+        elif not name.endswith(REFERENCE) and (
+            moved_answers(name, cases_of(expected), cases_of(result))
+            or grams_differ(result, kinds.get(name + REFERENCE, kinds["none"]))
         ):
             bad.append(name)
     note = f"; {len(skipped)} not applicable ({', '.join(skipped)})" if skipped else ""

@@ -192,3 +192,75 @@ def test_a_list_text_is_read_from_the_tarball(tmp_path: Path) -> None:
     with pytest.raises(KeyError):
         sets_roadmap.list_text(tarball, "MIT")
     assert sets_roadmap.without_title("ISC License\n\nPermission") == "\nPermission"
+
+
+POSTINGS_KINDS = [
+    "postings stale against the texts",
+    "postings without a stamp",
+    "postings stamp: another gram size",
+    "postings stamp: another width",
+    "postings blob one byte short",
+    "postings number out of range",
+    "postings table emptied",
+    "posting ids table emptied",
+]
+STAMP = {"gram": 3, "grams": 2, "hash": "h", "texts": 2, "width": 2}
+
+
+def _with_postings(path: Path) -> None:
+    _database(path)
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE db_metadata (key TEXT, value TEXT)")
+    con.execute("CREATE TABLE text_postings (h INTEGER, ids BLOB)")
+    con.execute("CREATE TABLE text_posting_ids (k INTEGER, id TEXT, size INTEGER)")
+    con.executemany(
+        "INSERT INTO db_metadata VALUES (?, ?)",
+        [
+            ("text_postings", json.dumps(STAMP, sort_keys=True)),
+            ("text_postings_update", "2026-11-01 00:00:00"),
+            ("last_update_datetime", "2026-11-01 00:00:00"),
+        ],
+    )
+    con.executemany(
+        "INSERT INTO text_postings VALUES (?, ?)",
+        [(1, b"\x00\x00\x01\x00"), (2, b"\x01\x00")],
+    )
+    con.executemany(
+        "INSERT INTO text_posting_ids VALUES (?, ?, ?)", [(0, "A", 1), (1, "B", 2)]
+    )
+    con.commit()
+    con.close()
+
+
+def _dump(path: Path | None) -> list[Any]:
+    assert path is not None
+    con = sqlite3.connect(path)
+    try:
+        return [
+            con.execute(f"SELECT * FROM {t} ORDER BY 1, 2").fetchall()
+            for t in ("db_metadata", "text_postings", "text_posting_ids")
+        ]
+    finally:
+        con.close()
+
+
+@pytest.mark.parametrize("kind", POSTINGS_KINDS)
+def test_each_postings_damage_changes_the_postings_and_nothing_else(
+    tmp_path: Path, kind: str
+) -> None:
+    source = tmp_path / "src.db"
+    _with_postings(source)
+    copies = damage.make_copies(source, tmp_path / "out")
+    assert _dump(copies[damage.INTACT]) == _dump(source)
+    assert _dump(copies[kind]) != _dump(source)
+    assert damage.has_postings(source)
+
+
+@pytest.mark.parametrize("kind", POSTINGS_KINDS)
+def test_a_side_without_the_postings_tables_has_no_such_kind(
+    tmp_path: Path, kind: str
+) -> None:
+    source = tmp_path / "src.db"
+    _database(source)
+    assert damage.make_copies(source, tmp_path / "out")[kind] is None
+    assert not damage.has_postings(source)

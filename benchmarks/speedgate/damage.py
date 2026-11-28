@@ -7,7 +7,9 @@
 must equal what it answers on the intact build.
 
 A damage applies where its table exists: the per-entry checks table is added
-by task T6, so those two kinds are recorded as not applicable until then."""
+by task T6, so those two kinds are recorded as not applicable until then. The
+word-gram postings tables (database build 8) are damaged in eight ways; a side
+without them (the 0.9.4 baseline) records those kinds as not applicable."""
 
 import json
 import shutil
@@ -107,6 +109,72 @@ def _drop_checks(con: sqlite3.Connection) -> None:
     con.execute("DROP TABLE text_code_checks")
 
 
+def _stamp(con: sqlite3.Connection) -> dict[str, object]:
+    row = con.execute("SELECT value FROM db_metadata WHERE key = 'text_postings'")
+    stamp: dict[str, object] = json.loads(row.fetchone()[0])
+    return stamp
+
+
+def _set_stamp(con: sqlite3.Connection, **changes: object) -> None:
+    value = json.dumps(
+        {**_stamp(con), **changes}, sort_keys=True, separators=(",", ":")
+    )
+    con.execute(
+        "UPDATE db_metadata SET value = ? WHERE key = 'text_postings'", (value,)
+    )
+
+
+def _stale_postings(con: sqlite3.Connection) -> None:
+    con.execute(
+        "UPDATE db_metadata SET value = '2000-01-01 00:00:00' "
+        "WHERE key = 'text_postings_update'"
+    )
+
+
+def _no_stamp(con: sqlite3.Connection) -> None:
+    con.execute("DELETE FROM db_metadata WHERE key = 'text_postings'")
+
+
+def _other_gram_size(con: sqlite3.Connection) -> None:
+    _set_stamp(con, gram=int(str(_stamp(con)["gram"])) + 1)
+
+
+def _other_width(con: sqlite3.Connection) -> None:
+    _set_stamp(con, width=6 - int(str(_stamp(con)["width"])))
+
+
+def _widest_hash(con: sqlite3.Connection) -> int:
+    """The gram held by the most texts: any input of a long text reads it."""
+    row = con.execute(
+        "SELECT h FROM text_postings ORDER BY length(ids) DESC, h LIMIT 1"
+    ).fetchone()
+    return int(row[0])
+
+
+def _short_blob(con: sqlite3.Connection) -> None:
+    con.execute(
+        "UPDATE text_postings SET ids = substr(ids, 1, length(ids) - 1) WHERE h = ?",
+        (_widest_hash(con),),
+    )
+
+
+def _number_out_of_range(con: sqlite3.Connection) -> None:
+    con.execute(
+        "UPDATE text_postings "
+        "SET ids = CAST(x'ffff' || substr(ids, 3) AS BLOB) "
+        "WHERE h = ?",
+        (_widest_hash(con),),
+    )
+
+
+def _empty_postings(con: sqlite3.Connection) -> None:
+    con.execute("DELETE FROM text_postings")
+
+
+def _empty_posting_ids(con: sqlite3.Connection) -> None:
+    con.execute("DELETE FROM text_posting_ids")
+
+
 REFERENCE: Final = " [reference]"
 
 
@@ -117,6 +185,8 @@ def _change_text_and_drop_codes(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM text_codes")
 
 
+#: The table of the word-gram postings (database build 8).
+POSTINGS: Final = "text_postings"
 #: Name, damage, table it needs (empty: none beyond ``text_codes``).
 KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     (INTACT, lambda con: None, ""),
@@ -129,6 +199,14 @@ KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     ("check of the whole corpus changed", _change_corpus_check, ""),
     ("check of BSD-3-Clause changed", _change_entry_check, "text_code_checks"),
     ("no checks table", _drop_checks, "text_code_checks"),
+    ("postings stale against the texts", _stale_postings, POSTINGS),
+    ("postings without a stamp", _no_stamp, POSTINGS),
+    ("postings stamp: another gram size", _other_gram_size, POSTINGS),
+    ("postings stamp: another width", _other_width, POSTINGS),
+    ("postings blob one byte short", _short_blob, POSTINGS),
+    ("postings number out of range", _number_out_of_range, POSTINGS),
+    ("postings table emptied", _empty_postings, POSTINGS),
+    ("posting ids table emptied", _empty_posting_ids, POSTINGS),
 )
 
 
@@ -145,6 +223,15 @@ def has_table(con: sqlite3.Connection, table: str) -> bool:
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
     ).fetchone()
     return row is not None
+
+
+def has_postings(path: Path) -> bool:
+    """Whether the database file at *path* has the postings tables."""
+    con = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+    try:
+        return has_table(con, POSTINGS)
+    finally:
+        con.close()
 
 
 def make_copies(source: Path, folder: Path) -> dict[str, Path | None]:

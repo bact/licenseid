@@ -13,6 +13,7 @@ and ``threads``.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -92,6 +93,33 @@ def run_detect(args: argparse.Namespace, inputs: dict[str, Any]) -> dict[str, An
         if number % 100 == 0:
             print(f"{args.set}: {number}/{len(cases)}", file=sys.stderr, flush=True)
     return {"cases": done}
+
+
+#: Inputs of the gram tables besides the set's: kana text, and no List word.
+GRAM_EXTRA = {
+    "kana": "本ソフトウェアは無保証で提供されます。許諾書の条項に従う。" * 3,
+    "no match": "zzqx vvkk wwpp qqjj xxyy kkzz ppvv jjqq yyxx zzkk",
+}
+
+
+def run_grams(args: argparse.Namespace, inputs: dict[str, Any]) -> dict[str, Any]:
+    """``gram_scores`` of each input of the set and of ``GRAM_EXTRA``: a
+    digest of each table (rows, grams, total) and its count of rows."""
+    from licenseid.database import LicenseDatabase, gram_scores
+    from licenseid.normalize import normalize_text
+
+    db = LicenseDatabase(args.db, create=False)
+    texts = {c["key"]: c["text"] for c in inputs["sets"][args.set]}
+    tables: dict[str, Any] = {}
+    for key, text in {**texts, **GRAM_EXTRA}.items():
+        table = gram_scores(db, normalize_text(text))
+        rows = [list(row) for row in table.rows]
+        blob = json.dumps([rows, table.grams, table.total]).encode("utf-8")
+        tables[key] = {
+            "digest": hashlib.sha256(blob).hexdigest(),
+            "rows": len(rows),
+        }
+    return {"tables": tables}
 
 
 def peak_mb() -> float:
@@ -211,7 +239,7 @@ def run_threads(args: argparse.Namespace, inputs: dict[str, Any]) -> dict[str, A
 def main() -> int:
     """Run one mode and write its result as JSON."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["detect", "memory", "threads"])
+    parser.add_argument("mode", choices=["detect", "memory", "threads", "grams"])
     parser.add_argument("--side", type=Path, required=True)
     parser.add_argument("--db", required=True)
     parser.add_argument("--inputs", type=Path, required=True)
@@ -226,7 +254,12 @@ def main() -> int:
     result = identity(args.side)
     if not result["from_side"]:
         print(f"wrong import: {result['licenseid_file']}", file=sys.stderr)
-    modes = {"detect": run_detect, "memory": run_memory, "threads": run_threads}
+    modes = {
+        "detect": run_detect,
+        "grams": run_grams,
+        "memory": run_memory,
+        "threads": run_threads,
+    }
     result.update(modes[args.mode](args, inputs))
     result["pid"] = os.getpid()
     args.out.write_text(json.dumps(result), encoding="utf-8")

@@ -6,6 +6,7 @@
 """A run of one side over the chosen sets, written as a folder of results."""
 
 import dataclasses
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -37,6 +38,24 @@ META: Final = "meta.json"
 STAMP: Final = "%Y-%m-%d %H:%M:%S"
 
 
+def sha256(path: Path) -> str:
+    """The digest of a file's bytes."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def gram_check(side: Side, job: Job) -> dict[str, Any]:
+    """``gram_scores`` of fixed inputs on the side's database, and whether the
+    file's bytes are the same after (a lookup never writes). A side without
+    the postings tables gives nothing."""
+    if not damage.has_postings(side.db):
+        return {}
+    before = sha256(side.db)
+    result = run_child(side, job, ["grams", "--set", "damage"])
+    if "tables" not in result:
+        return {"grams_error": result.get("error", "no tables")}
+    return {"grams": result["tables"], "bytes_same": sha256(side.db) == before}
+
+
 def run_damage(side: Side, job: Job) -> dict[str, Any]:
     """The damage set on each damaged copy of the side's database."""
     start = load_now()
@@ -47,10 +66,9 @@ def run_damage(side: Side, job: Job) -> dict[str, Any]:
         if path is None:
             out[name] = {"applicable": False}
             continue
-        result = run_child(
-            dataclasses.replace(side, db=path), job, ["detect", "--set", "damage"]
-        )
-        out[name] = {"applicable": True, **result}
+        on_copy = dataclasses.replace(side, db=path)
+        result = run_child(on_copy, job, ["detect", "--set", "damage"])
+        out[name] = {"applicable": True, **result, **gram_check(on_copy, job)}
         first = first or {k: v for k, v in result.items() if k != "cases"}
     end = load_now()
     return {
