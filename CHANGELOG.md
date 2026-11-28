@@ -21,7 +21,16 @@ and this project adheres to
 - **Breaking:** licenseid reads only a database of its own build (build 10);
   an older one exits 2 with `database: build vN outdated`, and 0.9.x calls a
   build 10 database `invalid`. Migration: run `licenseid update` once after
-  upgrading; to go back to 0.9.x, run `licenseid clear-cache` first
+  upgrading; before going back to 0.9.x, run `licenseid clear-cache` with
+  0.10.0 (0.9.x cannot read or delete a build 10 database), which also deletes
+  the downloaded data, so the 0.9.x `update` needs the network
+- `update` no longer rebuilds a database a newer licenseid built: `unchanged`
+  at its release, else `database: build vN newer` (exit 1); `--force` rebuilds
+- A lookup refuses a newer licenseid's database it cannot read as `database:
+  build vN newer`, no longer as `empty`
+- Type checkers flag a misspelt public name again (`from licenseid import
+  LicenseDetecter`), and `typing.get_type_hints(licenseid.resolve)` works
+- `resolve` no longer loads RapidFuzz when a database exists
 - `detect()` on a declared value is about two fifths faster (462 PyPI values:
   1.39 s to 0.84 s); every answer, score and warning is unchanged
 - Database build 10 is 18 MB, 7 MB smaller than 0.9.4's: it stores the word

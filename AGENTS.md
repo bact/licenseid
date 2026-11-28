@@ -88,7 +88,8 @@ in another module.
   answer group; the texts it searches and scores), `textcorpus` (word codes),
   `textstore` (the stored form and its checks: pure) and `textentries` (the
   entries read per candidate: `TextStore`, one per `TableCache` generation),
-  `textgrams` (tokens, word 3-grams and their hashes, the gram score) and
+  `textgrams` (the tokens, the word 3-grams and their hashes, the critical
+  words, the gram score) and
   `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
   overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
@@ -103,7 +104,8 @@ in another module.
   `regionalign` (its characters aligned there, walls at the cut ends),
   `coretext` (a template without its optional parts), `fingerprint` (maths) and
   `fingerprintstore` (its table), `ranking` (sort order, `-only`/`-or-later`
-  tie-breaker), `markers` and `candidates` (its helpers), `classify` (prose "or
+  tie-breaker), `markers` and `candidates` (its helpers), `markerfloor` (when a
+  marker's floor speaks for a whole input), `classify` (prose "or
   later"), `grantsubject` (whose grant), `identifiers`, `normalize`, `result`
   (public result, JSON and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
@@ -128,10 +130,11 @@ in another module.
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
-- Data: `database`, `dbconnection`, `dbcache`, `dbschema` (the one shape,
-  its stamps, the retired tables), `dbverdict` (whether a file is ready: the
-  `Refusal` of a connection), `dbcheck` (paths, files, both policies),
-  `dbclear` (`clear-cache`), `datadir`,
+- Data: `database`, `dbconnection`, `dbhandle` (the type `resolve(db=...)`
+  names, base of `LicenseDatabase`; no database import), `dbcache`,
+  `dbschema` (the one shape, its stamps, the retired tables), `dbverdict`
+  (whether a file is ready: the `Refusal` of a connection), `dbcheck`
+  (paths, files, both policies), `dbclear` (`clear-cache`), `datadir`,
   `records` (rows), `spdxdata` (a release as data; no `requests`, `click` or
   `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
   `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
@@ -240,7 +243,8 @@ and `--json`) against these rules and checks the default output against the
   - `CONDITION`: short lower-case fragment, reused across subjects. The full set
     (add new ones here): `not found`, `invalid`, `missing`, `empty`,
     `unreadable`, `binary file`, `not UTF-8, read as Latin-1`, `N days old`,
-    `normalization vN outdated`, `build vN outdated`, `build vN newer`,
+    `normalization vN outdated`, `normalization vN newer`, `build vN outdated`,
+    `build vN newer`,
     `download failed`, `cache read failed`, `cache write failed`,
     `cache unusable`, `download unusable`, `stale cache unusable`,
     `parse failed`, `variant not stated`, `deprecated ID`,
@@ -249,7 +253,8 @@ and `--json`) against these rules and checks the default output against the
     `older than the database`, `too few words for text`, `overridden by input`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
-    60), an exception through `errors.typed`. Not result escaping: a
+    60; so is a stamp read from the database file), an exception through
+    `errors.typed`. Not result escaping: a
     backslash stays, so a Windows path reads as typed.
   - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
     `downloading`, `downloading <file>`, `using cached <file>`,
@@ -536,8 +541,10 @@ and `--json`) against these rules and checks the default output against the
 - A change to the rows `records` builds or to the shape bumps
   `dbschema.BUILD_VERSION`; to `normalize_text`,
   `dbschema.NORMALIZATION_VERSION`. Stamps compare as numbers; older is not
-  ready (exit 2) and `update` rebuilds it; newer warns `build vN newer`, is
-  read, never rebuilt. Only a database opened without `create` warns.
+  ready (`build vN outdated`, exit 2) and `update` rebuilds it; a newer one
+  this build can read warns `build vN newer` and is read; one it cannot read
+  is refused with it; never rebuilt without `--force`. Only a database
+  opened without `create` warns.
 - `--db` can block or lie: check `stat.S_ISREG`/`S_ISDIR` before opening (a
   FIFO hangs a read-only open; test it in a child with a timeout,
   `db_asserts.probe_check_does_not_hang`). `file::memory:NAME` is a file on
@@ -550,7 +557,11 @@ and `--json`) against these rules and checks the default output against the
   ELOOP.
 - `dbcheck`: read is fail-open (`check_database_ready` ignores `unknown`),
   write and delete fail-closed (`reject_foreign_database`). Keep the
-  `Refusal` tag on a new condition and decide both policies.
+  `Refusal` tag on a new condition and decide both policies. `newer`: a newer
+  stamp on a file this build cannot read (shape, no text) refuses a read as
+  `build vN newer: current vM`, no action. `update` without `--force` never
+  writes a file with a newer stamp, readable or not: `unchanged` at its
+  release, else that refusal (exit 1). `clear-cache` deletes it.
 - `Path.unlink(missing_ok=True)` swallows only `FileNotFoundError`: a parent
   that is a file still raises `NotADirectoryError`.
 - `database.py` imports `spdx_source` lazily; `spdx_source.py` never

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -25,7 +25,7 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
 PR #247): the new detection engine of release 0.10.0, then item 68, then
-items 69 and 70 (decided 2026-11-27). Items 71 to 74 were found while
+items 69 and 70 (decided 2026-11-27). Items 71 to 75 were found while
 that engine was built; 72 waits on 71. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
@@ -559,6 +559,51 @@ the whole-text sets, so it needs a better rule. `exclude` with a `hint` of
 the near text answers it: the caller's own choice, left.
 
 Impact 2, Risk 2, Effort 3.
+
+## 75. Database leftovers of the 0.10.0 review — Priority 10
+
+Found 2026-11-28 in the review of the 0.10.0 database. None changes an answer
+of a normal call; "old" means 0.9.4 does the same.
+
+- During `update`, for 0.5 to 1 s between the commit of the rows and the
+  commit of the fingerprints and list version, a fresh open is refused as
+  `empty; run 'licenseid update'`. An interrupted update leaves the file so
+  until the next update (old layout of transactions). A kept detector is not
+  affected.
+- `database: update failed: database is locked` lacks the `<Type>:` the
+  grammar asks for (two updates at once, a read-only file). Old wording.
+- A non-numeric `idf_norm` in `license_fingerprints` gives a traceback on
+  `detect`. Old.
+- A flag stored as the text `'false'` reads as true (`bool('false')`):
+  `is-osi` answers true. Old.
+- "One transaction a call" covers Tier 1 and the loading of entries only: the
+  fingerprint hits and the `lists` metadata are read after the snapshot ends,
+  so a rebuild to another release in that gap could mix them into one call
+  (not observed to change an answer).
+- A kept detector whose file is replaced in place by a 0.9.x file still
+  answers names from it; texts fail with `unreadable: no such table:
+  license_texts`.
+- An outdated file in an install without the packaged bundle (editable,
+  `LICENSEID_BUNDLE=skip`) makes `resolve` exit 2; 0.9.4 warned and answered.
+  With the wheel it falls back to the packaged list.
+- A text edited by hand without a new `last_update_datetime` is caught only
+  when read; the answer can show `COVERAGE` above 1 (stale core text, word
+  count and fingerprints beside the new text).
+- The postings blobs carry no content check: swapped blobs keep the answer
+  but `TEXTS` becomes none and the runner-ups change (the limit stated in
+  the gram postings note).
+- A refused `update` on a newer build's file still runs `leave_wal` first: a
+  newer file in WAL mode is switched out of it.
+- `errors.one_line` folds white space but leaves other control characters as
+  they are: an ESC in a stamp or a value reaches the terminal
+  (`errors.shown` escapes them).
+- `tools/cli_matrix/baseline.txt` was recorded without a packaged bundle:
+  against a wheel, cells D4-001, D4-002 and D8-003 flag (`update` falls back
+  to `packaged` and exits 0); 0.9.4 flags the same.
+
+Done when: each is fixed or decided not to be, with a test.
+
+Impact 2, Risk 3, Effort 4.
 
 ## Already resolved
 

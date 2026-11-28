@@ -26,8 +26,10 @@ version built, and refuses an older one with `database: build vN outdated`
 (exit 2) until then. An older licenseid refuses a database a newer one
 built in a shape it cannot read, as `database: build vN newer` (exit 2), or
 may call it `database: invalid`: to go back, run `licenseid clear-cache`
-(with the newer version for `invalid`), or delete the file, then `licenseid
-update` with the older one. See [the command line reference](cli.md).
+with the newer version (it also deletes the downloaded data, so the older
+version's `licenseid update` needs the network), or delete the file, then
+run `licenseid update` with the older one. See [the command line
+reference](cli.md).
 
 ## Non-UTF-8 locales
 
