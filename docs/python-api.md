@@ -258,9 +258,10 @@ r["lists"][0]["version"]  # from which list version
 r["lists"][0]["source"]  # read from the "database" or the "packaged" list
 ```
 
-The whole result, its categories and their trust, the reasons for a
-refusal, licences joined by a `;` (`r["operands"]` lists each) and how quote
-marks are read are in [resolve.md](resolve.md).
+The whole result, its categories and their trust and the reasons for a
+refusal are in [resolve.md](resolve.md); licences joined by a `;`
+(`r["operands"]` lists each) and how quote marks are read are in
+[resolve-values.md](resolve-values.md).
 `licenseid resolve -v VALUE` prints the same result on the command line
 ([Resolve a declared value](cli.md#resolve-a-declared-value);
 without `-v` only `r["expression"]`), and
@@ -287,7 +288,7 @@ category, the value written as the ID itself, with no step at all
 what `detect()` answers for a whole input, for a short value `resolve()`
 refuses, and for a tag or a manifest field.
 
-[resolve-doc-list]: resolve.md#which-list-and-its-warnings
+[resolve-doc-list]: resolve-values.md#which-list-and-its-warnings
 
 `licenseid.LicenseIdError` (a `RuntimeError`) is the base of
 `licenseid.InvalidInputError` and `licenseid.DatabaseNotReadyError`. The

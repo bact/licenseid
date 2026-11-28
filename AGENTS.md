@@ -36,11 +36,13 @@ to this file: edit `AGENTS.md`.
   block, so its links are absolute) and `docs/`: `installation`, `cli`
   (commands, options, exit codes, predicates), `output` (text record, JSON,
   escaping, error lines), `python-api`, `resolve` (every field of
-  `resolve()`'s result, categories, trust, refusal reasons, quote marks),
-  `how-it-works`, `development`. Detail goes in `docs/`, not the README. A
-  change to any of `resolve()`'s fields, categories, trust, refusal reasons
-  or quote marks updates `docs/resolve.md`
-  (`tests/test_resolver_shapes.py` checks its category table).
+  `resolve()`'s result, categories, trust, refusal reasons), `resolve-values`
+  (the values `resolve()` reads: IDs, names, `;`, `/`, quote marks, which
+  List), `how-it-works`, `development`. Detail goes in `docs/`, not the
+  README. A change to any of `resolve()`'s fields, categories, trust or
+  refusal reasons updates `docs/resolve.md`, one to quote marks or what a
+  value may look like `docs/resolve-values.md`
+  (`tests/test_resolver_shapes.py` checks the category table).
 - `docs/lists.md` is GENERATED, never edited by hand: the lists `resolve()`
   reads (`ALIASES`, `TITLES`, `TROVE_NAMES`, the `resolveurl` and
   `resolveslash` tables, `VERSIONED_NAMES`) and the named rules (T1 to T3, P1

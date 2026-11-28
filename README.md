@@ -113,8 +113,10 @@ declares, as an SBOM tool does.
   escaping, reading the output with `awk` and `jq`, and error lines.
 - [Python API][doc-python-api]: `detect()`, `LicenseDetector`, the
   predicates, results, errors and warnings.
-- [Declared values][doc-resolve]: what `resolve()` reads and returns, its
+- [Declared values][doc-resolve]: what `resolve()` returns, its
   categories, trust and reasons for a refusal.
+- [Values `resolve()` reads][doc-resolve-values]: IDs, names, URLs, `;`, `/`,
+  quote marks and which List is read.
 - [Resolve flow][doc-resolve-flow]: the readers `resolve()` applies to a
   value, in order.
 - [Canonical form][doc-canonical]: how an expression is put in canonical
@@ -130,6 +132,7 @@ declares, as an SBOM tool does.
 [doc-output]: https://github.com/bact/licenseid/blob/main/docs/output.md
 [doc-python-api]: https://github.com/bact/licenseid/blob/main/docs/python-api.md
 [doc-resolve]: https://github.com/bact/licenseid/blob/main/docs/resolve.md
+[doc-resolve-values]: https://github.com/bact/licenseid/blob/main/docs/resolve-values.md
 [doc-lists]: https://github.com/bact/licenseid/blob/main/docs/lists.md
 [doc-resolve-flow]: https://github.com/bact/licenseid/blob/main/docs/resolve-flow.md
 [doc-canonical]: https://github.com/bact/licenseid/blob/main/docs/expression-canonicalisation.md
