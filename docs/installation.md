@@ -35,8 +35,10 @@ reference](cli.md).
 
 A dependency, `py-spdx-license` 0.0.1, reads its bundled licence data with
 the locale's encoding. Under a multibyte locale that is not UTF-8, such as
-`ja_JP.eucJP`, every command then fails at start-up with a
-`UnicodeDecodeError`. The fix is merged upstream in
+`ja_JP.eucJP`, a command that reads an expression joined by `AND` or `OR`
+(`MIT OR Apache-2.0`, as a value or in a tag) then fails with a
+`UnicodeDecodeError`; one licence ID, a name or a licence text is read. The
+fix is merged upstream in
 [JPEWdev/py-spdx-license#5](https://github.com/JPEWdev/py-spdx-license/pull/5)
 but no release holds it yet. Until one does, set `PYTHONUTF8=1` to run
 Python in UTF-8 mode:

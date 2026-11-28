@@ -89,8 +89,17 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 - **Status (2026-11-18)**: the pull request was merged upstream on
   2026-11-10, and only 0.0.1 is on PyPI, so the floor stays and the README
   workaround stays (`docs/installation.md`).
+- **Status (2026-11-28)**: 0.10.0 loads `py_spdx_license` where an
+  expression is parsed (start-up time), so the crash moved, as the
+  workaround note above said it would. Under `ja_JP.eucJP` (Python 3.10 and
+  3.14) `--version`, a licence text, one ID, a name, a `WITH` expression, a
+  tag with one ID and a predicate on one ID answer; `MIT OR Apache-2.0`,
+  `MIT AND ISC` and a tag with `OR` die with the same traceback, exit 1.
+  `docs/installation.md` says so.
 - The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
-  `tools/cli_matrix/baseline.txt`.
+  `tools/cli_matrix/baseline.txt`. On 0.10.0 they no longer flag (`--check`
+  reports them FIXED): none of the nine commands parses an `AND` or `OR`,
+  so the matrix does not see this item until a locale cell does.
 - Impact 2, Risk 3, Effort 2.
 
 ## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10
