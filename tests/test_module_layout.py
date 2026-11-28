@@ -18,7 +18,6 @@ import pytest
 import licenseid
 from licenseid.detector import LicenseDetector
 from licenseid.retrieval import get_candidates
-from licenseid.shorttext import match_short_text
 from licenseid.types import DetectOptions
 
 SPLIT = ["ranking", "retrieval", "shorttext"]
@@ -111,15 +110,12 @@ def test_the_modules_import_in_any_order(first: str, tmp_path: Path) -> None:
     assert {f"licenseid.{m}" for m in [first, *others]} <= loaded
 
 
-def test_the_matcher_methods_are_thin_wrappers(ordering_matcher: object) -> None:
-    """_get_candidates and _match_short_text stay as the entry points tests and
-    benchmarks use; they must give the module functions' answers."""
+def test_the_matcher_method_is_a_thin_wrapper(ordering_matcher: object) -> None:
+    """_get_candidates stays as the entry point tests and benchmarks use; it
+    must give the module function's answer."""
     assert isinstance(ordering_matcher, LicenseDetector)
     text = "permission is hereby granted free of charge to any person"
     request = DetectOptions()
     assert ordering_matcher._get_candidates(  # pylint: disable=protected-access
         request, text
     ) == get_candidates(ordering_matcher.db, request, text)
-    assert ordering_matcher._match_short_text(  # pylint: disable=protected-access
-        "mit"
-    ) == match_short_text(ordering_matcher.db, "mit")

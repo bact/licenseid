@@ -1,0 +1,115 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Which List texts Tier 2 scores: rules over a table of gram scores
+(``licenseid.textgrams.GramTable``), with no database and no detector state.
+
+Tier 1 looks the word 3-grams of the input up in the stored postings
+(``licenseid.database.gram_scores``, once per ``detect()`` call); every text
+that shares a gram has a score, ``shared / min(grams of the input, grams of
+the text)``. Then, in this order (plan of 0.10.0, section 3.1):
+
+1. **Filters.** ``exclude``, ``only_spdx`` and ``only_common`` take their IDs
+   out of the table (:func:`filtered`), before any rule below reads it, so
+   the bar and the selection see only what may answer: the best text
+   excluded, the bar reads the next. ``TEXTS`` and ``texts()`` read no
+   filter.
+2. **None.** A best score under :data:`NONE_BAR` gives no candidate: no
+   input that answers scores under 0.4, and the rows such an input would
+   list are noise on prose.
+3. **Selection.** Tier 2 scores the first :data:`TOP` by score and every
+   text within :data:`MARGIN` of the best, at most :data:`MOST`; of equal
+   scores the earlier row first (``textgrams.ranked``), never an order a
+   hash gives.
+
+The markers and the hinted licences join after these, also when the bar left
+none (``licenseid.retrieval.add_free_text``). An input of very many distinct
+grams has only its first :data:`GRAM_LIMIT` looked up.
+"""
+
+from collections.abc import Iterable, Mapping, Sequence
+from math import isclose
+from typing import Final, NamedTuple
+
+from licenseid.listlookup import fold_case
+from licenseid.textgrams import GramScore, ranked
+
+#: A best score under this gives no gram candidate. Measured on the core set
+#: (868 inputs): bars of 0.3, 0.1 and 0 move no answer; 0.1 lists the low
+#: rows of 99 of 125 inputs with no answer, at the cost of 0.3.
+NONE_BAR: Final = 0.1
+#: Texts Tier 2 scores whatever their distance from the best.
+TOP: Final = 3
+#: Texts within this of the best score are scored too: a margin of 0.05
+#: holds the true text as often as one of 0.25.
+MARGIN: Final = 0.05
+#: At most this many texts are scored.
+MOST: Final = 20
+#: Distinct grams of an input looked up, the first ones in input order. Past
+#: it the candidates come from the grams read and ``TEXTS`` is None, never a
+#: partial list (the whole-text search would refuse such an input anyway:
+#: over ``textlocate.MAX_INPUT_TOKENS`` tokens). No List text comes near it
+#: (GPL-3.0 has about 5,000 distinct grams).
+GRAM_LIMIT: Final = 50_000
+
+
+class ListFlags(NamedTuple):
+    """What the filters read of a licence's row."""
+
+    is_spdx: bool
+    is_high_usage: bool
+    is_osi_approved: bool
+    is_fsf_libre: bool
+
+
+class Filters(NamedTuple):
+    """The filters of a ``detect()`` call."""
+
+    #: Case-folded, a bare deprecated ID with its twins
+    #: (``licenseid.idoptions.excluded_ids``).
+    excluded: frozenset[str]
+    only_spdx: bool
+    only_common: bool
+
+
+def passes(license_id: str, flags: ListFlags | None, filters: Filters) -> bool:
+    """Whether the licence *license_id*, of row *flags* (None: no row), may
+    answer under *filters*: not excluded, on the List if ``only_spdx``, and
+    if ``only_common`` widely used or OSI-approved or FSF-libre."""
+    if flags is None or not license_id or fold_case(license_id) in filters.excluded:
+        return False
+    if filters.only_spdx and not flags.is_spdx:
+        return False
+    return not filters.only_common or (
+        flags.is_high_usage or flags.is_osi_approved or flags.is_fsf_libre
+    )
+
+
+def filtered(
+    rows: Iterable[GramScore], flags: Mapping[str, ListFlags], filters: Filters
+) -> list[GramScore]:
+    """The *rows* that pass *filters* (*flags* by licence ID), in their
+    order."""
+    return [
+        row
+        for row in rows
+        if passes(row.license_id, flags.get(row.license_id), filters)
+    ]
+
+
+def selected(rows: Sequence[GramScore]) -> list[GramScore]:
+    """The texts of *rows* (filtered) that Tier 2 scores, best first: none
+    when the best scores under :data:`NONE_BAR`, else the first :data:`TOP`
+    and those within :data:`MARGIN` of the best, at most :data:`MOST`. A
+    score on the edge of the margin, up to float rounding, is in."""
+    order = ranked(rows)
+    if not order or order[0].score < NONE_BAR:
+        return []
+    edge = order[0].score - MARGIN
+    return [
+        row
+        for at, row in enumerate(order[:MOST])
+        if at < TOP or row.score >= edge or isclose(row.score, edge)
+    ]

@@ -10,7 +10,7 @@ SQLite database management for SPDX licenses.
 import contextlib
 import os
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -44,10 +44,9 @@ from licenseid.dbschema import (
 )
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
-from licenseid.ftsquery import match_query
+from licenseid.gramselect import ListFlags
 from licenseid.gramstore import write_postings
 from licenseid.listlookup import ListedUrl
-from licenseid.normalize import normalize_text
 from licenseid.records import Records, build_records
 from licenseid.spdxdata import SpdxData
 from licenseid.textgrams import GramTable
@@ -477,50 +476,6 @@ class LicenseDatabase:
         shares with *norm_input* (see ``fingerprintstore.fingerprint_hits``)."""
         return fingerprint_hits(self._connections, norm_input)
 
-    def search_candidates(
-        self,
-        text: str,
-        limit: int = 50,
-        already_normalized: bool = False,
-    ) -> list[CandidateMatch]:
-        """Tier 1: Search for candidates using trigram FTS5.
-
-        Set already_normalized=True when the caller has already run
-        normalize_text() on the full original text and is passing a slice of
-        the result (e.g. a head/tail word-count window): re-normalizing a
-        slice can behave differently from normalizing the full text once
-        (line-anchored rules like copyright-notice removal need real line
-        breaks, which a slice reconstructed by joining words with spaces no
-        longer has).
-        """
-        norm_text = text if already_normalized else normalize_text(text)
-        search_terms = match_query(norm_text)
-        if not search_terms:
-            return []
-
-        with self._connection() as conn:
-            conn.row_factory = sqlite3.Row
-            query = """
-                SELECT
-                    li.license_id,
-                    li.search_text,
-                    l.word_count,
-                    l.is_spdx,
-                    l.is_high_usage,
-                    l.is_osi_approved,
-                    l.is_fsf_libre,
-                    l.pop_score,
-                    l.is_deprecated,
-                    l.superseded_by
-                FROM license_index li
-                JOIN licenses l ON li.license_id = l.license_id
-                WHERE li.search_text MATCH ?
-                ORDER BY li.rank
-                LIMIT ?
-            """
-            cursor = conn.execute(query, (search_terms, limit))
-            return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
-
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (ASCII case-insensitive lookup)."""
         found = self._tables.license_id(license_id.strip())
@@ -653,6 +608,50 @@ def gram_scores(
     its distinct grams are looked up when given; the table says so
     (``bounded``)."""
     return db._tables.gram_scores(norm_text, limit)  # pylint: disable=protected-access
+
+
+def list_flags(db: LicenseDatabase) -> dict[str, ListFlags]:
+    """What the filters of ``detect()`` read of each licence, by ID (see
+    ``dbcache.TableCache.list_flags``)."""
+    return db._tables.list_flags()  # pylint: disable=protected-access
+
+
+# The columns of a candidate: its text from the index, the rest from its row.
+_CANDIDATE_ROWS = """
+    SELECT
+        li.license_id,
+        li.search_text,
+        l.word_count,
+        l.is_spdx,
+        l.is_high_usage,
+        l.is_osi_approved,
+        l.is_fsf_libre,
+        l.pop_score,
+        l.is_deprecated,
+        l.superseded_by
+    FROM license_index li
+    JOIN licenses l ON li.license_id = l.license_id
+    WHERE li.rowid IN ({})
+"""
+
+
+def candidate_rows(db: LicenseDatabase, ids: Sequence[str]) -> list[CandidateMatch]:
+    """The candidates of Tier 2 for the licences *ids* (exact case), in that
+    order, each with its text: one query, by the rowid of each text (the
+    first row of an ID, as ``text_posting_ids`` numbers them). An ID with no
+    text or no row is left out. At most ``gramselect.MOST`` IDs are asked,
+    well under SQLite's limit of bound values."""
+    tables = db._tables  # pylint: disable=protected-access
+    rowids = [rowid for rowid in map(tables.index_row, ids) if rowid is not None]
+    if not rowids:
+        return []
+    with db._connection() as conn:  # pylint: disable=protected-access
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            _CANDIDATE_ROWS.format(", ".join("?" * len(rowids))), rowids
+        ).fetchall()
+    found = {row["license_id"]: cast(CandidateMatch, dict(row)) for row in rows}
+    return [found[i] for i in dict.fromkeys(ids) if i in found]
 
 
 def text_corpus(db: LicenseDatabase) -> "TextCorpus":

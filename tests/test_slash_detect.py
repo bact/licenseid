@@ -80,7 +80,13 @@ def test_the_golden_row_is_read_not_guessed(detector: LicenseDetector) -> None:
 
 # Two licences named after a label: 0.8.3 answered both by name, in ID order,
 # as a tie of two names (roadmap item 47 reads a tie of two licences as none).
-NO_LONGER_ANSWERED = {"License: MIT/Apache-2.0", "License: MIT/ISC"}
+NO_LONGER_ANSWERED = {
+    "License: MIT/Apache-2.0",
+    "License: MIT/ISC",
+    # Low rows of text (0.56 at most) of 0.8.3's trigram query: the word grams
+    # of 0.10.0 share none with a List text (plan of 0.10.0, section 3.6).
+    "GPL-2.0-only WITH Classpath-exception-2.0/MIT",
+}
 
 
 def test_every_other_value_answers_as_on_0_8_3(

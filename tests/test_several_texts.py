@@ -18,6 +18,7 @@ from click.testing import CliRunner
 from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from long_text_db import DB_PATH, long_text_detector
+from matcher_db import PROSE
 from several_texts import Expected, several_text, several_text_cases
 
 from licenseid.cli import cli
@@ -124,14 +125,28 @@ def test_the_api_texts_function_names_each_group() -> None:
     assert detector.texts("") is None
 
 
-def test_a_record_below_the_threshold_names_the_text_it_holds() -> None:
+def test_mypy_extensions_shape_answers_its_text() -> None:
     """mypy_extensions' shape: a line naming the licence, ``= = = = =``, then
-    the MIT text. The top is a look-alike under 0.85, so no answer; the
-    record still names the MIT text the file holds (0.9.3 left it empty)."""
+    the MIT text. Its top was a look-alike under 0.85 (OSSP, 0.70) while the
+    FTS5 query of 0.9 missed MIT; the word grams find it (roadmap item 68)."""
     text = (
         "Example Project is licensed under the terms of the MIT license,"
         " reproduced below.\n\n= = = = =\n\n" + several_text("one-text")
     )
+    code, fields = _record("-v", text=text)
+    assert code == 0
+    assert (fields["EXPRESSION"], fields["REASON"], fields["TEXTS"]) == (
+        "MIT",
+        "",
+        "MIT",
+    )
+
+
+def test_a_record_below_the_threshold_names_the_text_it_holds() -> None:
+    """Prose three times as long as the MIT text, then the text: the top is
+    MIT at about 0.72, so no answer; the record still names the MIT text the
+    file holds (0.9.3 left it empty)."""
+    text = PROSE * 4 + "\n\n" + several_text("one-text")
     code, fields = _record("-v", text=text)
     assert code == 1
     assert (fields["EXPRESSION"], fields["REASON"], fields["TEXTS"]) == (

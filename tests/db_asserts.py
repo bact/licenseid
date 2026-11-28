@@ -8,6 +8,7 @@ like on the command line (exit 2, empty stdout, one grammar line)."""
 # pylint: disable=missing-function-docstring
 
 import os
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -20,6 +21,7 @@ from db_variants import EMPTY, INVALID, NOT_FOUND, UNREADABLE, make_ready_file_d
 
 from licenseid import keptdetector
 from licenseid.cli import cli
+from licenseid.dbconnection import Connections
 
 
 def run_cli(db_arg: str, args: list[str], stdin: str = "") -> Result:
@@ -245,3 +247,19 @@ def run_after_cut(
             watchdog.cancel()
     assert ready == "READY", (ready, err)
     return child.returncode, out, err
+
+
+def traced_statements(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Every SQL statement licenseid runs from here on in the test: each
+    connection it opens is traced. Never in a test that uses the ``opened``
+    fixture: *monkeypatch* ends after it and would put its patch back."""
+    statements: list[str] = []
+    real = Connections.connect
+
+    def traced(self: Connections, write: bool = False) -> sqlite3.Connection:
+        conn = real(self, write)
+        conn.set_trace_callback(statements.append)
+        return conn
+
+    monkeypatch.setattr(Connections, "connect", traced)
+    return statements

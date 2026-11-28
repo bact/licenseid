@@ -159,6 +159,30 @@ def test_match_matrix(
         _assert_match_stdout(result.stdout, output)
 
 
+@pytest.mark.parametrize("output", OUTPUTS, ids=lambda o: "+".join(o) or "plain")
+@pytest.mark.parametrize("source", SOURCES)
+def test_match_matrix_past_the_gram_bound(
+    mit_db: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    output: tuple[str, ...],
+) -> None:
+    """Tier 1 reading only the first 5 grams of MIT's text (the bound of
+    ``gramselect``, made small) answers as the whole: every cell as
+    ``test_match_matrix`` found."""
+    args, stdin = _source_args(source, True, tmp_path)
+    whole = _invoke(mit_db, "detect", [*args, *output], stdin)
+    monkeypatch.setattr("licenseid.retrieval.GRAM_LIMIT", 5)
+    cut = _invoke(mit_db, "detect", [*args, *output], stdin)
+
+    assert (cut.exit_code, cut.stdout, cut.stderr) == (
+        whole.exit_code,
+        whole.stdout,
+        whole.stderr,
+    )
+
+
 def _no_record(output: tuple[str, ...]) -> str:
     """What detect prints for no answer, by output option."""
     if "--json" in output:

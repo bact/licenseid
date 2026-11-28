@@ -65,8 +65,8 @@ def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
 def match_short_text(
     db: LicenseDatabase, norm_input: str, text: str | None = None
 ) -> list[RawMatch]:
-    """The hits of :func:`match_name_tier`: for a caller that has no use for
-    its refusal (the sections of a mixed text, which Tier 1 reads next)."""
+    """The hits of :func:`match_name_tier`, without its refusal: for a
+    caller that judges the hits alone (tests, ``benchmarks``)."""
     return match_name_tier(db, norm_input, text).found
 
 

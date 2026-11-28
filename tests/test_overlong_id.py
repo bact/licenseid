@@ -22,13 +22,15 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
-from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
+    safe_home,
+    traced_statements,
+)
 from db_variants import BREAKERS, make_ready_file_db, stamp_rebuild
 from matcher_db import Lic, seeded_db
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
-from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
 from licenseid.identifiers import normalize_identifier
@@ -143,10 +145,10 @@ def test_overlong_id_is_no_match(
 # pattern.  "ids" is the result, "error" an InvalidInputError (a usage error).
 NON_TRIGGERING = [
     pytest.param("text", "(" * 5000 + "MIT" + ")" * 5000, ["MIT"], None, id="nested"),
-    pytest.param(
-        "text", " OR ".join(["MIT"] * 20_000), ["MIT"], None, id="operands-20000"
-    ),
-    # A long word, not 2 MB: its full-text search costs time in its length.
+    # Too many operators for resolve(); its two word grams are in no text
+    # (0.9's trigram query listed MIT at 0.0014).
+    pytest.param("text", " OR ".join(["MIT"] * 20_000), [], None, id="operands-20000"),
+    # A long word, not 2 MB: a long word cost the full-text search of 0.9 time.
     pytest.param("text", "x" * 60_000, [], None, id="word-60k"),
     # 25,001 two-byte characters pass the 50,000-byte mark, yet an explicit ID
     # that is no ID is a usage error before any lookup.
@@ -197,20 +199,14 @@ def test_cli_overlong_id_exits_one(db_path: str, command: str) -> None:
 @pytest.mark.parametrize(
     "value", [BIG, "Zzz", "Apache-1"], ids=["big", "unknown", "tie"]
 )
-def test_an_id_before_a_plus_runs_no_input_built_sql(db_path: str, value: str) -> None:
+def test_an_id_before_a_plus_runs_no_input_built_sql(
+    db_path: str, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
     """After warm-up, no statement holds a LIKE or any part of the input."""
     db = LicenseDatabase(db_path, create=False)
     normalize_identifier("Apache-2+", db)  # fills the table cache
-    statements: list[str] = []
-    real = Connections.connect
-
-    def trace(self: Connections, write: bool = False) -> sqlite3.Connection:
-        conn = real(self, write)
-        conn.set_trace_callback(statements.append)
-        return conn
-
-    with mock.patch.object(Connections, "connect", autospec=True, side_effect=trace):
-        normalize_identifier(value + "+", db)
+    statements = traced_statements(monkeypatch)
+    normalize_identifier(value + "+", db)
     assert not any("LIKE" in s.upper() or value in s for s in statements), statements
 
 

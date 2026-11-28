@@ -8,7 +8,7 @@ to this file: edit `AGENTS.md`.
 ## Project
 
 - `licenseid` detects licence IDs by hybrid search: Tier 0 short text (IDs,
-  names), Tier 1 recall (SQLite FTS5 trigram), Tier 2 precision (RapidFuzz).
+  names), Tier 1 recall (stored word 3-grams), Tier 2 precision (RapidFuzz).
   `resolve()` reads a declared licence value as an SPDX expression.
 - Private alpha, one developer. No backward compatibility needed yet.
 - Build: `hatchling`, PEP 621 `pyproject.toml`.
@@ -76,16 +76,19 @@ in another module.
   no database), `resolvefirst` (input `resolve()` reads whole; the cut of a
   short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
   0 stand: tied names) and `namerules` (what beside one name doubts it),
-  `retrieval` (Tier 1), `textcorpus` (word codes) and `textstore` (stored),
+  `retrieval` (Tier 1: one gram lookup a call, filters, markers and hints)
+  with `gramselect` (which texts Tier 2 scores: filters first, none under
+  0.1, the first 3 and those within 0.05, at most 20; the bound on grams
+  read), `textcorpus` (word codes) and `textstore` (stored),
   `textgrams` (tokens, word 3-grams and their hashes, the gram score) and
   `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
   overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
-  without template vars), `firsttext` (1st text), `textnames`, `ftsquery` (its
-  `MATCH` string: 20 words), `idoptions` (`exclude`, `hint`: API only, free text
-  only, case-folded, a bare deprecated ID stands for both twins, kept under
-  `as-written`), `variants` and `variantstated` (the `variant` option: what a
-  bare ID and a text answer, `variant_stated`, a trailing "only"), `similarity`
+  without template vars), `firsttext` (1st text), `textnames`, `idoptions`
+  (`exclude`, `hint`: API only, free text only, case-folded, a bare deprecated
+  ID stands for both twins, kept under `as-written`), `variants` and
+  `variantstated` (the `variant` option: what a bare ID and a text answer,
+  `variant_stated`, a trailing "only"), `similarity`
   (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
   a licence's core too, the higher kept, coverage over the text that won) with
   `coretext` (a template without its optional parts), `fingerprint` (maths) and
@@ -423,7 +426,7 @@ and `--json`) against these rules and checks the default output against the
   (`namehits._without_grant`). Generic words
   (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1 is
   final from 10 words on (no Tier 1; under 10 words `too_short` warns); below 1,
-  Tier 1 runs. Mixed-content sections (`match_short_text`) only lose the hit.
+  Tier 1 runs.
   Add a rule there, with a made-up row in `tests/test_namehits.py`.
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece an
   exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`, at least
@@ -495,7 +498,6 @@ and `--json`) against these rules and checks the default output against the
   `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
   refuses, read as a broken database); compare in memory.
-  `search_candidates` quotes its words.
 - A change to the rows `records` builds or to the shape bumps
   `dbschema.BUILD_VERSION`; to `normalize_text`,
   `dbschema.NORMALIZATION_VERSION`. Stamps compare as numbers; older is not
@@ -554,10 +556,10 @@ and `--json`) against these rules and checks the default output against the
   and lengths, on the branch and on `main`, and compare the top answers
   (item 16 in `working-docs/implementation/tech-debt-resolved.md`). Tier 0
   scorers take `score_cutoff=threshold`.
-- Tier 1 cost is in trigrams, not words: `ftsquery` cuts a query word to
-  `MAX_TERM_CHARS`, above the longest word of any indexed text (70 in List
-  3.29.0; `tests/test_ftsquery.py` holds the long-text fixtures to it), before
-  `"` is doubled. Time a long word against the real-sized fixture database
+- Tier 1 cost is in distinct word 3-grams: `gramselect.GRAM_LIMIT` (50,000,
+  `textlocate.MAX_INPUT_TOKENS`) bounds those looked up; past it `TEXTS` is
+  None. No List text comes near it (`tests/test_gram_candidates.py`). Time an
+  input of many distinct words against the real-sized fixture database
   (`tests/long_text_db.py`); a 5-row one cannot fail.
 - `\s+` followed by a class that also matches white space (`\s+[\s/*#]*`)
   is quadratic: write `\s[\s/*#]*`. Time every prose regex on

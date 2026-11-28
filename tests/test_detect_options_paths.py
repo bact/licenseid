@@ -9,16 +9,17 @@ item 46).
 Characterization tests: they pin today's answers, right or wrong. A pin
 marked ``# BUG:`` is a suspected bug, ``# DECISION:`` a behaviour to keep or
 change on purpose; fixing either moves the pin. ``exclude``, ``only_common``
-and ``only_spdx`` filter the full-text candidates of Tier 1
-(``licenseid.retrieval.get_candidates``); ``hint`` adds its IDs last, with
-their text, through the same filters (``retrieval.hinted_candidates``).
+and ``only_spdx`` filter the score table of Tier 1 before its selection
+(``licenseid.retrieval.get_candidates``, ``licenseid.gramselect``), so the
+rows are the selection among what may answer; ``hint`` adds its IDs last,
+with their text, through the same filters (``retrieval.hinted_candidates``).
 ``enable_popularity`` acts in the Tier 2 ranking and its tie-breaker, on every
 candidate (more in ``tests/test_match_ordering.py``).
 
 MIT, MIT-0, JSON, X11 and Acme-MIT carry their real text, as AGENTS.md asks:
 a row with no ``search_text`` never reaches Tiers 1 and 2, so a filter test
-on it passes trivially. The GPL rows carry only their names, enough for
-full-text search to find them.
+on it passes trivially. The GPL rows carry only their names: a hint adds
+them.
 """
 # pylint: disable=missing-function-docstring,redefined-outer-name
 
@@ -111,7 +112,10 @@ def answers(detector: LicenseDetector, **kwargs: Any) -> list[str]:
     return [r["expression"] for r in detector.detect(**kwargs)]
 
 
-NEAR = ["MIT", "JSON", "MIT-0", "X11"]  # BODY's answers, best first
+# BODY's answers, best first: the top 3 by gram score (X11 is fourth, over
+# 0.05 under MIT). With MIT excluded, the selection is of the rest: REST.
+NEAR = ["MIT", "JSON", "MIT-0"]
+REST = ["JSON", "MIT-0", "X11"]
 GPL = "GPL-2.0-only"
 
 
@@ -119,11 +123,11 @@ GPL = "GPL-2.0-only"
     ("options", "expected"),
     [
         ({}, NEAR),
-        ({"exclude": ["MIT"]}, NEAR[1:]),
+        ({"exclude": ["MIT"]}, REST),
         # DECISION: exclude and hint both fold case (IDs are case-insensitive).
-        ({"exclude": ["mit"]}, NEAR[1:]),
+        ({"exclude": ["mit"]}, REST),
         ({"exclude": ["Nope-1.0"]}, NEAR),
-        ({"exclude": NEAR}, []),
+        ({"exclude": [*NEAR, "X11"]}, []),
         ({"hint": ["MIT"]}, NEAR),  # already a candidate: nothing added
         ({"hint": ["Nope-1.0"]}, NEAR),  # no row: nothing added
         ({"hint": [GPL]}, [*NEAR, GPL]),  # added last, scored on its text
@@ -133,14 +137,15 @@ GPL = "GPL-2.0-only"
         ({"hint": [GPL, "gpl-2.0-only"]}, [*NEAR, GPL]),
         # DECISION: every filter wins: a hint is a candidate that passes
         # them, so it never undoes exclude.
-        ({"exclude": ["MIT"], "hint": ["MIT"]}, NEAR[1:]),
+        ({"exclude": ["MIT"], "hint": ["MIT"]}, REST),
         ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
         # Nor does a hint pass only_common or only_spdx (on by default).
         ({"only_common": True, "hint": ["JSON"]}, ["MIT", "MIT-0", "X11"]),
-        ({"only_spdx": False}, ["MIT", "Acme-MIT", *NEAR[1:]]),
+        # Acme-MIT (0.99) joins the top 3: MIT-0 (0.94) is no longer in it.
+        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON"]),
         ({"only_spdx": True, "hint": ["Acme-MIT"]}, NEAR),
         ({"hint": ["Acme-MIT"]}, NEAR),  # only_spdx is on by default
-        ({"only_spdx": False, "hint": ["Acme-MIT"]}, ["MIT", "Acme-MIT", *NEAR[1:]]),
+        ({"only_spdx": False, "hint": ["Acme-MIT"]}, ["MIT", "Acme-MIT", "JSON"]),
         ({"only_common": True, "exclude": ["MIT"]}, ["MIT-0", "X11"]),
         # No tie here, so popularity (a nudge of 1e-4 at most) moves nothing.
         ({"enable_popularity": True}, NEAR),
@@ -189,33 +194,16 @@ def test_a_hint_keeps_the_licence_its_heading_names(
     assert (hinted[0]["score"], hinted[0]["exact"]) == (1.0, True)
 
 
-MIXED = PROSE * 2 + "Licensed under the MIT License, see below.\n" + PROSE
-
-
-def test_a_hint_does_not_skip_the_search_of_mixed_content(
-    detector: LicenseDetector,
-) -> None:
-    """Mixed content with under 5 full-text candidates is searched by section
-    too (detector._run_tier1_and_tier2). A hint is added after that gate, so
-    it no longer counts towards the 5: what the search found stays."""
-    # as-written keeps the deprecated twin the section search found.
-    keep: dict[str, Any] = {"variant": "as-written"}
-    plain = answers(detector, text=MIXED, **keep)
-    hinted = answers(detector, text=MIXED, hint=[GPL], **keep)
-    assert plain[-2:] == [GPL, "GPL-2.0"]
-    assert hinted == plain
-
-
 @pytest.mark.parametrize(
     "text",
-    [MIT, "MIT License\n\n" + PROSE * 3, MIXED],
-    ids=["heading_and_text", "heading_and_prose", "mixed_window"],
+    [MIT, "MIT License\n\n" + PROSE * 3],
+    ids=["heading_and_text", "heading_and_prose"],
 )
 def test_exclude_drops_what_free_text_names_outside_tier_1(
     detector: LicenseDetector, text: str
 ) -> None:
-    """A heading's marker candidate and a short-text window of mixed content
-    are free text, as Tier 1's candidates are: exclude drops them."""
+    """A heading's marker candidate is free text, as Tier 1's candidates
+    are: exclude drops it."""
     assert "MIT" in answers(detector, text=text, only_common=True)
     assert "MIT" not in answers(detector, text=text, exclude=["MIT"], only_common=True)
 
@@ -295,7 +283,7 @@ def test_every_collection_kind_answers_alike(
     detector: LicenseDetector, kind: type[Any]
 ) -> None:
     got = answers(detector, text=BODY, exclude=kind(["MIT"]), hint=kind([GPL]))
-    assert got == [*NEAR[1:], GPL]
+    assert got == [*REST, GPL]
 
 
 def test_the_order_of_the_ids_does_not_change_the_answer(
@@ -304,7 +292,7 @@ def test_the_order_of_the_ids_does_not_change_the_answer(
     """Hinted candidates are added last, in no order that ranks them."""
     forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=NEAR[:2])
     backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=NEAR[1::-1])
-    assert forward == backward == [*NEAR[2:], GPL]
+    assert forward == backward == ["MIT-0", "X11", GPL]
 
 
 class _Id(str):
@@ -313,7 +301,7 @@ class _Id(str):
 
 def test_a_str_subclass_is_an_id(detector: LicenseDetector) -> None:
     got = answers(detector, text=BODY, exclude=[_Id("MIT")], hint=[_Id(GPL)])
-    assert got == [*NEAR[1:], GPL]
+    assert got == [*REST, GPL]
 
 
 def _ids() -> Generator[str, None, None]:
@@ -363,20 +351,20 @@ def test_a_predicate_takes_no_option(
 
 # --- The options as axes (tests/test_option_matrix.py lists this surface) ---
 
-# A text that reaches Tiers 1 and 2 with a tie (JSON, MIT and MIT-0), so
-# every option changes its answer; the ID is answered whole, whatever they say.
-TIE = "the widget scheduler keeps a queue of pending widgets and dispatches them"
-TIE += " to worker threads"
-TIED = ["X11", "JSON", "MIT", "MIT-0"]
+# A text that reaches Tiers 1 and 2 with a tie (JSON, MIT and MIT-0 hold its
+# words alike), so every option changes its answer; the ID is answered whole,
+# whatever they say. The first 40 words of the disclaimer, one word changed.
+TIE = " ".join(BODY.split("\n\n")[3].split()[:40]).replace("KIND", "SORT")
+TIED = ["JSON", "MIT", "MIT-0"]
 OPTION_ANSWERS: dict[str, tuple[dict[str, Any], list[str]]] = {
     "none": ({}, TIED),
-    "exclude": ({"exclude": ["MIT"]}, ["X11", "JSON", "MIT-0"]),
-    "exclude_case": ({"exclude": ("mit",)}, ["X11", "JSON", "MIT-0"]),  # folded
+    "exclude": ({"exclude": ["MIT"]}, ["JSON", "MIT-0", "X11"]),
+    "exclude_case": ({"exclude": ("mit",)}, ["JSON", "MIT-0", "X11"]),  # folded
     "hint": ({"hint": {GPL}}, [*TIED, GPL]),
-    "exclude_hint": ({"exclude": ["MIT"], "hint": ["MIT"]}, [*TIED[:2], "MIT-0"]),
-    "only_common": ({"only_common": True}, ["X11", "MIT", "MIT-0"]),
-    "only_spdx": ({"only_spdx": False}, ["X11", "Acme-MIT", *TIED[1:]]),
-    "enable_popularity": ({"enable_popularity": True}, ["X11", "MIT-0", "MIT", "JSON"]),
+    "exclude_hint": ({"exclude": ["MIT"], "hint": ["MIT"]}, ["JSON", "MIT-0", "X11"]),
+    "only_common": ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
+    "only_spdx": ({"only_spdx": False}, ["Acme-MIT", *TIED]),
+    "enable_popularity": ({"enable_popularity": True}, ["MIT-0", "MIT", "JSON"]),
 }
 WHERE = list(
     itertools.product(["text", "license_id", "file_path"], ["method", "function"])

@@ -22,7 +22,7 @@ _EMPTY_STAT: dict[str, int] = {"total": 0, **{k: 0 for k, _ in _RECALL_COLUMNS}}
 _TIER_KEYS: list[tuple[str, str]] = [
     ("tier0", "Tier 0 (short-text)"),
     ("tier05", "Tier 0.5 (marker)"),
-    ("tier1", "Tier 1 (FTS5 pool)"),
+    ("tier1", "Tier 1 (text candidates)"),
     ("tier2", "Tier 2 (ranked)"),
     ("missed", "Missed"),
 ]

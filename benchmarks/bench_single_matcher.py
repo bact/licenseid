@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
+from licenseid.shorttext import match_short_text
 
 if TYPE_CHECKING:
     from licenseid.types import DetectOptions
@@ -79,7 +80,7 @@ class InstrumentedMatcher(LicenseDetector):
         if _has_id(marker_candidates, true_id):
             return "tier05"
 
-        # Tier 1: FTS5 candidates, merged with the markers as in detect()
+        # Tier 1: the text candidates, merged with the markers as in detect()
         if _has_id(self._tier1_pool(text, marker_candidates), true_id):
             return "tier1"
 
@@ -87,10 +88,14 @@ class InstrumentedMatcher(LicenseDetector):
         return "tier2" if _has_id(results, true_id) else None
 
     def _short_text_hits(self, norm_input: str) -> list[Any] | None:
-        """Tier 0 hits for a short input, or None when Tier 0 did not answer."""
-        if len(norm_input.split()) >= 20 or not hasattr(self, "_match_short_text"):
+        """Tier 0 hits for a short input, or None when Tier 0 did not answer.
+        A tree of 0.10.0 or later has no detector method for it."""
+        if len(norm_input.split()) >= 20:
             return None
-        short = self._match_short_text(norm_input)
+        if hasattr(self, "_match_short_text"):
+            short = self._match_short_text(norm_input)
+        else:
+            short = match_short_text(self.db, norm_input)
         if short and short[0]["score"] > 1.0:
             return list(short)
         return None
@@ -100,7 +105,9 @@ class InstrumentedMatcher(LicenseDetector):
         request = cast("DetectOptions", {"text": text})
         pool: list[Any] = []
         if hasattr(self, "_get_candidates"):
-            pool = self._get_candidates(request, text)
+            # A list, or since 0.10.0 the candidates with their bound.
+            found = self._get_candidates(request, text)
+            pool = list(getattr(found, "found", found))
         seen = {c["license_id"] for c in pool}
         for cand in marker_candidates:
             if cand["license_id"] not in seen:

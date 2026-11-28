@@ -103,6 +103,10 @@ DECIDED = [
         None,
     ),
     ("zlib/libpng License", None),
+    # A name hit under 1.0 for 10 words falls through to Tier 1. A text of
+    # another licence answered there (MPL-2.0-no-copyleft-exception, 0.86,
+    # item 47); the word grams of 0.10.0 give rows under 0.85 only.
+    ("Licensed under the GNU Affero General Public License v3.0", None),
     # Review of 0.9.0: a tied name written apart from the winner's is a
     # second licence, a one-word one where it is joined to the name.
     ("Apache License 2.0 or Zlib", None),
@@ -207,13 +211,6 @@ def test_decided_answers(
 
 # Wrong answers that no rule of the item touches: leftovers.
 BUGS = [
-    # A name hit under 1.0 for 10 words falls through to Tier 1, where a
-    # text of another licence answers (MPL-2.0 on the real database).
-    # BUG: (item 47)
-    (
-        "Licensed under the GNU Affero General Public License v3.0",
-        Top("MPL-2.0-no-copyleft-exception", "text", False),
-    ),
     # A one-word ID that is an ordinary word is no second licence.
     # BUG: (item 47)
     ("Unlicense, ISC License", Top("ISC", NAME, False)),

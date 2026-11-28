@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 
 from licenseid.dbconnection import Connections
 from licenseid.dbschema import LICENSE_FLAGS
+from licenseid.gramselect import ListFlags
 from licenseid.gramstore import GramCache
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
@@ -53,6 +54,7 @@ class _Keyed:
 
     __slots__ = (
         "exception_words",
+        "flags",
         "grams",
         "names",
         "text_corpus",
@@ -66,6 +68,7 @@ class _Keyed:
         self.names = None
         self.url_rows: list[UrlRow] | None = None
         self.exception_words: list[frozenset[str]] | None = None
+        self.flags: dict[str, ListFlags] | None = None
         self.text_parts: dict[str, TextParts] | None = None
         self.text_corpus: TextCorpus | None = None
         # Also checked per call against the stamp read in its transaction.
@@ -112,6 +115,30 @@ class TableCache:
             if not conn.in_transaction:
                 conn.execute("BEGIN")
             return self._keyed.grams.scores(conn, norm_text, limit)
+
+    def list_flags(self) -> dict[str, ListFlags]:
+        """What the filters of ``detect()`` read of each licence's row, by ID
+        (exact case; the first row wins), read once per rebuild: the filters
+        act on every text that shares a gram with an input
+        (``licenseid.gramselect``), which may be all of them."""
+        self._check_stamp()
+        generation, holder = self._generation, self._keyed
+        found = holder.flags
+        if found is None:
+            with self._connections.connection() as conn:
+                rows: list[tuple[str | None, object, object, object, object]] = (
+                    conn.execute(
+                        "SELECT license_id, is_spdx, is_high_usage,"
+                        " is_osi_approved, is_fsf_libre FROM licenses ORDER BY rowid"
+                    ).fetchall()
+                )
+            found = {}
+            for license_id, *flags in rows:
+                if license_id is not None:
+                    found.setdefault(license_id, ListFlags(*map(bool, flags)))
+            if generation == self._generation:
+                holder.flags = found
+        return found
 
     def _check_stamp(self) -> None:
         """Drop every read if the tables were rebuilt since they were made."""

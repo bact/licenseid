@@ -102,8 +102,8 @@ explicit `license_id`, a value `resolve()` reads (an ID, a name, an
 expression, a licence URL), an `SPDX-License-Identifier` tag, a manifest's
 `license` field, or a text under 10 words with no answer. A text with an
 `SPDX-License-Identifier: MIT` tag and a GPL body answers MIT, whatever
-`exclude` says. They act on free text: the full-text candidates, and what a
-title, a version phrase or a section of mixed content names. So
+`exclude` says. They act on free text: the candidates of the word search, and
+what a title or a version phrase names. So
 `exclude=["MIT"]` removes MIT from the answers for the MIT License text with
 its title.
 
@@ -157,10 +157,9 @@ nothing left answers `[]` and warns `too few words for text`. A short text
 never uses `hint`: Tier 0 adds no candidates.
 
 `hint` adds each ID it finds in the database as a candidate, after the
-others (full-text search, a heading or title, the sections of mixed content),
-so a hint never takes the place of the candidate a name or heading added for
-the same licence, and never counts towards the five below which `detect()`
-searches the sections of mixed content too. An ID given twice, or in another
+others (the word search, a heading or title), so a hint never takes the place
+of the candidate a name or heading added for the same licence. An ID given
+twice, or in another
 case, is added once. Every filter wins over a hint: `exclude` drops a hinted
 ID, `only_common=True` drops one that is not OSI-approved, FSF-libre or high
 usage, and `only_spdx` (on by default) drops one not on the SPDX License List,
@@ -169,12 +168,16 @@ database built by `licenseid update` holds only List rows, so there
 `only_spdx` drops nothing.
 
 The filters do not drop the same candidates. All of them drop a candidate of
-full-text search and a hint. `exclude` also drops the candidates a heading,
-title or version reading adds and the names found in the sections of mixed
-content; `only_common` and `only_spdx` do not: a heading that names a licence
-that `only_common` drops from full-text search still answers (the JSON License
-text, with `only_common=True`, answers `JSON` first, exact, with or without
-`hint=["JSON"]`).
+the word search and a hint. The word search scores each List text by the runs
+of three words it shares with the input; the filters take their licences out
+before the second tier's candidates are chosen from the best of the rest, so
+the rows of a filtered call are those that may answer (`exclude=["MIT"]` on
+the MIT text lists the texts nearest to it after MIT, not a ranking of every
+candidate). `exclude` also drops the candidates a heading, title or version
+reading adds; `only_common` and `only_spdx` do not: a heading that names a
+licence that `only_common` drops from the word search still answers (the JSON
+License text, with `only_common=True`, answers `JSON` first, exact, with or
+without `hint=["JSON"]`).
 
 A hinted candidate has its own text, so it ranks on its similarity to the
 input, as any candidate does, for the first 50 entries of `hint` (a set in

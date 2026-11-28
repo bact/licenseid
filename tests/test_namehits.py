@@ -575,9 +575,9 @@ def test_a_refusal_is_no_answer_from_ten_words_exactly() -> None:
 
 
 def test_a_stray_plus_in_a_section_is_no_guess() -> None:
-    """The sections of a mixed text reach ``match_short_text`` without
-    ``refuses_text_match``: a "＋" that normalize_text drops must not leave
-    the narrower grant of a name that states none."""
+    """The name tier read without ``refuses_text_match``: a "＋" that
+    normalize_text drops must not leave the narrower grant of a name that
+    states none."""
     rows = [
         Lic("Pair-1.0-only", "Pair Name v1 only"),
         Lic("Pair-1.0-or-later", "Pair Name v1 or later"),

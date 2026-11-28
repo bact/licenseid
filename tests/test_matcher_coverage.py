@@ -15,7 +15,6 @@ windowed keyword search used for mixed content.
 # pylint: disable=protected-access
 
 from collections.abc import Generator
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -26,7 +25,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.normalize import normalize_text
 from licenseid.ranking import DEP_PENALTY
-from licenseid.types import CandidateMatch, DetectOptions
+from licenseid.shorttext import match_short_text
 
 _MIT_TEXT = "permission is hereby granted free of charge to any person obtaining a copy"
 _APACHE_TEXT = "apache license version 2.0 terms and conditions for use reproduction"
@@ -290,9 +289,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
 
     # The raw scores of the name tier.
     matcher = LicenseDetector(alias_db)
-    results = matcher._match_short_text(  # pylint: disable=protected-access
-        normalize_text(text), text
-    )
+    results = match_short_text(matcher.db, normalize_text(text), text)
     public = matcher.detect(text)
     assert [(r["expression"], r["method"]) for r in public] == [
         ("GPL-2.0-only", "name")
@@ -305,59 +302,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
     )
 
 
-# -- Mixed content: windowed keyword sections ------------------------------
-
-
-@pytest.fixture
-def mixed_db() -> Generator[str, None, None]:
-    """Two indexed licenses; only Acme-1.0's name is close to the input."""
-    yield from seeded_db(
-        "test_cov_mixed",
-        [
-            Lic(
-                "Acme-1.0",
-                "Acme Public License, Version 1.0",
-                True,
-                True,
-                search_text=(
-                    "acme public license version 1.0 you may use and redistribute"
-                    " this software under the license terms"
-                ),
-            ),
-            Lic(
-                "Beta-2.0",
-                "Beta Source License",
-                search_text=(
-                    "beta source license version 2.0 redistribution of this"
-                    " software in source form is permitted"
-                ),
-            ),
-        ],
-    )
-
-
-def test_mixed_content_keyword_sections(mixed_db: str) -> None:
-    """A misspelt license name in a short notice: too weak for the Tier 0
-    shortcut (0.87 < 1.0), so the windowed keyword search runs. It adds
-    the near-name match as a candidate and skips every ID it has already
-    seen -- both across the two "licens" windows and between the name
-    match and the FTS window that re-finds it."""
-    text = (
-        "Distributed under the Acme Publik License, Version 1.0. See the LICENSE file."
-    )
-    matcher = LicenseDetector(mixed_db)
-
-    results = matcher.detect(text=text)
-    found = [r["expression"] for r in results]
-
-    assert found == ["Acme-1.0", "Beta-2.0"]
-    assert results[0]["score"] > results[1]["score"]
-
-    # Asserted on the section search itself: a duplicate candidate would be
-    # swallowed by the merge in _run_tier1_and_tier2(), which deduplicates
-    # again, so the public result alone cannot show that this step is clean.
-    sectioned = matcher._match_mixed_content(DetectOptions(), text)
-    assert [c["license_id"] for c in sectioned] == ["Acme-1.0", "Beta-2.0"]
+# -- A partially built database ---------------------------------------------
 
 
 @pytest.fixture
@@ -381,55 +326,9 @@ def broken_successor_db() -> Generator[str, None, None]:
     )
 
 
-def test_mixed_content_skips_id_without_a_row(broken_successor_db: str) -> None:
-    """A section resolving to a successor ID with no database row yields
-    no candidate rather than a row-less phantom.
-
-    Called directly: through detect() the same input is answered by Tier 0
-    before mixed content runs (asserted below).
-    """
+def test_an_id_without_a_row_is_answered_by_tier_0(broken_successor_db: str) -> None:
+    """A deprecated ID whose successor has no row of its own: Tier 0 answers
+    the successor it names; no phantom row is read."""
     matcher = LicenseDetector(broken_successor_db)
 
-    assert not matcher._match_mixed_content(DetectOptions(), "Unlicense")
     assert [r["expression"] for r in matcher.detect("Unlicense")] == ["Unlicense-2.0"]
-
-
-# -- The windowed search that augments Tier 1 --------------------------------
-
-
-@pytest.mark.parametrize(
-    "case",  # (candidates found, text is a standalone license, windowed search runs)
-    [
-        pytest.param((0, True, True), id="nothing-found-even-if-pure"),
-        pytest.param((4, False, True), id="thin-results-on-mixed-text"),
-        pytest.param((5, False, False), id="enough-results-on-mixed-text"),
-        pytest.param((4, True, False), id="thin-results-on-pure-text"),
-    ],
-)
-def test_the_windowed_search_runs_for_no_or_thin_results_on_mixed_text(
-    ordering_matcher: LicenseDetector,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    case: tuple[int, bool, bool],
-) -> None:
-    """Fewer than five candidates on text that is not a standalone license
-    (or none at all) also gets the windowed keyword search; pure text with
-    a few candidates does not."""
-    found, pure, windowed = case
-    text = "filler word " * 20
-    candidates = [
-        CandidateMatch(license_id=f"L-{i}.0", search_text="") for i in range(found)
-    ]
-    monkeypatch.setattr(
-        ordering_matcher, "_get_candidates", lambda *_args: list(candidates)
-    )
-    windowed_search = mock.Mock(return_value=[])
-    monkeypatch.setattr(ordering_matcher, "_match_mixed_content", windowed_search)
-    if pure:
-        license_file = tmp_path / "LICENSE"
-        license_file.write_text(text, encoding="utf-8")
-        ordering_matcher.detect(file_path=str(license_file))
-    else:
-        ordering_matcher.detect(text=text)
-
-    assert windowed_search.called is windowed

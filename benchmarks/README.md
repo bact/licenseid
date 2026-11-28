@@ -193,6 +193,4 @@ results, no corpus or database needed) and `tests/test_speedgate_child.py`
 
 ## Also in this directory
 
-- `bench_fts5_recall.py` — standalone FTS5 pool-recall probe, not part of
-  the main/current comparison flow above (a later task removes it).
 - `summary.md` — output of the most recent `bench_compare.py` run.

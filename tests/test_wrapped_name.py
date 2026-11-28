@@ -18,6 +18,7 @@ name inside a sentence.
 
 import json
 import time
+from unittest import mock
 from unittest.mock import create_autospec
 
 import pytest
@@ -25,7 +26,7 @@ from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from timing import slack
 
-from licenseid import LicenseDatabase, resolve
+from licenseid import LicenseDatabase, database, resolve
 from licenseid.detector import LicenseDetector
 from licenseid.dropguard import edge_marks
 from licenseid.listlookup import ListLookup
@@ -192,16 +193,20 @@ def test_a_short_wrapped_name_says_why_it_has_no_answer(
 
 
 def test_the_final_refusal_is_for_a_listed_name_only(
-    corpus_db: LicenseDatabase,
+    corpus_db: LicenseDatabase, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # A long value that is no listed name in marks goes on to the text tiers,
-    # as before: its answer is weak, not a refusal.
+    # as before, not a refusal. Its word grams are in no List text, so since
+    # 0.10.0 Tier 1 gives no candidate (it listed weak rows, 0.5 at most).
     value = (
         "MIT OR Apache-2.0 OR ISC OR BSD-3-Clause OR 0BSD OR Zlib OR Unlicense "
         "OR Python-2.0 OR X11*"
     )
     assert resolve(value, corpus_db)["reason"] == "character dropped: U+002A"
-    assert LicenseDetector(corpus_db.location).detect(text=value)
+    looked = mock.Mock(wraps=database.gram_scores)
+    monkeypatch.setattr("licenseid.retrieval.gram_scores", looked)
+    assert not LicenseDetector(corpus_db.location).detect(text=value)
+    looked.assert_called_once()
 
 
 @pytest.mark.parametrize("value", sorted(READ), ids=lambda v: ascii(v)[:30])

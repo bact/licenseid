@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 
 from typing_extensions import Unpack
 
-from licenseid.candidates import as_matches, license_sections
+from licenseid.candidates import as_matches
 from licenseid.classify import is_pure_license_text
 from licenseid.database import LicenseDatabase, text_parts
 from licenseid.datadir import get_default_db_path
@@ -35,7 +35,7 @@ from licenseid.manifest import extension, license_value_groups
 from licenseid.markerfloor import doubt_floors
 from licenseid.markers import MarkerDetector
 from licenseid.namehits import refusal_answer
-from licenseid.normalize import normalize_text, strip_comment_prefixes
+from licenseid.normalize import normalize_text
 from licenseid.ranking import apply_version_suffix_tiebreaker, ranking_key
 from licenseid.resolvefirst import as_resolved, match_of, too_short, unread_url
 from licenseid.resolver import resolve_with
@@ -44,12 +44,11 @@ from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import Resolution
 from licenseid.resolveurl import urls_as_ids
 from licenseid.result import public_result
-from licenseid.retrieval import add_free_text, add_unseen, drop_excluded, get_candidates
+from licenseid.retrieval import Candidates, add_free_text, get_candidates
 from licenseid.shorttext import (
     EXACT_MATCH_SCORE,
     exact_id_match,
     match_name_tier,
-    match_short_text,
     match_version_key,
 )
 from licenseid.similarity import (
@@ -99,7 +98,7 @@ def _set_flags(match: RawMatch, flags: LicenseFlags) -> None:
 
 class LicenseDetector:
     """The detection pipeline: the whole input through ``resolve()``, then
-    markers (Tier 0.5), IDs and names (Tier 0), FTS5 recall (Tier 1) and
+    markers (Tier 0.5), IDs and names (Tier 0), word-gram recall (Tier 1) and
     RapidFuzz ranking (Tier 2)."""
 
     def __init__(
@@ -228,7 +227,7 @@ class LicenseDetector:
         """Tier 0: Short-Text Shortcut (Names/IDs).
 
         Inputs under 30 words (~200 chars) are likely bare IDs or short names:
-        exact/fuzzy name matching answers them without the FTS5 pipeline. A
+        exact/fuzzy name matching answers them without Tiers 1 and 2. A
         low threshold keeps ~50-word licence preambles (head_300 inputs)
         away from the name matcher, which returns the generic parent of
         variant licences (MIT-STK, MIT-enna). A lone SPDX expression
@@ -342,33 +341,29 @@ class LicenseDetector:
         ctx: _MatchContext,
         marker_candidates: list[CandidateMatch],
         marker_boosts: dict[str, float],
-    ) -> list[InternalMatch]:
+    ) -> tuple[list[InternalMatch], bool]:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
-        (Precision Ranking). Never short-circuits detect()."""
-        excluded = excluded_ids(ctx.request.get("exclude", []))
-        candidates = self._get_candidates(ctx.request, ctx.target_text)
+        (Precision Ranking), and whether Tier 1 read only some of the
+        input's grams. Never short-circuits detect()."""
+        candidates, bounded = self._get_candidates(ctx.request, ctx.target_text)
 
-        # For mixed content or thin FTS5 results, augment via windowed search.
-        if not candidates or (not ctx.is_pure and len(candidates) < 5):
-            mixed = self._match_mixed_content(ctx.request, ctx.target_text)
-            add_unseen(candidates, drop_excluded(mixed, excluded))
-
-        # Merge the marker candidates, then the hinted ones, not already
-        # surfaced by FTS5. A prose marker is free text: exclude drops it as
-        # it drops a Tier 1 candidate (a declaration never gets here). A hint
-        # is last, so it never counts towards the gate above.
+        # Merge the marker candidates, then the hinted ones, not already among
+        # the gram candidates, also when there are none. A prose marker is
+        # free text: exclude drops it as it drops a Tier 1 candidate (a
+        # declaration never gets here).
         add_free_text(self.db, ctx.request, candidates, marker_candidates)
 
         # Pass marker boosts and purity context so ranking can weight signals
         # appropriately: small additive bonus for pure text (similarity leads),
         # confidence floor for mixed content (marker is primary signal).
-        return self._rank_candidates(
+        ranked = self._rank_candidates(
             candidates,
             ctx.norm_input,
             ctx.request,
             marker_boosts=marker_boosts,
             is_pure=ctx.is_pure,
         )
+        return ranked, bounded
 
     def detect(
         self,
@@ -387,8 +382,8 @@ class LicenseDetector:
         only where licence text is matched, so an input answered whole
         ignores them (except ``variant``, which reads every input):
         exclude, hint, only_spdx and only_common on the candidates of
-        Tier 1, and on the hinted ones (exclude alone also on markers,
-        mixed-content section names and a short text's name hit),
+        Tier 1, and on the hinted ones (exclude alone also on markers and a
+        short text's name hit),
         enable_popularity on the Tier 2 ranking and its tie-breaker. Raises
         :class:`TypeError` for a text or license_id that is no str, a
         file_path that is neither a str nor an os.PathLike of one, or an
@@ -497,7 +492,7 @@ class LicenseDetector:
             return field_result
 
         # Tier 0: Short-Text Shortcut — bare IDs/names below the word
-        # threshold are resolved without entering the FTS5 pipeline.
+        # threshold are resolved without entering Tiers 1 and 2.
         # A short input is matched without its tags, read above: one left
         # named no license, and is no text to match.
         ctx = self._without_tags(ctx)
@@ -524,7 +519,9 @@ class LicenseDetector:
         # short input resolve() refused (resolvefirst).
         if too_short(whole, ctx.norm_input, whole=ctx.target_text == target_text):
             return []
-        ranked = self._run_tier1_and_tier2(ctx, marker_candidates, marker_boosts)
+        ranked, bounded = self._run_tier1_and_tier2(
+            ctx, marker_candidates, marker_boosts
+        )
 
         # Tiebreaker: -only vs -or-later when scores are identical
         pop = ctx.request.get("enable_popularity", self.enable_popularity)
@@ -532,9 +529,11 @@ class LicenseDetector:
             ranked, ctx.target_text, ctx.is_pure, enable_pop=pop
         )
         settled = settle_free_text(ranked, ctx.target_text, ctx.is_pure, ctx.request)
-        # In a file of several licence texts, a text answer stands only when
-        # its text comes first (firsttext); its one search gives TEXTS too.
-        settled, found = settle_texts(settled, ctx.norm_input, self.db)
+        found: Found | None = None  # past the bound of grams read: no TEXTS
+        if not bounded:
+            # In a file of several licence texts, a text answer stands only
+            # when its text comes first (firsttext); its one search gives TEXTS.
+            settled, found = settle_texts(settled, ctx.norm_input, self.db)
         return self._with_texts(settled, ctx, found)
 
     def _with_texts(
@@ -655,16 +654,9 @@ class LicenseDetector:
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return None if record is None else record["is_fsf_libre"]
 
-    def _get_candidates(self, data: DetectOptions, text: str) -> list[CandidateMatch]:
+    def _get_candidates(self, data: DetectOptions, text: str) -> Candidates:
         """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
         return get_candidates(self.db, data, text)
-
-    def _match_short_text(
-        self, norm_input: str, text: str | None = None
-    ) -> list[RawMatch]:
-        """Tier 0 ID and name matching for a short input, *text* raw (see
-        licenseid.shorttext)."""
-        return match_short_text(self.db, norm_input, text)
 
     def _rank_candidates(
         self,
@@ -689,44 +681,3 @@ class LicenseDetector:
         boost_by_fingerprint(ranked, self.db.find_fingerprint_hits(norm_input))
         ranked.sort(key=ranking_key(enable_popularity))
         return ranked
-
-    def _match_mixed_content(
-        self, request: DetectOptions, target_text: str
-    ) -> list[CandidateMatch]:
-        """Extract sections from mixed content and search them for licenses."""
-        sections = license_sections(target_text)
-        candidates: list[CandidateMatch] = []
-        seen_ids = set()
-
-        for section in sections:
-            # Strip comment prefixes before both short-text and FTS5 matching
-            # so that comment-wrapped license text (Type 5) is handled cleanly.
-            section = strip_comment_prefixes(section)
-            # 1. Try Tier 0 (Short Text) on the windowed section
-            norm_section = normalize_text(section)
-            short_matches = self._match_short_text(norm_section, section)
-            for m in short_matches:
-                if m["license_id"] not in seen_ids:
-                    details = self.db.get_license_details(m["license_id"])
-                    if details:
-                        candidates.append(
-                            self.markers.to_candidate(details, m["score"])
-                        )
-                        seen_ids.add(m["license_id"])
-
-            # 2. Tier 1 (Recall) on a window starting at the keyword
-            words = section.split()
-            for i, word in enumerate(words):
-                if "licens" in word.lower():
-                    # FTS5 works best if the first few words are relevant
-                    fts_query_text = " ".join(words[i : i + 50])
-                    for c in self._get_candidates(request, fts_query_text):
-                        if c["license_id"] not in seen_ids:
-                            candidates.append(c)
-                            seen_ids.add(c["license_id"])
-
-        # Fallback: if no sections found or no candidates from sections,
-        # try the whole text (it might be a pure license without keyword)
-        if not candidates:
-            candidates = self._get_candidates(request, target_text)
-        return candidates

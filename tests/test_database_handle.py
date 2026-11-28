@@ -41,6 +41,7 @@ from licenseid import (
     detect,
     resolve,
 )
+from licenseid.database import gram_scores
 from licenseid.dbcheck import check_database_ready, is_built
 from licenseid.errors import InvalidInputError
 
@@ -200,7 +201,7 @@ def test_reads_on_a_handle_on_a_missing_file_make_no_file(tmp_path: Path) -> Non
     with pytest.raises(DatabaseNotReadyError, match="^database: "):
         handle.get_license_details("MIT")
     with handle.reading(), pytest.raises(DatabaseNotReadyError):
-        handle.search_candidates("permission is hereby granted")
+        gram_scores(handle, "permission is hereby granted")
     assert not path.exists()
 
 

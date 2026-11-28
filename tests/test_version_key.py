@@ -339,19 +339,6 @@ def test_match_short_text_reads_the_key_of_the_raw_text(
     assert (match["license_id"], match["exact"]) == (expected, True)
 
 
-def test_mixed_content_gives_its_sections_raw_to_tier_0(
-    matcher: LicenseDetector,
-) -> None:
-    """Every Tier 0 caller hands over the raw text the key reads. A section
-    holds its "licens" word, so it is never a loose ID itself."""
-    # pylint: disable=protected-access
-    with mock.patch.object(
-        matcher, "_match_short_text", wraps=matcher._match_short_text
-    ) as tier0:
-        matcher._match_mixed_content({}, "Licensed Apache.2.0")
-    tier0.assert_called_once_with("licensed apache 2 0", "Licensed Apache.2.0")
-
-
 @pytest.mark.parametrize(
     "text",
     ["a1" * 50_000, "1.0" * 50_000, ".1.0" * 50_000, "v1" * 50_000]

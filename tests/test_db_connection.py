@@ -17,7 +17,7 @@ import pytest
 from conftest import is_closed
 from matcher_db import GPL2_ROWS, Lic, seeded_db
 
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, candidate_rows, gram_scores
 from licenseid.dbconnection import Connections
 from licenseid.detector import LicenseDetector
 
@@ -41,7 +41,8 @@ def _lookups(db: LicenseDatabase) -> None:
     assert db.get_license_details("mit")
     assert db.get_license_by_name("apache license 2.0")
     assert db.get_exception_details("GCC-exception")
-    assert db.search_candidates("permission is hereby", limit=5)
+    assert gram_scores(db, "permission is hereby granted").rows
+    assert candidate_rows(db, ["MIT"])
 
 
 @pytest.mark.parametrize(
@@ -74,8 +75,9 @@ def test_a_block_opens_lazily_and_a_query_outside_closes_its_own(
         pass
     assert not opened
     _lookups(db)
-    # Four queries, and the ID lookup reads the rebuild stamp first.
-    assert len(opened) == 5 and all(is_closed(c) for c in opened)
+    # Five lookups; the two by ID (details, candidate rows) read the rebuild
+    # stamp first.
+    assert len(opened) == 7 and all(is_closed(c) for c in opened)
 
 
 _READ_KEY = "SELECT value FROM db_metadata WHERE key = ?"

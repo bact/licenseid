@@ -112,17 +112,17 @@ declared values, SPDX expressions and the matching pipeline.
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.
-  - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
-    queried with the input's first 20 words, plus its last 20 for an input
-    over 200 words (at most 25 more candidates), for consistent performance.
-    When removing the copyright notices changes those first 20 words (a
-    title and a long copyright line can fill them), a second head query
-    runs without the notices. When its first 10 results hold a licence the
-    first query did not find, it adds all of its 50 results the first query
-    lacks; otherwise it adds none.
-    A word is cut to its first 128 characters (the longest word of the List
-    is 70), so one very long word stays fast.
-    Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
+  - **Tier 1 (Recall)**: Candidate retrieval by word 3-grams. Comment
+    prefixes (`//`, `#`, `*`, `;`) are stripped and the input normalised;
+    each run of three words (each Han or kana character is a word) is looked
+    up, once, in the postings `licenseid update` stores. Every List text that
+    shares a gram scores `shared / min(grams of the input, grams of the
+    text)`. `exclude`, `only_spdx` and `only_common` take their licences out
+    first. A best score under 0.1 gives no candidate; else the second tier
+    scores the first 3 texts by score and every text within 0.05 of the
+    best, at most 20 (equal scores in table order). The candidates of
+    markers and hints join after them. Only the first 50,000 distinct grams
+    of an input are looked up; past that, `TEXTS` is empty.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. An input of at
     least 80% of a text's words (or a very long one) is compared with the
     whole text by sorted words; a shorter one is aligned with the best part

@@ -270,8 +270,10 @@ def test_a_tag_and_a_json_field_agree_on_what_no_id_may_hold(
     package.write_text(
         json.dumps({"license": value, "description": PROSE}), encoding="utf-8"
     )
-    by_tag = flags(matcher.detect(text=source_with(value))[0])
-    by_json = flags(matcher.detect(file_path=str(package))[0])
+    # The first result of each, or none: "MIT OR NoSuch-1.0" names no List
+    # licence, and its prose shares no word gram with a List text.
+    by_tag = [flags(r) for r in matcher.detect(text=source_with(value))[:1]]
+    by_json = [flags(r) for r in matcher.detect(file_path=str(package))[:1]]
     assert by_tag == by_json
     with pytest.raises(InvalidInputError, match="pass one license ID"):
         matcher.detect(license_id=value)

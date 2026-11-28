@@ -19,9 +19,17 @@ and this project adheres to
 - `detect()` on a declared value is about a quarter faster (462 PyPI values:
   1.39 s to 1.06 s); every answer, score and warning is unchanged
 - Database build 8 (3.4 MB more) stores the word 3-gram postings of every
-  licence text, for the faster text search to come; nothing reads them yet
+  licence text
 - `import licenseid` and `licenseid --version` start in about a third of the
   time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
+- `detect()` on free text finds its candidates by the word 3-grams it shares
+  with each licence text: 13 times faster on 868 licence texts and files
+  (353 s to 27 s of CPU), from 1.3 to 37 times by kind of input
+- `detect()` on free text no longer lists a far, low-scoring row; an input that
+  shares too few runs of three words with any text has `REASON` `no match`, no
+  longer `below threshold`, and lists nothing
+- Mixed content (a licence text inside code or prose) is no longer cut into
+  sections searched one by one; the word grams find its texts whole
 
 ## [0.9.4] - 2026-11-27
 

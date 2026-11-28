@@ -57,19 +57,6 @@ def first_distinct(matches: Iterable[re.Match[str]], limit: int) -> Iterator[str
                 return
 
 
-def license_sections(text: str) -> list[str]:
-    """The sections of *text* that likely contain license information: the
-    120 words round each word with "licens" in it."""
-    sections: list[str] = []
-    words = text.split()
-    for i, word in enumerate(words):
-        if "licens" in word.lower():
-            start = max(0, i - 20)
-            end = min(len(words), i + 100)
-            sections.append(" ".join(words[start:end]))
-    return sections
-
-
 def as_matches(
     exact: list[CandidateMatch], method: Method | None = None
 ) -> list[RawMatch]:

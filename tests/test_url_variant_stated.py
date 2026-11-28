@@ -39,8 +39,12 @@ def _first(db: LicenseDatabase, text: str, variant: Variant = "auto") -> dict[st
 def _cell(
     db: LicenseDatabase, given: GivenWarnings, text: str, variant: Variant
 ) -> tuple[Any, ...]:
-    """The answer, its flags and the warnings it gave."""
-    first = _first(db, text, variant)
+    """The answer, its flags and the warnings it gave; none for no answer (a
+    compound URL inside a compound is refused, and is too short for text)."""
+    found = LicenseDetector(db.location).detect(text, variant=variant)
+    if not found:
+        return (None, given.conditions())
+    first = found[0]
     return (
         first["expression"],
         first["exact"],

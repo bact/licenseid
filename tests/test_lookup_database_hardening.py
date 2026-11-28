@@ -31,7 +31,7 @@ from db_variants import IS_ROOT, create_database, make_ready_file_db, writer
 
 from licenseid import DatabaseNotReadyError, LicenseDetector
 from licenseid.cli import cli
-from licenseid.database import LicenseDatabase
+from licenseid.database import LicenseDatabase, gram_scores
 from licenseid.dbcheck import (
     lookup_error,
     open_uri,
@@ -344,7 +344,7 @@ def test_a_path_with_a_semicolon_keeps_one_action(tmp_path: Path) -> None:
 )
 def test_a_search_text_never_fails_as_a_query(tmp_path: Path, text: str) -> None:
     db = LicenseDatabase(str(make_ready_file_db(tmp_path / "q.db")))
-    assert isinstance(db.search_candidates(text, already_normalized=True), list)
+    assert isinstance(gram_scores(db, text).rows, tuple)
 
 
 @pytest.mark.parametrize(
@@ -357,7 +357,7 @@ def test_search_and_fingerprints_raise_for_a_database_gone_bad(
     db = LicenseDatabase(str(path))
     damage(path)
     with pytest.raises(DatabaseNotReadyError):
-        db.search_candidates("permission is hereby granted free of charge")
+        gram_scores(db, "permission is hereby granted free of charge")
     with pytest.raises(DatabaseNotReadyError):
         db.find_fingerprint_hits("a b c d e f g h")
 
