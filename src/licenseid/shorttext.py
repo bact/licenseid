@@ -60,14 +60,6 @@ def _full_row(db: LicenseDatabase, license_id: str) -> LicenseNameId | None:
     return next((row for row in rows if row["license_id"] == license_id), None)
 
 
-def match_short_text(
-    db: LicenseDatabase, norm_input: str, text: str | None = None
-) -> list[RawMatch]:
-    """The hits of :func:`match_name_tier`, without its refusal: for a
-    caller that judges the hits alone (tests, ``benchmarks``)."""
-    return match_name_tier(db, norm_input, text).found
-
-
 def match_name_tier(
     db: LicenseDatabase, norm_input: str, text: str | None = None
 ) -> NameHits:

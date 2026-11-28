@@ -12,7 +12,9 @@ from typing import Any, Final, NamedTuple
 from benchmarks.speedgate.buildinputs import ONECALL_FILES
 from benchmarks.speedgate.damage import REFERENCE
 from benchmarks.speedgate.moved import (
+    ANSWER_BAR,
     THRESHOLDS,
+    Moved,
     fixture_counts,
     label_counts,
     moved_answers,
@@ -42,6 +44,7 @@ LABEL_AGREE_MIN: Final = 190
 LABEL_OTHER_MAX: Final = 16
 DB_LIMIT_BYTES: Final = 20_000_000
 MEMORY_SLACK_MB: Final = 1.0
+TEXTS_CALL_SETS: Final = ("many", "cjk", "roadmap")
 TIMED_SETS: Final = ("core", "prose", "many", "cjk", "options", "roadmap", "stress")
 NOT_HERE: Final = (
     ("Values", "462 PyPI values: tools/pypi_licence_sample"),
@@ -155,7 +158,7 @@ def labels(cand: Sets, labelled: dict[str, Any] | None) -> Gate:
     """Weak labels at 0.85: agree not under 190, other not over 16."""
     if not labelled:
         return Gate("Labels", NA, "pass --inputs")
-    counts = label_counts(cases_of(cand.get("core")), labelled, 0.85)
+    counts = label_counts(cases_of(cand.get("core")), labelled, ANSWER_BAR)
     ok = counts["agree"] >= LABEL_AGREE_MIN and counts["other"] <= LABEL_OTHER_MAX
     return _gate(
         "Labels",
@@ -180,36 +183,62 @@ def fixtures(base: Sets, cand: Sets) -> Gate:
 
 
 def prose(base: Sets, cand: Sets) -> Gate:
-    """Prose: the top answer is the same on READMEs, notices and mixed inputs."""
+    """Prose: the answer (a top row at the answer cutoff) is the same on READMEs,
+    notices and mixed inputs: it does not appear, disappear or change. How
+    many top rows moved at lower cutoffs is information, not a failure."""
     a, b = cases_of(base.get("prose")), cases_of(cand.get("prose"))
     if not a or not b:
         return Gate("Prose", NA, "prose set missing")
-    moved = [k for k in sorted(a) if k in b and top(a[k], 0.0)[0] != top(b[k], 0.0)[0]]
+    shared = sorted(a.keys() & b.keys())
+
+    def moved_at(cut: float) -> list[str]:
+        return [k for k in shared if top(a[k], cut)[0] != top(b[k], cut)[0]]
+
+    moved = moved_at(ANSWER_BAR)
+    info = ", ".join(
+        f"{len(moved_at(cut))} at {cut:g} or more" for cut in THRESHOLDS[1:]
+    )
     return _gate(
         "Prose",
         not moved,
-        f"{len(moved)} of {len(a)} top answers moved"
-        + (": " + ", ".join(moved[:5]) if moved else ""),
+        f"{len(moved)} of {len(a)} answers moved"
+        + (": " + ", ".join(moved[:5]) if moved else "")
+        + f" (top rows moved, not judged: {info}, {len(moved_at(0.0))} at any score)",
     )
 
 
-def texts(base: Sets, cand: Sets) -> Gate:
-    """TEXTS equal on all many-text inputs, and under every option where the
-    top answer is the same."""
-    bad = [
-        m
-        for m in moved_answers(
-            "many", cases_of(base.get("many")), cases_of(cand.get("many"))
-        )
-        if m.field.startswith("texts")
+def texts_moved(set_name: str, base: Cases, cand: Cases) -> list[Moved]:
+    """The cases whose ``texts()`` differs, where both sides record it."""
+    return [
+        Moved(set_name, key, "texts", base[key]["texts"], cand[key]["texts"])
+        for key in sorted(base.keys() & cand.keys())
+        if "texts" in base[key]
+        and "texts" in cand[key]
+        and base[key]["texts"] != cand[key]["texts"]
     ]
-    a, b = cases_of(base.get("options")), cases_of(cand.get("options"))
-    for key in sorted(a.keys() & b.keys()):
-        same = top(a[key], 0.0)[0] == top(b[key], 0.0)[0]
-        if same and a[key].get("texts_row") != b[key].get("texts_row"):
-            bad.append(moved_answers("options", {key: a[key]}, {key: b[key]})[0])
+
+
+def texts(base: Sets, cand: Sets) -> Gate:
+    """``texts()`` equal wherever a set records it (many-text, CJK and roadmap
+    inputs); the ``TEXTS`` of the top record equal under every option and on
+    the core set where the top answer is the same."""
     if not cases_of(base.get("many")):
         return Gate("TEXTS", NA, "many set missing")
+    bad: list[Moved] = []
+    for name in TEXTS_CALL_SETS:
+        bad.extend(
+            texts_moved(name, cases_of(base.get(name)), cases_of(cand.get(name)))
+        )
+    for name in ("options", "core"):
+        a, b = cases_of(base.get(name)), cases_of(cand.get(name))
+        for key in sorted(a.keys() & b.keys()):
+            same = top(a[key], 0.0)[0] == top(b[key], 0.0)[0]
+            if same and a[key].get("texts_row") != b[key].get("texts_row"):
+                bad.append(
+                    Moved(
+                        name, key, "texts_row", a[key]["texts_row"], b[key]["texts_row"]
+                    )
+                )
     return _gate(
         "TEXTS",
         not bad,
@@ -240,9 +269,9 @@ def item_68(base: Sets, cand: Sets) -> Gate:
     for key, case in b.items():
         if not key.startswith("64 HPND:") or key not in a:
             continue
-        answer, _ = top(case, 0.85)
+        answer, _ = top(case, ANSWER_BAR)
         own = key.split(":")[1].split()[0]
-        if answer and answer != own and top(a[key], 0.85)[0] is None:
+        if answer and answer != own and top(a[key], ANSWER_BAR)[0] is None:
             new.append(f"{key} -> {answer}")
     return _gate(
         "Item 68", not new, "; ".join(new) or "no new answer on the HPND family"

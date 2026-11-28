@@ -73,16 +73,24 @@ def row(expression: str, score: float = 1.0, exact: bool = True) -> list[Any]:
 
 
 def case(
-    cpu_ms: float, answer: str | None = "MIT", score: float = 1.0, texts: Any = None
+    cpu_ms: float,
+    answer: str | None = "MIT",
+    score: float = 1.0,
+    texts: Any = None,
+    called: Any = None,
 ) -> dict[str, Any]:
-    """One measured case."""
+    """One measured case; *texts* is the ``TEXTS`` of its top row, *called*
+    what ``texts()`` gave (recorded only when given)."""
     rows = [row(answer, score)] if answer else []
-    return {
+    out = {
         "cpu_ms": cpu_ms,
         "rows": rows,
         "texts_row": [texts],
         "chars": 10,
     }
+    if called is not None:
+        out["texts"] = called
+    return out
 
 
 def result(cases: dict[str, dict[str, Any]], **more: Any) -> dict[str, Any]:

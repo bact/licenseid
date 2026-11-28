@@ -19,7 +19,7 @@ from licenseid import plusoperator
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
 from licenseid.plusoperator import grant_stem, states_qualifier, strip_plus_operator
-from licenseid.shorttext import decided_name, match_short_text
+from licenseid.shorttext import decided_name, match_name_tier
 from licenseid.types import RawMatch, Variant
 from licenseid.variants import reading
 
@@ -164,7 +164,7 @@ def test_a_name_with_words_left_out(
 ) -> None:
     found = [
         (m["license_id"], round(m["score"], 6))
-        for m in match_short_text(names_db, text)
+        for m in match_name_tier(names_db, text).found
         if m["score"] > 1.0
     ]
     assert found == expected
@@ -231,7 +231,7 @@ def test_every_result_of_a_partial_name(
 ) -> None:
     found = [
         (m["license_id"], round(m["score"], 6))
-        for m in match_short_text(names_db, text)
+        for m in match_name_tier(names_db, text).found
     ]
     assert found == expected
 
@@ -250,7 +250,7 @@ def test_a_stated_grant_is_never_guessed_away(
 ) -> None:
     """normalize_text() drops the "+", and a text that holds both names
     ties them as a name without its grant does: no answer, not -only."""
-    found = match_short_text(names_db, normalize_text(text), text)
+    found = match_name_tier(names_db, normalize_text(text), text).found
     assert decided_name(found) is None
     assert all(m["score"] <= 1.0 for m in found)
 

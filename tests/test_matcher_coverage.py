@@ -25,7 +25,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
 from licenseid.normalize import normalize_text
 from licenseid.ranking import DEP_PENALTY
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 
 _MIT_TEXT = "permission is hereby granted free of charge to any person obtaining a copy"
 _APACHE_TEXT = "apache license version 2.0 terms and conditions for use reproduction"
@@ -289,7 +289,7 @@ def test_deprecated_alias_is_penalised_in_short_text(
 
     # The raw scores of the name tier.
     matcher = LicenseDetector(alias_db)
-    results = match_short_text(matcher.db, normalize_text(text), text)
+    results = match_name_tier(matcher.db, normalize_text(text), text).found
     public = matcher.detect(text)
     assert [(r["expression"], r["method"]) for r in public] == [
         ("GPL-2.0-only", "name")

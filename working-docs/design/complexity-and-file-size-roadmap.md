@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-23
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -41,12 +41,12 @@ file.
 | --- | --- | --- | --- |
 | Args | ≤5 | 5 (at target) | 5 (17 functions in `src/`, e.g. `similarity.py`, `variantstated.py`; many tests) |
 | Locals | ≤15 | 22 | 22 (`markers._detect_gpl_headers`); next 21 (`detector._rank_candidates`), 19 (`clidetect`) |
-| Nesting | ≤5 | 5 (at target) | 5 (`detector._match_mixed_content`) |
+| Nesting | ≤5 | 5 (at target) | 4 (re-measured 2026-11-27: `variants.py`, `nameindex.py`, `spdx_source.py`, `detector.py` and tests; no function reaches 5, so the ceiling has no holder) |
 | Branches | ≤12 | 13 | 13 (`identifiers._normalize_expression`, alone); next 12 (`tests/test_accuracy.py::run_accuracy_test`), 11 in `src/` |
 | Returns | ≤6 | 6 (at target) | 6 (16 functions in `src/`) |
 | Statements | ≤50 | 35 (config) | 35 (`markers._detect_gpl_headers`, `tests/test_update_matrix.py::test_update_matrix`) |
 | McCabe | ≤10 | 12 | 12 (`identifiers.read_leading`, alone); next 11 (four holders) |
-| Cognitive | ≤15 | 29 | 29 (`identifiers.read_leading` and `tests/test_accuracy.py::run_accuracy_test`); next 25 (`detector._match_mixed_content`) |
+| Cognitive | ≤15 | 29 | 29 (`identifiers.read_leading` and `tests/test_accuracy.py::run_accuracy_test`); next 24 (`variants._replaced`), 23 (`clidetect.detect_command`) |
 | Module lines | soft 400-500 / hard 800 | 734 (config) | 734 (`markers.py`; re-measured 2026-11-23); next `identifiers.py` 703, `dbcheck.py` 689 |
 
 The module-lines ceiling in `pyproject.toml` is an exact ratchet again (734,
@@ -54,7 +54,7 @@ after the split of `tests/test_option_matrix.py`, 2026-11-23); the Statements
 ceiling is 35, also exact. Nothing else can drop without a refactor:
 Branches to 12 needs `identifiers._normalize_expression` (13); McCabe to 11
 needs `identifiers.read_leading`; Cognitive to 28 needs two functions
-(`read_leading`, `run_accuracy_test`; then 25); Locals to 21 needs
+(`read_leading`, `run_accuracy_test`; then 24); Locals to 21 needs
 `markers._detect_gpl_headers`. `identifiers.read_leading` holds McCabe and
 (with a test helper) Cognitive: refactoring it moves one ceiling and halves
 the other.

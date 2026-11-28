@@ -12,7 +12,9 @@ from benchmarks.speedgate.model import base_id
 from benchmarks.speedgate.results import Cases
 
 FIELDS: Final = ("rows", "texts_row", "texts")
-THRESHOLDS: Final = (0.85, 0.7, 0.5)
+# The score from which a top row is an answer: the default threshold.
+ANSWER_BAR: Final = 0.85
+THRESHOLDS: Final = (ANSWER_BAR, 0.7, 0.5)
 
 
 class Moved(NamedTuple):

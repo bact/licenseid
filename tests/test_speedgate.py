@@ -318,35 +318,61 @@ def test_a_tiny_class_is_not_judged() -> None:
     assert gates.no_class_slower(base, cand).status == gates.NA
 
 
+def _prose(*cases: tuple[str, str | None, float]) -> dict[str, Any]:
+    return {
+        "prose": result(
+            {f"readme:{i}": case(1, a, s) for i, (_, a, s) in enumerate(cases)}
+        )
+    }
+
+
 def test_a_moved_prose_answer_fails_its_gate() -> None:
-    base = {"prose": result({"readme:a": case(1, "MIT"), "notice:b": case(1, None)})}
-    same = {"prose": result({"readme:a": case(9, "MIT"), "notice:b": case(9, None)})}
-    moved = {"prose": result({"readme:a": case(1, "ISC"), "notice:b": case(1, None)})}
+    base = _prose(("a", "MIT", 1.0), ("b", None, 0.0))
+    same = _prose(("a", "MIT", 0.9), ("b", None, 0.0))
     assert gates.prose(base, same).status == gates.PASS
-    gate = gates.prose(base, moved)
-    assert gate.status == gates.FAIL and "readme:a" in gate.detail
+    for moved in (
+        _prose(("a", "ISC", 1.0), ("b", None, 0.0)),  # changed
+        _prose(("a", None, 0.0), ("b", None, 0.0)),  # disappeared
+        _prose(("a", "MIT", 1.0), ("b", "MIT", 0.86)),  # appeared at 0.85+
+    ):
+        gate = gates.prose(base, moved)
+        assert gate.status == gates.FAIL and "readme:" in gate.detail
 
 
-def test_texts_must_equal_on_many_and_where_the_option_answer_is_the_same() -> None:
-    many = {"many:clean:2:0": case(1, "MIT", texts=["A", "B"])}
-    opts = {"options:MIT:none": case(1, "MIT", texts=["MIT"])}
-    base = {"many": result(many), "options": result(opts)}
-    assert gates.texts(base, base).status == gates.PASS
-    lost = {
-        "many": result({"many:clean:2:0": case(1, "MIT", texts=["A"])}),
-        "options": result(opts),
-    }
-    assert gates.texts(base, lost).status == gates.FAIL
-    other = {
-        "many": result(many),
-        "options": result({"options:MIT:none": case(1, "MIT", texts=["X"])}),
-    }
-    assert gates.texts(base, other).status == gates.FAIL
-    changed = {
-        "many": result(many),
-        "options": result({"options:MIT:none": case(1, "ISC", texts=["X"])}),
-    }
-    assert gates.texts(base, changed).status == gates.PASS
+def test_prose_counts_low_rows_that_moved_but_does_not_fail_on_them() -> None:
+    base = _prose(("a", "MIT", 1.0), ("b", "ISC", 0.8), ("c", "X11", 0.6))
+    cand = _prose(("a", "MIT", 1.0), ("b", "MIT", 0.8), ("c", "ISC", 0.6))
+    gate = gates.prose(base, cand)
+    assert gate.status == gates.PASS
+    assert "0 of 3 answers moved" in gate.detail
+    assert "1 at 0.7 or more, 2 at 0.5 or more, 2 at any score" in gate.detail
+
+
+def test_texts_compare_texts_call_where_recorded_and_not_a_missing_row() -> None:
+    def many(**kw: Any) -> dict[str, Any]:
+        return {"many": result({"many:1": case(1, None, **kw)})}
+
+    base = many(called=["A", "B"])
+    assert gates.texts(base, many(called=["A", "B"])).status == gates.PASS
+    # A record with no rows has no TEXTS row; texts() is what is compared.
+    assert gates.texts(base, many(called=["A", "B"], texts=["X"])).status == gates.PASS
+    differing = gates.texts(base, many(called=["A"]))
+    assert differing.status == gates.FAIL and "many:1" in differing.detail
+
+
+def test_texts_row_is_compared_under_options_and_core_where_the_answer_is_same() -> (
+    None
+):
+    many = {"many": result({"many:1": case(1, "MIT", called=["A"])})}
+
+    def with_set(name: str, answer: str, texts: list[str]) -> dict[str, Any]:
+        return {**many, name: result({f"{name}:k": case(1, answer, texts=texts)})}
+
+    for name in ("options", "core"):
+        base = with_set(name, "MIT", ["MIT"])
+        assert gates.texts(base, with_set(name, "MIT", ["MIT"])).status == gates.PASS
+        assert gates.texts(base, with_set(name, "MIT", ["X"])).status == gates.FAIL
+        assert gates.texts(base, with_set(name, "ISC", ["X"])).status == gates.PASS
 
 
 def test_the_labels_gate_wants_190_agree_and_at_most_16_other() -> None:

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 
 if TYPE_CHECKING:
     from licenseid.types import DetectOptions
@@ -95,7 +95,7 @@ class InstrumentedMatcher(LicenseDetector):
         if hasattr(self, "_match_short_text"):
             short = self._match_short_text(norm_input)
         else:
-            short = match_short_text(self.db, norm_input)
+            short = match_name_tier(self.db, norm_input).found
         if short and short[0]["score"] > 1.0:
             return list(short)
         return None

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct tests of licenseid.shorttext.match_short_text (Tier 0).
+"""Direct tests of licenseid.shorttext.match_name_tier (Tier 0).
 
 Written from a mutation audit of the detector.py split: coverage was 100%,
 but the thresholds, the definitive-hit triple and the one-word partial
@@ -24,7 +24,7 @@ from licenseid import shorttext
 from licenseid.database import LicenseDatabase, name_index
 from licenseid.nameindex import build_name_index
 from licenseid.normalize import normalize_text
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 
 
 @pytest.fixture
@@ -48,14 +48,14 @@ def summary(db: LicenseDatabase, text: str) -> list[tuple[str, float, float | No
             round(m["score"], 6),
             None if m["similarity"] is None else round(m["similarity"], 6),
         )
-        for m in match_short_text(db, text)
+        for m in match_name_tier(db, text).found
     ]
 
 
 def test_an_id_ignoring_case_is_a_definitive_hit(db: LicenseDatabase) -> None:
     """The caller treats a score above 1.0 as final. An ID is not compared,
     so nothing is measured."""
-    results = match_short_text(db, "acme 1 0")
+    results = match_name_tier(db, "acme 1 0").found
 
     assert len(results) == 1
     assert results[0]["license_id"] == "Acme-1.0"
@@ -79,13 +79,13 @@ def test_a_one_word_input_matches_inside_an_id(db: LicenseDatabase) -> None:
 
 
 def test_a_two_word_input_gets_no_partial_id_ratio(db: LicenseDatabase) -> None:
-    assert not match_short_text(db, "gpl like")
+    assert not match_name_tier(db, "gpl like").found
 
 
 def test_two_words_need_90_and_three_words_need_85(db: LicenseDatabase) -> None:
     """`zebra kokka` scores 86.96 against `zebra quokka`; `ferret lynx
     ocelxx` scores 88.89 against `ferret lynx ocelot`."""
-    assert not match_short_text(db, "zebra kokka")
+    assert not match_name_tier(db, "zebra kokka").found
     assert summary(db, "ferret lynx ocelxx") == [("Ferret-1.0", 0.888889, 0.888889)]
 
 
@@ -93,7 +93,9 @@ def test_equal_scores_sort_by_license_id() -> None:
     rows = [Lic("B-1.0", "Twin Name"), Lic("A-1.0", "Twin Name")]
     for path in seeded_db("test_shorttext_twins", rows):
         twin_db = LicenseDatabase(path)
-        assert [m["license_id"] for m in match_short_text(twin_db, "twin name")] == [
+        assert [
+            m["license_id"] for m in match_name_tier(twin_db, "twin name").found
+        ] == [
             "A-1.0",
             "B-1.0",
         ]
@@ -102,8 +104,8 @@ def test_equal_scores_sort_by_license_id() -> None:
 def test_the_thresholds_are_exactly_90_and_85(db: LicenseDatabase) -> None:
     """Two words score 89.47 against `sreltpus ctapirhgwp` (no match: needs
     90); three score 84.62 against `qmx a vycfysb` (no match: needs 85)."""
-    assert not match_short_text(db, "sreltpus ctaperhvwp")
-    assert not match_short_text(db, "pmx a tycfysb")
+    assert not match_name_tier(db, "sreltpus ctaperhvwp").found
+    assert not match_name_tier(db, "pmx a tycfysb").found
 
 
 # The cutoff stops RapidFuzz early (roadmap item 27) and changes no result.
@@ -140,8 +142,8 @@ def test_the_cutoff_changes_no_result(db: LicenseDatabase) -> None:
         token_set_ratio=_no_cutoff(fuzz.token_set_ratio),
     )
     with mock.patch.object(shorttext, "fuzz", reference):
-        expected = [match_short_text(db, t) for t in CUTOFF_INPUTS]
-    assert [match_short_text(db, t) for t in CUTOFF_INPUTS] == expected
+        expected = [match_name_tier(db, t).found for t in CUTOFF_INPUTS]
+    assert [match_name_tier(db, t).found for t in CUTOFF_INPUTS] == expected
     # Most inputs reach a fuzzy match, or the comparison proves little.
     assert sum(map(bool, expected)) >= 6
 
@@ -155,7 +157,7 @@ def test_every_scorer_stops_at_the_threshold(
     """A long word against every row took seconds without the cutoff."""
     spy = mock.Mock(spec=fuzz, wraps=fuzz)
     with mock.patch.object(shorttext, "fuzz", spy):
-        match_short_text(db, text)
+        match_name_tier(db, text)
     calls = [
         *spy.ratio.call_args_list,
         *spy.partial_ratio.call_args_list,

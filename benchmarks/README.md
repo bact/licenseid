@@ -148,6 +148,13 @@ installed packages that hold "licens".
 | threads | 4 threads on one detector, answers against one thread | Counts |
 | damage | 10 damaged copies of the side's database (stored codes) | Rows against the intact build |
 
+The Damage gate also damages the stored word-gram postings (a stale or missing
+stamp, another gram size or width, a short or out-of-range blob, an emptied
+table), and requires `gram_scores` of fixed inputs, the answers of the damage
+inputs and the bytes of the damaged file to equal the intact build's; a side
+without the postings tables (before build 8) records these kinds as not
+applicable.
+
 Labels are not a run: `compare --inputs` counts agree, other and none of the
 225 real files with one declared ID, at 0.85, 0.7 and 0.5, from the core
 result. The roadmap set holds the real files of item 68 (the 23 that the
@@ -159,9 +166,9 @@ sympy and Pillow, and the HPND family of item 64. Item 62 (100,000 `License:`
 lines) is a test of its own, not here. The 18 many-text inputs of cores are in
 addition to the 165 of the plan.
 
-Not built yet, and added by the task that makes them: damage of the postings
-(task T2), the per-entry checks table of the stored codes (T6: two damage kinds
-are recorded as not applicable until then), and the Versions set (T7). Not
+Not built yet, and added by the task that makes them: the per-entry checks
+table of the stored codes (T6: two damage kinds are recorded as not applicable
+until then), and the Versions set (T7). Not
 measured by this tool, so `compare` prints them as not measured: the 462 PyPI
 values, the accuracy test, the golden answers, `--diff`, storage alone and the
 platforms.
@@ -171,8 +178,10 @@ platforms.
 Core CPU (12 times), real file median (15 ms), One call (0.3 s; MIT and
 BSD-3-Clause 0.15 s), no class slower (1.2 times, per input kind and per stress
 input, kinds under 0.05 s are not judged), labels (agree 190, other 16),
-fixtures (right not lower, wrong not higher), prose (top answer the same),
-`TEXTS` (many texts; options where the answer is the same), roadmap inputs
+fixtures (right not lower, wrong not higher), prose (the answer at 0.85 the
+same; moved top rows at lower bars are shown, not judged), `TEXTS` (`texts()`
+where a set records it; the `TEXTS` of the top row under the options and on
+core where the answer is the same), roadmap inputs
 (0.2 s), item 68 (no new answer on an HPND-family fragment), damage (equal to
 the intact build, or to its reference where the text itself changed), threads,
 memory (no peak over the base, 1 MB of slack), database size (under 20 MB).

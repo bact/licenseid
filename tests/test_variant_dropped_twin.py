@@ -28,7 +28,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.grantsubject import Signals, constant
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 from licenseid.types import Method, RawMatch, Variant
 from licenseid.variants import family_of, reading, settle_text
 from licenseid.warning import LicenseIdWarning
@@ -217,8 +217,8 @@ def test_a_kept_deprecated_hit_of_the_name_tier_is_judged_by_its_twin(
 ) -> None:
     """The name tier as a section of a mixed text reads it."""
     with reading("as-written"):
-        found = match_short_text(
+        found = match_name_tier(
             LicenseDatabase(flags_db, create=False), normalize_text(text), text
-        )
+        ).found
     flags = {r["license_id"]: (r["is_osi_approved"], r["is_fsf_libre"]) for r in found}
     assert flags[lic_id] == (judged, judged)

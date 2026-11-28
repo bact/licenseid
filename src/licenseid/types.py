@@ -136,7 +136,7 @@ class LicenseFlags(TypedDict):
 
 
 class CandidateMatch(TypedDict, total=False):
-    """Database record returned by LicenseDatabase.search_candidates()."""
+    """A Tier 1 candidate (`licenseid.retrieval.get_candidates`)."""
 
     license_id: Required[str]
     search_text: Required[str]

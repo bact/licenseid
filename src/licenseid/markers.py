@@ -549,7 +549,7 @@ class MarkerDetector:
 
         Score 0.95 (structural, high-confidence) so it triggers the marker
         floor even on is_pure files, overriding wrong candidates like
-        BSD-2-Clause-Darwin whose FTS5 similarity may be higher.
+        BSD-2-Clause-Darwin whose text similarity may be higher.
         """
         lic_id = bsd_clause_id(text)
         details = self.db.get_license_details(lic_id) if lic_id else None
