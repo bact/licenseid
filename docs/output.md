@@ -97,7 +97,7 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   such a file holds; the ranking is still that of one licence.
 - `SIMILARITY` and `COVERAGE` are empty (JSON `null`) where nothing was
   measured: a tag, a field, an ID or a name `resolve()` reads has neither,
-  and a name the name tier matches has no coverage.
+  and a name the lookup of names matches has no coverage.
 - `VARIANT_STATED` (JSON `variant_stated`) says whether the
   input states which variant of a licence is meant, where it has an `-only`
   and an `-or-later` form: `true` when words (`GPL-2.0 or later`), a "+" or
