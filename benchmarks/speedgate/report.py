@@ -26,17 +26,20 @@ def short(value: Any) -> str:
     return text if len(text) <= CUT else text[: CUT - 3] + "..."
 
 
+def _named(sets: Sets, key: str) -> list[str]:
+    """The distinct values of *key* that the sets of a side give, sorted."""
+    return sorted({str(r[key]) for r in sets.values() if r.get(key)})
+
+
 def identity_lines(label: str, sets: Sets) -> list[str]:
     """Which ``licenseid`` and Python each set of a side ran under, and the
     load: a wrong import or a busy machine shows here."""
-    files = {r.get("licenseid_file") for r in sets.values() if r.get("licenseid_file")}
-    pythons = {r.get("python") for r in sets.values() if r.get("python")}
-    versions = {
-        r.get("licenseid_version") for r in sets.values() if r.get("licenseid_version")
-    }
+    files = _named(sets, "licenseid_file")
+    pythons = _named(sets, "python")
+    versions = _named(sets, "licenseid_version")
     loaded = sorted(n for n, r in sets.items() if r.get("loaded"))
-    head = f"{label}: licenseid {sorted(versions)} from {sorted(files)}; "
-    lines = [head + f"Python {sorted(pythons)}"]
+    head = f"{label}: licenseid {versions} from {files}; "
+    lines = [head + f"Python {pythons}"]
     foreign = sorted(n for n, r in sets.items() if r.get("from_side") is False)
     if foreign:
         lines.append(f"  WRONG IMPORT in {foreign}")
@@ -83,7 +86,7 @@ def time_lines(base: Sets, cand: Sets, twin: Sets | None) -> list[str]:
             )
             ratio = f"{a.seconds / b.seconds:.1f}" if b.seconds else ""
             lines.append(
-                f"{kind[:26]:26s} {a.count:4d} {a.seconds:8.2f} {b.seconds:8.2f} "
+                f"{kind[:26]:26s} {a.cases:4d} {a.seconds:8.2f} {b.seconds:8.2f} "
                 f"{ratio:>6s} {aa:>6s} {a.median_ms:7.1f}{b.median_ms:9.1f}"
             )
     return lines

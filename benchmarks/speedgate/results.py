@@ -46,7 +46,7 @@ def cases_of(result: dict[str, Any] | None) -> Cases:
 class KindTime(NamedTuple):
     """CPU of the cases of one kind: how many, seconds, median milliseconds."""
 
-    count: int
+    cases: int  # not `count`: a tuple has a method of that name
     seconds: float
     median_ms: float
 

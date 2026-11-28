@@ -97,7 +97,7 @@ def real_median(cand: Sets) -> Gate:
     return _gate(
         "Real file, median",
         times.median_ms <= REAL_MEDIAN_MS,
-        f"{times.median_ms:.1f} ms of {times.count} (limit {REAL_MEDIAN_MS:g})",
+        f"{times.median_ms:.1f} ms of {times.cases} (limit {REAL_MEDIAN_MS:g})",
     )
 
 

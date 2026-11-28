@@ -167,6 +167,13 @@ def option_cases(fixtures: Path) -> list[Case]:
     return out
 
 
+class _PlainText(pydoc.TextDoc):
+    """``pydoc.plaintext`` (no stub names it): text with no overstrike."""
+
+    def bold(self, text: str) -> str:
+        return text
+
+
 def _prose(chars: int) -> str:
     out: list[str] = []
     for name in [
@@ -192,7 +199,7 @@ def _prose(chars: int) -> str:
         "zipfile",
     ]:
         out.append(
-            pydoc.render_doc(importlib.import_module(name), renderer=pydoc.plaintext)
+            pydoc.render_doc(importlib.import_module(name), renderer=_PlainText())
         )
     text = "\n".join(out)
     return (text * (chars // len(text) + 1))[:chars]

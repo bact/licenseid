@@ -280,7 +280,7 @@ def _timed(real_ms: float, long_ms: float, n: int = 20) -> dict[str, Any]:
 
 def test_cpu_is_summed_by_kind() -> None:
     times = kind_times(_timed(100, 50, n=10)["cases"])
-    assert times["real"].count == 10 and times["real"].seconds == pytest.approx(1.0)
+    assert times["real"].cases == 10 and times["real"].seconds == pytest.approx(1.0)
     assert times["long:clean"].median_ms == 50
 
 
