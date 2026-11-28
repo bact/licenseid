@@ -305,7 +305,8 @@ COUNTS = {
     },
     "docs/python-api.md": {"python": 4, "skipped": 2, "shape": 1},
     "docs/resolve-flow.md": {"ignored": 2, "skipped": 1},
-    "docs/resolve.md": {"json": 3, "skipped": 1},
+    "docs/resolve-values.md": {"json": 1},
+    "docs/resolve.md": {"json": 2, "skipped": 1},
 }
 
 

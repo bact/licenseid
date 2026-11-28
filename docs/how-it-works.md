@@ -41,10 +41,11 @@ matching, with or without a database. It reads loose IDs (`Apache2`,
 several licences is refused), quote marks, trove classifiers and compounds
 of one-word operands, and refuses, with a reason, what it would read only
 by dropping a mark or a word. What it reads, rule by rule, is in
-[resolve.md](resolve.md#what-resolve-reads), and the lists it reads, row by
-row, in [lists.md](lists.md); the order the readers run in is traced in
-[resolve-flow.md](resolve-flow.md), and the canonical form of an expression
-in [expression-canonicalisation.md](expression-canonicalisation.md).
+[resolve-values.md](resolve-values.md#what-resolve-reads), and the lists
+it reads, row by row, in [lists.md](lists.md); the order the readers run in
+is traced in [resolve-flow.md](resolve-flow.md), and the canonical form of
+an expression in
+[expression-canonicalisation.md](expression-canonicalisation.md).
 
 ## SPDX expressions
 

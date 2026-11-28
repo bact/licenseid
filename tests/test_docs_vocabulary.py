@@ -45,6 +45,7 @@ from tools.pypi_licence_sample.answer import unescape_field
 CLI = DOCS / "cli.md"
 _UNICODE_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 RESOLVE = DOCS / "resolve.md"
+RESOLVE_VALUES = DOCS / "resolve-values.md"
 #: The section of docs/cli.md that documents each command. "Common options"
 #: (under detect's heading) serve detect and the is-* commands too.
 SECTIONS = {
@@ -141,8 +142,10 @@ def _steps(part: Mapping[str, typing.Any]) -> list[dict[str, typing.Any]]:
 def test_each_step_kind_is_documented(corpus: list[resolvertypes.Resolution]) -> None:
     kinds = {s["kind"] for p in _parts(corpus) for s in _steps(p)}
     kinds |= set(resolvertypes.LEXICAL_KINDS) | set(resolvertypes.LIST_PROVIDES)
+    # A step kind is named on the page that reads it: either of the two.
     spans = set(code_spans(text_of(RESOLVE)))
-    assert not kinds - spans, f"docs/resolve.md: step kinds {kinds - spans} not named"
+    spans |= set(code_spans(text_of(RESOLVE_VALUES)))
+    assert not kinds - spans, f"docs/resolve*.md: step kinds {kinds - spans} not named"
 
 
 def _detail_rows() -> dict[str, list[tuple[str, str]]]:

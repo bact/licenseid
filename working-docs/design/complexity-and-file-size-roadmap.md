@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-29
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -65,7 +65,6 @@ are one file; generated outputs left out):
 | Lines | File |
 | --- | --- |
 | 747 | `AGENTS.md` (also `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`) |
-| 741 | `docs/resolve.md` |
 | 734 | `src/licenseid/markers.py` |
 | 703 | `src/licenseid/identifiers.py` |
 | 689 | `src/licenseid/dbcheck.py` |
@@ -83,7 +82,9 @@ are one file; generated outputs left out):
 
 `CHANGELOG.md` (1,071 lines) is over the hard limit: it is one file by
 design. No other file is over 800. Within 100 lines of the hard limit:
-`AGENTS.md`, `docs/resolve.md`, `markers.py`, `identifiers.py`. The next
+`AGENTS.md`, `markers.py`, `identifiers.py` (`docs/resolve.md`, 741 lines
+then and 800 later, was split on 2026-11-29 into itself, 398 lines, and
+`docs/resolve-values.md`, 422). The next
 change to `markers.py` or `identifiers.py` should split first (the `AGENTS.md`
 rule).
 
