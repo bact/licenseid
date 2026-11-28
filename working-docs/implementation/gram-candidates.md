@@ -266,10 +266,19 @@ same rule and takes nothing out of a database of the List alone.
 
 Not covered, measured by hand on the real List, for a decision:
 
-- The name tier carries the defect. A sentence of 10 to 29 words that names
-  "Apache License, Version 2.0", with `exclude=["Apache-2.0"]`, answers
+- The name tier carried the defect. A sentence of 10 to 29 words that names
+  "Apache License, Version 2.0", with `exclude=["Apache-2.0"]`, answered
   `Apache-1.0` at 0.9412 (method `name`), then `Apache-1.1`: the other name
   hits that the exclusion left are near names, not names the input holds.
+  `idoptions.free_text_hits` now cuts a name hit that scores under the best
+  hit `exclude` took out (equal stays). Each List name in two sentences
+  (1,416) and the prose set's 13 notice sentences with the named licence
+  excluded: 816 answered another licence by name, none now; with the best
+  other row excluded instead, no answer moved. On the slices with the
+  holders excluded the wrong answers fall from 319 and 64 to 57 and 61; with
+  the best other row excluded, from 25 to 2 (10 more right). Lost: the 7
+  sentences naming an `-or-later` licence with it excluded, which answered
+  its `-only` twin by name. `only_common` does not act on name hits at all.
 - A title and prose with the title's licence excluded give no answer at
   0.85 (MIT, BSD-3-Clause, Apache-2.0, MPL-2.0, GPL-2.0-only); the rows left
   score under 0.5. But a licence text that names another licence brings it

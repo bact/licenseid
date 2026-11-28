@@ -16,7 +16,8 @@ and this project adheres to
 - **Behaviour change:** `detect()` with `exclude`, `only_common` or
   `only_spdx` no longer answers a text that fits the input less than a text
   the filter removed: `exclude=["MIT"]` on the MIT text answers nothing, not
-  `JSON`
+  `JSON`; nor, with `exclude`, a name in short prose that scores under the
+  name excluded (`Apache-1.0` for "Apache License, Version 2.0")
 - **Breaking:** licenseid reads only a database of its own build (build 10);
   an older one exits 2 with `database: build vN outdated`, and 0.9.x calls a
   build 10 database `invalid`. Migration: run `licenseid update` once after

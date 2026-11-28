@@ -323,7 +323,12 @@ and `--json`) against these rules and checks the default output against the
   `resolve()` has neither) and act on free text only: a declaration (tag,
   field, `license_id`, a whole input `resolve()` reads) is never filtered or
   hinted. Upgrade their bare deprecated IDs once per call
-  (`idoptions.upgraded_options`, warning `deprecated ID`).
+  (`idoptions.upgraded_options`, warning `deprecated ID`). A filter
+  (`exclude`, `only_common`, `only_spdx`) never makes a nearer miss the
+  answer: `gramselect.beyond_bar` cuts a text that a removed one beats on
+  both shared grams and score, `idoptions.free_text_hits` a name hit under
+  the best one excluded; a tie stays. `only_common` does not filter name
+  hits, and markers are not cut (roadmap item 74).
 - `variant` (`--variant auto|as-written|only|or-later`, API `variant=`,
   `licenseid.variants`): under `auto` a declared value stays as written
   (bare `GPL-2.0`, `-with-` IDs); under `auto`, `only` and `or-later` a text

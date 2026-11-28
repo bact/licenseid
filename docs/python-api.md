@@ -148,13 +148,12 @@ value, and a name hit that `resolve()` read is never dropped. `exclude` and
 `hint` are `detect()` options that `resolve()` has not, so `detect()` may then
 answer differently from `resolve()` on purpose.
 
-After an `exclude`, short prose may still answer a near name, but not a
-deprecated ID whose replacement was excluded (except under
-`variant="as-written"`): `exclude=["GPL-2.0-only"]` on "licensed under the GNU
-General Public License v2.0 only" answers the nearest other licence
-(`GPL-1.0-only`), as with both twins excluded. A text under 10 words with
-nothing left answers `[]` and warns `too few words for text`. A short text
-never uses `hint`: Tier 0 adds no candidates.
+After an `exclude`, short prose answers no name that scores under the name
+excluded: a near name is not the name the input holds. `exclude=["GPL-2.0-only"]`
+on "licensed under the GNU General Public License v2.0 only" answers no name
+(not `GPL-1.0-only`), and from 10 words on the word search reads the rest. A
+text under 10 words with nothing left answers `[]` and warns `too few words
+for text`. A short text never uses `hint`: Tier 0 adds no candidates.
 
 `hint` adds each ID it finds in the database as a candidate, after the
 others (the word search, a heading or title), so a hint never takes the place

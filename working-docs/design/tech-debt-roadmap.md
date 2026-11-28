@@ -25,7 +25,7 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
 PR #247): the new detection engine of release 0.10.0, then item 68, then
-items 69 and 70 (decided 2026-11-27). Items 71 to 73 were found while
+items 69 and 70 (decided 2026-11-27). Items 71 to 74 were found while
 that engine was built; 72 waits on 71. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
@@ -494,7 +494,10 @@ the hand-written GNU patterns. Open before a design:
 - The data changes in all three sources (`compact`, `upstream`, `packaged`)
   and in the bundle format.
 
-The benchmark harness of 0.10.0 keeps the 79 headers as a set, in both forms.
+The benchmark harness of 0.10.0 keeps the 79 headers as a set, in both
+forms. Release 0.10.0 ships two to three right answers short of 0.9.4 on it
+(accepted 2026-11-27); this item is done when both forms beat 0.9.4's 56
+and 52 right with no more wrong.
 
 Impact 4, Risk 3, Effort 4.
 
@@ -542,6 +545,20 @@ one, and gives no answer for the `GPL-3.0-only` and `AGPL-3.0-only` headers
 ranking) before a fix; it belongs with item 7.
 
 Impact 3, Risk 2, Effort 2.
+
+## 74. Filters of `detect()`: names under `only_common`, markers — Priority 12
+
+Left by the filter rule of 0.10.0 (2026-11-27; `gramselect.beyond_bar`,
+`idoptions.free_text_hits`; `../implementation/gram-candidates.md`, section
+8). `only_common` does not act on name hits: of 1,416 sentences naming a
+List licence, 828 that name a rare one still answer it. A marker candidate
+is not cut with its text: the `GPL-3.0-only` text with both GPL-3.0 IDs
+excluded answers `AGPL-3.0-only` (0.99), because the text names it; cutting
+every marker whose text was cut removes 7 wrong answers and 5 right ones on
+the whole-text sets, so it needs a better rule. `exclude` with a `hint` of
+the near text answers it: the caller's own choice, left.
+
+Impact 2, Risk 2, Effort 3.
 
 ## Already resolved
 
