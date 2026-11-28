@@ -110,7 +110,8 @@ the input declares and answer at once; the others match it as text.
    update` stores. The texts that share most with the input are the
    candidates.
 5. **Whole texts.** The input is searched for candidates that it holds
-   whole (`TEXTS`). A text found whole comes first.
+   whole (`TEXTS`). A text found whole comes first, and a look-alike of
+   it that nothing names is no result.
 6. **Scores.** RapidFuzz compares the input with each candidate left, a
    fragment where its words place it in the text, and the results are
    ranked.
@@ -177,8 +178,13 @@ of (or of its core's, where that is smaller), whatever the filters.
 
 Where that search finds one text alone, the scoring takes the
 licences of that text that the filters leave and three others, the next
-by score that reach 0.1; one of those three that scores as high as the
-text found or higher is left out, so the text found answers. It does not
+by score that reach 0.1. Those three are look-alikes of a text the input
+holds whole, so none of them is a result, whatever it scores: a verbatim
+Apache 2.0 file answers `Apache-2.0` and does not list `Pixar`. One of
+the three that a marker or a hint names (either twin of an `-only` and
+`-or-later` pair) stays where it scores under the text found, and so
+does a licence that only a marker or a hint brings in. The scoring does
+not narrow
 when another text shares more than 1.1 times the runs of words the text
 found shares (a short text held whole inside part of a longer one), nor
 when the filters took the text found out. Otherwise RapidFuzz

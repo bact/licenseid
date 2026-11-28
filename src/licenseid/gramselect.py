@@ -32,7 +32,8 @@ the text)``. Then, in this order (plan of 0.10.0, section 3.1):
 The whole-text search of ``TEXTS`` reads the texts :func:`searched` gives,
 of the unfiltered table (``licenseid.textcandidates``). When it finds exactly
 one text, Tier 2 scores that text's same-text group and runner-ups instead
-of the selection (:func:`narrowed`), unless the guard holds.
+of the selection (:func:`narrowed`), unless the guard holds; a runner-up
+that nothing names is then no result (``licenseid.ranking.under_found``).
 
 The markers and the hinted licences join after these, also when the bar left
 none (``licenseid.retrieval.add_free_text``). An input of very many distinct
@@ -220,8 +221,8 @@ class Narrowed(NamedTuple):
     rows: tuple[GramScore, ...]
     #: The IDs of the found text's same-text group.
     group: frozenset[str]
-    #: The IDs of the runner-ups: each is left out where it scores as high as
-    #: the group or higher (decision Q1 of the plan).
+    #: The IDs of the runner-ups: one that nothing names is no result where
+    #: a member of the group is ranked (``licenseid.ranking.under_found``).
     runner_ups: frozenset[str]
 
 

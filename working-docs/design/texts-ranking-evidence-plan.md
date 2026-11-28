@@ -5,7 +5,7 @@ SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-status: plan, not built
+status: rule (sections 1 to 6) built 2026-11-28; cap (section 7) not built
 ---
 
 # Plan for 0.10.1: `TEXTS` as ranking evidence
@@ -345,7 +345,20 @@ other.
   a caller that read a value above 1 as 'more than one text' reads
   `texts`".
 
-## 8. Open questions
+## 8. As built (2026-11-28)
+
+The maintainer chose rule A. An independent review of the first build found
+that it broke more than rows (`working-docs/implementation/whole-text-first.md`,
+section 10): the steps after `under_found` read the runner-ups. As built,
+a runner-up that a marker or `hint` names (either twin, by its stem) keeps
+the rule of 0.10.0 and stays under the text found; every other runner-up
+is left out. This answers question 1 for the runner-ups too: what the
+input or the caller names stays. The counts of section 3 are the
+prototype's; the built tree's are in the implementation note (1,684 rows
+of 587 gate inputs, 881 of 311 golden texts, the first result equal in
+every field).
+
+## 9. Open questions
 
 1. Do the licences a marker or a hint names stay beside a text found
    whole? Recommended: yes for 0.10.1, as today. They are what the file
@@ -369,13 +382,32 @@ other.
    and 38 `prose` inputs and moves no answer, but it is a second place
    for the rule and it drops marker rows.
 5. The four files that name the text found under 0.85 (a file twice the
-   MIT text): leave them without an answer? Recommended: yes; a score
-   lifted because a text is found would make answers, and the files hold
-   as much other text as licence text. Move them to item 70.
+   MIT text): leave them without an answer? Recommended for this step:
+   yes, and take the question to roadmap item 82, not item 70 (item 70 is
+   exception texts). Evidence added 2026-11-28, after the plan:
+   - Pitloom asks for an answer there as its first priority (item 82, D1):
+     mdurl 0.1.2 (`MIT` 0.6730, coverage 2.1059) and tqdm 4.70.1 (`MIT`
+     0.7565, coverage 1.8529) are the files `b87bd47e` and `e57d6584` of
+     section 3.1; ruff 0.17.6 (`MIT` 0.1624, coverage 17.98) and sympy
+     1.14.0 (`BSD-3-Clause` 0.3554, `TEXTS=BSD-3-Clause MIT`) are new.
+     D2 is the files of several texts (`REASON=several texts`: numpy,
+     mypy, librt, exceptiongroup).
+   - A first count for item 82, from the runs of section 3: of the 300 real
+     files, 250 have one text in `TEXTS`; in 4 the first row names it under
+     0.85, and the label of each of the 4 holds that licence (`MIT` three
+     times, `MIT, MPL-2.0` once). No such file names a licence its label
+     lacks. Files of several texts were not counted.
+   - The recommendation stays, for a reason that the evidence does not
+     touch: the rule of section 1 removes rows and was measured to move no
+     first row; an answer for these files is a new answer, with a score to
+     define (item 82: the similarity of the span found) and a count on the
+     several-text files still to make. It is its own step, measured base
+     against branch, and can ship in 0.10.1 beside this one if the
+     maintainer decides so.
 6. Close item 68 and item 13 with this step? Recommended: yes for 13 (its
    "done when" holds: Apache 2.0 alone, the file as a fixture, `Pixar`
-   still `Pixar`); 68 closed with the four files of question 5 and the two
-   marker files handed to items 70 and 78.
+   still `Pixar`); 68 closed with the four files of question 5 handed to
+   item 82 and the two marker files (`83a1fcfd`, `f3b34c66`) to item 78.
 7. Pitloom's "stated licence wins a near tie" stops firing for look-alikes
    (section 4): intended? Recommended: yes, and tell Pitloom in the
    release notes, since a stated `JSON` over a verbatim MIT text then

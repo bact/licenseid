@@ -394,7 +394,7 @@ OUT.write_text(text, encoding="utf-8")
   `NCSA`, `OLDAP-1.1`, `OLDAP-2.2`, `OLDAP-2.2.1`, `OLDAP-2.2.2`, `OLDAP-2.7`,
   `OLDAP-2.8`, `PostgreSQL`, `X11`, `X11-distribute-modifications-variant`);
   `texts/LPPL-1.1.txt` is the `licenseText` of `LPPL-1.1` in that release,
-  which has no long-text fixture; `patterns.json` lists the 142 distinct
+  which has no long-text fixture (`texts/Pixar.txt`: section 22); `patterns.json` lists the 142 distinct
   `match` patterns of the vars of every template of that release.
   `cases.json` is made up: recipes, as in `several-texts` (section 20), where
   a part may also be a template with some of its vars written with other
@@ -420,6 +420,20 @@ OUT.write_text(text, encoding="utf-8")
 - **Characteristics:** `cases.json` is a JSON list of objects: `case`, `like`,
   `parts`, `texts` (`TEXTS` with the regions) and `before` (`TEXTS` of a
   database without them, as before build 7).
+
+### 22. `real-files`
+
+- **Data Source:** `rfc8785-0.1.4-LICENSE.txt` is the `LICENSE` of the
+  Python package rfc8785 0.1.4, copied unchanged: the Apache License 2.0
+  without its appendix. `template-texts/texts/Pixar.txt` (section 21's
+  folder) is the text of `Pixar` in the SPDX License List release 3.29.0,
+  which has no long-text fixture.
+- **Description:** a verbatim licence file that answered `Apache-2.0` with
+  its look-alikes `Pixar` (0.9947) and `ImageMagick` (0.9871) listed beside
+  it in 0.10.0 (roadmap items 13 and 68). `tests/test_whole_text_alone.py`
+  reads it on a database of `Apache-2.0`, `ECL-2.0`, `ImageMagick`, `Pixar`
+  and `MIT`.
+- **Characteristics:** plain text, as the package ships it.
 
 ### Notes
 

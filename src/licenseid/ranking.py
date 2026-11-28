@@ -7,7 +7,7 @@
 tie-breaker that runs after ranking."""
 
 import functools
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Iterable
 
 from licenseid.grantsubject import (
     NO_GRANT,
@@ -18,6 +18,7 @@ from licenseid.grantsubject import (
     lazy_signal,
     onlys,
 )
+from licenseid.listlookup import fold_case
 from licenseid.plusoperator import grant_stem
 from licenseid.types import InternalMatch
 
@@ -179,15 +180,34 @@ def apply_version_suffix_tiebreaker(
 
 
 def under_found(
-    ranked: list[InternalMatch], group: Collection[str], runner_ups: Collection[str]
+    ranked: list[InternalMatch],
+    group: Collection[str],
+    runner_ups: Collection[str],
+    named: Iterable[str] = (),
 ) -> list[InternalMatch]:
     """*ranked* without the runner-ups (*runner_ups*, the IDs Tier 2 scored
-    beside a text found whole) that score as high as the best of that text's
-    same-text group (*group*) or higher: a runner-up ranks under the text
-    found, with its own score, or is left out (decision Q1 of the plan of
-    0.10.0: every later step sorts and filters by score). Unchanged when no
-    member of *group* is ranked."""
+    beside a text found whole) that nothing names: the input holds the text
+    of the same-text group *group* whole, so a look-alike of it is no second
+    answer (roadmap items 13 and 68: ``Pixar`` at 0.99 under a verbatim
+    Apache-2.0 file).
+
+    A runner-up that the input or the caller names (*named*: the IDs of the
+    markers and of ``hint``, either twin of one and both of a bare deprecated
+    ID, by :func:`licenseid.plusoperator.grant_stem`) is a candidate in its
+    own right: it stays where it scores under the best of *group*, as every
+    runner-up did in 0.10.0, so the later steps read the rows they read then
+    (the tie-breaker, the twins ``licenseid.variants`` fills a bare ID from).
+    A candidate that is no runner-up stays. Unchanged when no member of
+    *group* is ranked."""
     best = max((m["score"] for m in ranked if m["license_id"] in group), default=None)
     if best is None:
         return ranked
-    return [m for m in ranked if m["license_id"] not in runner_ups or m["score"] < best]
+    stems = {fold_case(grant_stem(license_id)) for license_id in named}
+
+    def stays(match: InternalMatch) -> bool:
+        license_id = match["license_id"]
+        if license_id not in runner_ups:
+            return True
+        return fold_case(grant_stem(license_id)) in stems and match["score"] < best
+
+    return [match for match in ranked if stays(match)]

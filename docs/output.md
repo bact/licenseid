@@ -21,8 +21,10 @@ $ licenseid detect --top 1 LICENSE
 Apache-2.0
 ```
 
-With `-v` (`--verbose`), one record per result per line, best first (the
-examples show the first two results):
+With `-v` (`--verbose`), one record per result per line, best first. A
+file that holds one licence text whole has no look-alike of it among its
+results unless the file names one (`ECL-2.0` and `Pixar` are near copies
+of this text, and this file names neither):
 
 <!-- docs-example: run: licenseid detect -v LICENSE; head -->
 
@@ -30,7 +32,6 @@ examples show the first two results):
 
 ```text
 EXPRESSION=Apache-2.0	METHOD=text	EXACT=true	SCORE=1.0000	SIMILARITY=1.0000	COVERAGE=1.0000	VARIANT_STATED=	SAME_TEXT=	REASON=	TEXTS=Apache-2.0
-EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERAGE=0.9236	VARIANT_STATED=	SAME_TEXT=	REASON=	TEXTS=Apache-2.0
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -253,7 +254,6 @@ JSON Canonicalization Scheme (RFC 8785), so equal results print equal bytes
 
 ```json
 {"coverage":1,"exact":true,"expression":"Apache-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":1,"similarity":1,"texts":["Apache-2.0"],"variant_stated":null}
-{"coverage":0.9236,"exact":false,"expression":"ECL-2.0","is_fsf_libre":true,"is_osi_approved":true,"is_spdx":true,"lists":[{"id":"spdx-license-list","id_authority":true,"license":"CC0-1.0","name":"SPDX License List","provides":["deprecation","ids","names","texts"],"source":"database","url":"https://github.com/spdx/license-list-data/releases/tag/v3.29.0","version":"3.29.0"}],"method":"text","reason":null,"same_text":null,"score":0.9584,"similarity":0.9584,"texts":["Apache-2.0"],"variant_stated":null}
 ```
 
 <!-- markdownlint-enable MD013 -->

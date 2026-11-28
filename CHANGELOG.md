@@ -9,6 +9,16 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Behaviour change:** beside a licence text that the input holds whole,
+  `detect` no longer lists a look-alike that nothing names (`Pixar` 0.99
+  under a verbatim Apache 2.0 file): the results are the licences of that
+  text and any a marker or `hint` names; the first result is unchanged
+  ([#256])
+
 ## [0.10.0] - 2026-11-28
 
 ### Changed
@@ -295,6 +305,7 @@ and this project adheres to
 [#246]: https://github.com/bact/licenseid/pull/246
 [#247]: https://github.com/bact/licenseid/pull/247
 [#249]: https://github.com/bact/licenseid/pull/249
+[#256]: https://github.com/bact/licenseid/pull/256
 
 ## [0.8.4] - 2026-11-09
 
@@ -1209,6 +1220,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.10.0...HEAD
 [0.10.0]: https://github.com/bact/licenseid/compare/v0.9.4...v0.10.0
 [0.9.4]: https://github.com/bact/licenseid/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/bact/licenseid/compare/v0.9.2...v0.9.3

@@ -375,9 +375,11 @@ class LicenseDetector:
             marker_boosts=marker_boosts,
             is_pure=ctx.is_pure,
         )
-        if found.narrowed is not None:  # its runner-ups rank under the text
+        if found.narrowed is not None:  # a runner-up nothing names: no result
+            named = [c["license_id"] for c in marker_candidates]
+            named += ctx.request.get("hint", [])
             ranked = under_found(
-                ranked, found.narrowed.group, found.narrowed.runner_ups
+                ranked, found.narrowed.group, found.narrowed.runner_ups, named
             )
         return ranked, texts
 

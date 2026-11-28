@@ -167,3 +167,32 @@ Sources: PR #249 and PR #250, their CI runs, the session of 2026-11-28
   that hold a whole text and get no answer, four because the file
   holds more than the text (score 0.16 to 0.76), four because several
   texts are found (roadmap item 82).
+
+## After 0.10.0: look-alikes beside a text found whole
+
+Source: `working-docs/design/texts-ranking-evidence-plan.md` (section 3),
+measured 2026-11-28 on release 0.10.0 with a prototype; 1,704 inputs of the
+speed gate sets and the 1,099 texts of the golden.
+
+- **Rows a consumer reads as doubt.** A verbatim Apache 2.0 file answered
+  `Apache-2.0` 1.0 with `Pixar` 0.9947 and `ImageMagick` 0.9871 beside it,
+  and a consumer that treats a row within 0.01 as a tie left the file
+  undecided. Leaving out the look-alikes that nothing in the input names
+  changes the first result in no field on no input, removes 1,684 rows of
+  587 inputs (gate) and 881 of 311 (golden), and clears a row within 0.01
+  of the answer on 138 and 38 inputs (the built tree against 0.10.0).
+- **Negative result: two forms that read as one rule.** Dropping the
+  look-alikes after scoring and not scoring them differ on 15 of 2,803
+  inputs, and one first row moves: a look-alike that a marker in the text
+  also names comes back by the marker's path, where nothing leaves it out.
+- **Negative result: a rule that passed two harnesses and failed a
+  review, again.** "Leave out every look-alike scored beside the text
+  found" moved no first row on those 2,803 inputs nor in the golden. An
+  independent review with made-up inputs (a declared ID above a List text,
+  the four values of `variant`; about 143,000 runs) found the first
+  result's similarity and coverage set to 0, a declared licence's row lost
+  and warnings lost: later steps read the rows removed. The rule built
+  keeps a look-alike that the input or the caller names as 0.10.0 did.
+- **Negative result: the wider rule.** Dropping every row that `TEXTS` does
+  not name moves no first row either, but removes the row of the labelled
+  licence in three more real files (a licence the file names in prose).
