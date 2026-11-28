@@ -51,6 +51,12 @@ Build the local licence index once:
 licenseid update
 ```
 
+Run it again after each upgrade of licenseid: a lookup reads only a database its
+own version built (`database: build vN outdated`, exit 2). Installs of two
+versions that share the default database cannot both read it: upgrade them
+together, or give each its own file with `--db`
+([installation][doc-installation]).
+
 Then ask a question. `detect` finds the licence in a file, an ID or a text;
 `resolve` reads a declared value and, from a wheel, needs no database. Each
 prints the SPDX expression alone, best first (`--top 1` keeps one), or an

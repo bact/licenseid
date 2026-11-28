@@ -17,8 +17,9 @@ the size limit; that file explains the priority score and the item numbers
 
 Items 79 to 81 are what Pitloom, which reads licences through licenseid,
 reported on 2026-11-28 (its notes are in the repository `bact/pitloom`,
-under `working-docs/`). They run after or beside items 68 to 70 of that
-file; Pitloom's own order is 79, item 13 there, 80, 81. Rules for all
+under `working-docs/`). They run beside items 82, 69 and 70 of that file;
+Pitloom's own order was 79, item 13 there (resolved, PR #256), 80, 81; item
+81 is answered (2026-11-28). Rules for all
 of them: run each reproducer again on the current release first and drop
 what no longer shows, saying which release Pitloom last checked; ask the
 maintainer before a public name or a return shape changes (an addition is
@@ -579,8 +580,22 @@ reproducer on the current release first:
   and candidates.
 - 7: no new key. A short table in `docs/resolve.md` says what to do with
   each `trust` value (record, record with a note, do not record).
+  **Documented in part 2026-11-28** (`docs/resolve.md`, after the category
+  table): what a caller may rely on for each value, and that a result's
+  trust is its category's, so a compound's may be stronger than an
+  operand's (`Apache2 AND GPL-2.0-with-classpath-exception`: `list_data`,
+  its operand `Apache2` `resolver_rule`; `deprecated_ambiguous` comes after
+  the rules in the category order). Left for the maintainer: the action of
+  `none`, since `assumed_only` gives an expression (`GPL-3.0`, which
+  `detect()` answers as exact) and "do not record" would drop it; and
+  whether a compound's trust should be its weakest operand's (a code
+  change).
 - 8: document the rule: a component is named only when it took part in the
-  reading. No value moves.
+  reading. No value moves. **Documented 2026-11-28** (`docs/resolve.md`,
+  "Operands and components"): the parser is named when it parsed the value
+  or a part of it (a value with `AND` or `OR`, read or refused); none for
+  one ID, a `WITH` expression, a `;` value of single IDs, or a value refused
+  before the parse (`Apache 2.0 OR MIT`).
 - 9: document a small read API of the database as stable (the List's
   version, its IDs and names, one licence's details) and say the rest may
   change. No rename.
@@ -603,6 +618,9 @@ Answered 2026-11-28: in Pitloom. `detect()` already reads such a file: one
 line `SPDX-License-Identifier: MIT OR Apache-2.0` answers `Apache-2.0 OR
 MIT`, method `tag`, exact (0.10.0); `read_license_text` is Pitloom's own
 function. Pitloom can take an answer whose method is `tag` as the stated
-expression. Left here: an example of that case in `docs/python-api.md`.
+expression. **Answered 2026-11-28**: the example is in `docs/python-api.md`,
+run by `tests/test_docs_examples.py`: a file of the one line
+`SPDX-License-Identifier: MIT OR Apache-2.0` gives one result, `Apache-2.0 OR
+MIT`, method `tag`, `exact` true. Nothing left for licenseid.
 
 Impact 2, Risk 1, Effort 1.

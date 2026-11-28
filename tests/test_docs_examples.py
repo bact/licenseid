@@ -303,7 +303,7 @@ COUNTS = {
         "output": 3,
         "skipped": 3,
     },
-    "docs/python-api.md": {"python": 3, "skipped": 2, "shape": 1},
+    "docs/python-api.md": {"python": 4, "skipped": 2, "shape": 1},
     "docs/resolve-flow.md": {"ignored": 2, "skipped": 1},
     "docs/resolve.md": {"json": 3, "skipped": 1},
 }
@@ -342,7 +342,7 @@ def test_the_runner_reads_what_the_blocks_assert() -> None:
         if step.has_want
     ]
     lines = [x for b in _of("lines") for x in b.body if _RESULT_LINE.match(x)]
-    assert (len(stated), len(lines), len(WORKED)) == (7, 5, 33)
+    assert (len(stated), len(lines), len(WORKED)) == (11, 5, 33)
 
 
 def test_a_marker_indented_in_a_list_item_is_found() -> None:
