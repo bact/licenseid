@@ -16,9 +16,6 @@ from pathlib import Path
 import pytest
 
 import licenseid
-from licenseid.detector import LicenseDetector
-from licenseid.retrieval import get_candidates
-from licenseid.types import DetectOptions
 
 SPLIT = ["ranking", "retrieval", "shorttext"]
 MATCH_PATH = [
@@ -108,14 +105,3 @@ def test_the_modules_import_in_any_order(first: str, tmp_path: Path) -> None:
     statement = "; ".join(f"import licenseid.{m}" for m in [first, *others])
     loaded = imported_after(statement, tmp_path)
     assert {f"licenseid.{m}" for m in [first, *others]} <= loaded
-
-
-def test_the_matcher_method_is_a_thin_wrapper(ordering_matcher: object) -> None:
-    """_get_candidates stays as the entry point tests and benchmarks use; it
-    must give the module function's answer."""
-    assert isinstance(ordering_matcher, LicenseDetector)
-    text = "permission is hereby granted free of charge to any person"
-    request = DetectOptions()
-    assert ordering_matcher._get_candidates(  # pylint: disable=protected-access
-        request, text
-    ) == get_candidates(ordering_matcher.db, request, text)

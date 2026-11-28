@@ -12,6 +12,7 @@ LicenseDetector.
 """
 
 import math
+from collections.abc import Callable
 from collections.abc import Set as AbstractSet
 from typing import Final, NamedTuple, Protocol
 from unicodedata import east_asian_width
@@ -106,6 +107,10 @@ class Query(NamedTuple):
     snap: bool = False
     #: A character the input does not hold (``regionalign.aligned``).
     wall: str = "\0"
+    #: What this call has already scored, by what the score depends on (the
+    #: text, never the licence): licences that share one text are scored
+    #: once (:func:`_scored_once`). None: nothing is kept.
+    done: dict[tuple[object, ...], tuple[float, str]] | None = None
 
 
 def query_of(
@@ -116,7 +121,23 @@ def query_of(
     held = set(norm_input)
     wall = next(chr(code) for code in range(len(held) + 1) if chr(code) not in held)
     probe = build_probe(words)
-    return Query(norm_input, len(words), set(words), probe, regions, snap, wall)
+    return Query(norm_input, len(words), set(words), probe, regions, snap, wall, {})
+
+
+def _scored_once(
+    query: Query,
+    key: tuple[object, ...],
+    score: Callable[[], tuple[float, str]],
+) -> tuple[float, str]:
+    """``score()``, or what it gave for *key* earlier in this call: a score
+    of the input depends on the text compared (and where the words locate the
+    input in it), never on the licence that holds it, so twins (licences of
+    one normalised text) pay for one alignment."""
+    if query.done is None:
+        return score()
+    if key not in query.done:
+        query.done[key] = score()
+    return query.done[key]
 
 
 def _center(text: str, size: int) -> str:
@@ -189,6 +210,18 @@ def fragment_similarity(
     region = None
     if query.regions is not None:
         region = query.regions.region(license_id, search_text)
+    return _scored_once(
+        query,
+        ("fragment", search_text, region),
+        lambda: _fragment_scored(query, search_text, region),
+    )
+
+
+def _fragment_scored(
+    query: Query, search_text: str, region: regionalign.Span | None
+) -> tuple[float, str]:
+    """:func:`fragment_similarity` of *query* with *search_text*, given the
+    *region* of it that holds the input (None: the whole text)."""
     if region is None:
         if query.probe is not None:
             probe_score = fuzz.partial_ratio(query.probe, search_text) / 100.0
@@ -262,7 +295,11 @@ def calculate_base_similarity(
     if norm_input == search_text:
         similarity = 1.0
     elif q_len >= c_len * 0.8 or not alignment_affordable(norm_input, q_len):
-        similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+        similarity = _scored_once(
+            query,
+            ("sorted", search_text),
+            lambda: (fuzz.token_sort_ratio(norm_input, search_text) / 100.0, ""),
+        )[0]
     else:
         similarity, best_window = fragment_similarity(
             query, cand["license_id"], search_text
@@ -271,8 +308,16 @@ def calculate_base_similarity(
 
     core, core_words = cand.get("core_text"), cand.get("core_word_count") or 0
     if core and core_words and similarity < 1.0:
+        floor = similarity
         from_core = _safeguarded(
-            core_similarity(norm_input, q_len, core, core_words, similarity),
+            _scored_once(
+                query,
+                ("core", core, core_words, floor),
+                lambda: (
+                    core_similarity(norm_input, q_len, core, core_words, floor),
+                    "",
+                ),
+            )[0],
             q_tokens,
             core,
         )

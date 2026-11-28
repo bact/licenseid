@@ -353,7 +353,8 @@ class GramCache:
         transaction; at most *limit* of its distinct grams (the first) are
         looked up. A stored blob that does not read switches this database to
         the index in memory, and the table is counted again from it."""
-        grams = input_grams(norm_text)
+        # With a limit, one gram past it is all the input need give.
+        grams = input_grams(norm_text, limit)
         looked = grams if limit is None else grams[:limit]
         row = conn.execute(_UPDATED).fetchone()
         updated = None if row is None else row[0]

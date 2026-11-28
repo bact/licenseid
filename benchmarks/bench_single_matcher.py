@@ -104,10 +104,14 @@ class InstrumentedMatcher(LicenseDetector):
         """Tier 1 candidates plus the marker candidates not among them."""
         request = cast("DetectOptions", {"text": text})
         pool: list[Any] = []
-        if hasattr(self, "_get_candidates"):
-            # A list, or since 0.10.0 the candidates with their bound.
+        if hasattr(self, "_get_candidates"):  # a tree before this one's
+            # A list, or in some 0.10.0 trees the candidates with their bound.
             found = self._get_candidates(request, text)
             pool = list(getattr(found, "found", found))
+        else:
+            from licenseid.retrieval import get_candidates  # pylint: disable=C0415
+
+            pool = list(get_candidates(self.db, request, text).found)
         seen = {c["license_id"] for c in pool}
         for cand in marker_candidates:
             if cand["license_id"] not in seen:

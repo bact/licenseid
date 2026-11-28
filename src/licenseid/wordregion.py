@@ -107,6 +107,8 @@ class WordRegions:
         self._norm_input = norm_input
         self._corpus = corpus
         self._coded: tuple[TextCorpus, str, Counter[str]] | None = None
+        # By the name of a same-text group: its twins share one region.
+        self._found: dict[str, Span | None] = {}
 
     def _input(self) -> tuple[TextCorpus, str, Counter[str]]:
         """The corpus, the input's codes in it and their counts."""
@@ -124,4 +126,7 @@ class WordRegions:
         entry = corpus.entry(license_id)
         if entry is None or entry.text.text != text:
             return None
-        return located(codes, entry.text.codes, text, counts)
+        name = entry.text.row_id
+        if name not in self._found:
+            self._found[name] = located(codes, entry.text.codes, text, counts)
+        return self._found[name]

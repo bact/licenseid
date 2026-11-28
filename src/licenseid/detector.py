@@ -45,7 +45,6 @@ from licenseid.resolvertypes import Resolution
 from licenseid.resolveurl import urls_as_ids
 from licenseid.result import public_result
 from licenseid.retrieval import (
-    Candidates,
     add_free_text,
     get_candidates,
     text_candidates,
@@ -674,10 +673,6 @@ class LicenseDetector:
         Takes and raises what :meth:`is_spdx` does."""
         record = self._resolve_record(text, license_id=license_id, file_path=file_path)
         return None if record is None else record["is_fsf_libre"]
-
-    def _get_candidates(self, data: DetectOptions, text: str) -> Candidates:
-        """Tier 1 retrieval for *text* (see licenseid.retrieval)."""
-        return get_candidates(self.db, data, text)
 
     def _rank_candidates(
         self,

@@ -13,6 +13,7 @@ import json
 import sqlite3
 from collections.abc import Generator
 from typing import cast
+from unittest import mock
 
 import pytest
 from click.testing import CliRunner
@@ -20,6 +21,7 @@ from conftest import GivenWarnings, public_match
 from long_text_db import LONG_TEXTS, long_text_detector
 from matcher_db import Lic, seeded_db
 
+from licenseid import regionalign, wordregion
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
@@ -206,3 +208,67 @@ def test_is_lines_do_not_carry_it(mpl_db: str) -> None:
 def test_the_ids_are_sorted_whatever_order_they_were_stored_in() -> None:
     twins = {"MIT": ["MIT", "Z-1.0", "A-1.0", "M-1.0"]}
     assert _public({**RAW, "license_id": "MIT"}, twins) == ["A-1.0", "M-1.0", "Z-1.0"]
+
+
+# -- Tier 2 scores a text once for the licences that share it -------------------
+
+_WORDS = [f"{a}{b}" for a in "bcdfghklmnprstvz" for b in ("ant", "ell", "ore")]
+_SHARED = [_WORDS[(i * 7 + i // 5) % len(_WORDS)] + str(i // 48) for i in range(300)]
+_OTHER = [w if i % 5 else "zz" + w for i, w in enumerate(_SHARED)]
+
+
+@pytest.fixture(scope="module")
+def twin_db() -> Generator[str, None, None]:
+    """Two licences of one text and a third that differs in every fifth word."""
+    rows = [
+        Lic("TWIN-A", "A", search_text=" ".join(_SHARED)),
+        Lic("TWIN-B", "B", search_text=" ".join(_SHARED)),
+        Lic("OTHER-C", "C", search_text=" ".join(_OTHER)),
+    ]
+    for db_path in seeded_db("test_twin_scores", rows):
+        with sqlite3.connect(db_path, uri=True) as conn:
+            conn.execute(
+                "UPDATE licenses SET same_text = 'TWIN-A TWIN-B'"
+                " WHERE license_id LIKE 'TWIN-%'"
+            )
+        yield db_path
+
+
+@pytest.mark.parametrize(
+    ("span", "scores"),
+    [
+        ((100, 180, 0), (1.0, 1.0, 0.7503)),
+        ((0, 60, 0), (1.0, 1.0, 0.7549)),
+        ((100, 180, 9), (0.9043, 0.9043, 0.7011)),
+    ],
+    ids=["middle", "head", "middle-edited"],
+)
+def test_twins_are_aligned_once_and_each_has_its_row(
+    twin_db: str, span: tuple[int, int, int], scores: tuple[float, float, float]
+) -> None:
+    """Three candidates, two distinct texts: one character alignment and one
+    word alignment a text, and every licence keeps its own row. The rows are
+    those the base gives, which aligned each licence of a text alone. *span*:
+    the words of the text the input takes, and every such word of it that is
+    another (0: none)."""
+    start, stop, edit = span
+    given = [w if not edit or i % edit else "qq" for i, w in enumerate(_SHARED)]
+    with (
+        mock.patch.object(
+            regionalign, "walled", autospec=True, side_effect=regionalign.walled
+        ) as walled,
+        mock.patch.object(
+            wordregion, "located", autospec=True, side_effect=wordregion.located
+        ) as located,
+    ):
+        found = LicenseDetector(twin_db).detect(
+            " ".join(given[start:stop]), only_spdx=False
+        )
+    assert [(r["expression"], r["score"], r["same_text"]) for r in found] == [
+        ("TWIN-A", scores[0], ["TWIN-B"]),
+        ("TWIN-B", scores[1], ["TWIN-A"]),
+        ("OTHER-C", scores[2], None),
+    ]
+    for call in (walled, located):
+        texts = [c.args[2] for c in call.call_args_list]
+        assert (len(texts), len(set(texts))) == (2, 2)

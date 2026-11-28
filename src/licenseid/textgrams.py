@@ -27,7 +27,7 @@ and its critical words from here.
 
 import hashlib
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import Final, NamedTuple
 
 #: Tokens in a gram. Its change, the hash's or the token rule's bumps the
@@ -51,6 +51,11 @@ _CJK: Final = "\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
 #: A token: one Han or kana character, or a run of other characters that are
 #: not white space.
 TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
+#: Characters of an input read at a time when a bound may cut its grams
+#: (:func:`input_grams`); a piece is cut at the first break after them.
+CHUNK_CHARS: Final = 1 << 16
+# Where no token runs across: white space, or a Han or kana character.
+_BOUNDARY: Final = re.compile(f"\\s|[{_CJK}]")
 # One character of a token of several: neither white space nor Han or kana.
 _RUN_CHAR: Final = re.compile(f"[^\\s{_CJK}]")
 
@@ -99,11 +104,43 @@ def gram_strings(words: Sequence[str]) -> list[str]:
     return list(map(" ".join, zip(*(words[at:] for at in range(GRAM_SIZE)))))
 
 
-def input_grams(norm_text: str) -> list[int]:
+def _chunks(text: str) -> Iterator[str]:
+    """*text* in pieces of about :data:`CHUNK_CHARS` characters, each cut
+    where no token runs across (before white space, or before a Han or kana
+    character), so the tokens of the pieces, in a row, are the text's."""
+    at, size = 0, len(text)
+    while at < size:
+        end = at + CHUNK_CHARS
+        if end >= size:
+            end = size
+        else:
+            cut = _BOUNDARY.search(text, end)
+            end = size if cut is None else cut.start()
+        yield text[at:end]
+        at = end
+
+
+def input_grams(norm_text: str, limit: int | None = None) -> list[int]:
     """The distinct gram hashes of *norm_text*, in the order each first
     appears: a caller that looks up only the first N reads the same N on
-    every run."""
-    return list(dict.fromkeys(map(gram_hash, gram_strings(split_words(norm_text)))))
+    every run.
+
+    With a *limit*, the first ``limit + 1`` at most: the one past it says a
+    bound cuts the input. The text is read a piece at a time, and reading
+    stops at the first piece after which more than *limit* are known, so an
+    input of millions of grams costs what its first *limit* do."""
+    if limit is None:
+        return list(dict.fromkeys(map(gram_hash, gram_strings(split_words(norm_text)))))
+    seen: dict[int, None] = {}
+    tokens: list[str] = []
+    for piece in _chunks(norm_text):
+        # The last tokens of the piece before it start the grams across the cut.
+        tokens = tokens[-(GRAM_SIZE - 1) :] + split_words(piece)
+        # An update keeps the place of a hash it holds: first-appearance order.
+        seen.update(dict.fromkeys(map(gram_hash, gram_strings(tokens))))
+        if len(seen) > limit:
+            break
+    return list(seen)[: limit + 1]
 
 
 class GramScore(NamedTuple):
@@ -126,7 +163,8 @@ class GramTable(NamedTuple):
     rows: tuple[GramScore, ...]
     #: The input's distinct grams looked up: the denominator of its side.
     grams: int
-    #: The input's distinct grams: more than *grams* when a bound cut them.
+    #: The input's distinct grams: when a bound cut them, *grams* + 1, the
+    #: one that tells it (``input_grams`` stops reading there).
     total: int
 
     @property

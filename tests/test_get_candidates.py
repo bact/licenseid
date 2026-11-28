@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Direct unit tests for LicenseDetector._get_candidates() (the
-retrieval in licenseid.retrieval): what Tier 1 looks up, the
+"""Direct unit tests for licenseid.retrieval.get_candidates() (the
+retrieval of a detector's database): what Tier 1 looks up, the
 only_spdx/only_common/exclude filters on its candidates, and the hinted
 candidates. The rules over the score table: test_gramselect.
 """
@@ -38,6 +38,13 @@ def db_path() -> Generator[str, None, None]:
 @pytest.fixture
 def matcher(db_path: str) -> LicenseDetector:
     return LicenseDetector(db_path)
+
+
+def _candidates(
+    matcher: LicenseDetector, options: DetectOptions, text: str
+) -> retrieval.Candidates:
+    """What ``detect()`` asks of Tier 1 for *text*, on *matcher*'s database."""
+    return retrieval.get_candidates(matcher.db, options, text)
 
 
 def _seed(db_path: str, license_id: str, search_text: str, **flags: bool) -> None:
@@ -95,7 +102,7 @@ def test_one_lookup_of_the_whole_normalised_text(
     the bound of gramselect."""
     calls = _gram_texts(monkeypatch)
 
-    matcher._get_candidates(DetectOptions(), _words(words).upper())
+    _candidates(matcher, DetectOptions(), _words(words).upper())
 
     assert calls == [(_words(words), 50000)]
 
@@ -109,8 +116,8 @@ def test_comment_prefixes_are_stripped_before_normalisation(
     in get_candidates() is not redundant."""
     calls = _gram_texts(monkeypatch)
 
-    matcher._get_candidates(
-        DetectOptions(), f"{prefix} 1. term0 term1\n{prefix} (a) term2"
+    _candidates(
+        matcher, DetectOptions(), f"{prefix} 1. term0 term1\n{prefix} (a) term2"
     )
 
     assert [text for text, _ in calls] == ["term0 term1 term2"]
@@ -123,12 +130,12 @@ def test_the_text_of_each_candidate_is_its_own(
     _seed(db_path, "FIRST", _words(30), is_high_usage=True)
     _seed(db_path, "SECOND", _words(30, "word"))
 
-    found = matcher._get_candidates(DetectOptions(), _words(30)).found
+    found = _candidates(matcher, DetectOptions(), _words(30)).found
 
     assert [c["license_id"] for c in found] == ["FIRST"]
     assert found[0]["search_text"] == _words(30)
     assert found[0]["is_high_usage"]
-    assert not matcher._get_candidates(DetectOptions(), _words(2)).found
+    assert not _candidates(matcher, DetectOptions(), _words(2)).found
 
 
 # --- filtering: only_spdx / only_common / exclude ---
@@ -140,7 +147,7 @@ def test_get_candidates_only_spdx_true_excludes_non_spdx(
     text = _words(30)
     _seed(db_path, "NON-SPDX", text, is_spdx=False)
 
-    result = matcher._get_candidates(DetectOptions(only_spdx=True), text).found
+    result = _candidates(matcher, DetectOptions(only_spdx=True), text).found
 
     assert all(c["license_id"] != "NON-SPDX" for c in result)
 
@@ -151,7 +158,7 @@ def test_get_candidates_only_spdx_false_includes_non_spdx(
     text = _words(30)
     _seed(db_path, "NON-SPDX", text, is_spdx=False)
 
-    result = matcher._get_candidates(DetectOptions(only_spdx=False), text).found
+    result = _candidates(matcher, DetectOptions(only_spdx=False), text).found
 
     assert any(c["license_id"] == "NON-SPDX" for c in result)
 
@@ -169,8 +176,8 @@ def test_get_candidates_only_common_excludes_low_usage_non_osi(
         is_fsf_libre=False,
     )
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, only_common=True), text
+    result = _candidates(
+        matcher, DetectOptions(only_spdx=False, only_common=True), text
     ).found
 
     assert all(c["license_id"] != "OBSCURE" for c in result)
@@ -182,8 +189,8 @@ def test_get_candidates_only_common_includes_high_usage(
     text = _words(30)
     _seed(db_path, "POPULAR", text, is_high_usage=True)
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, only_common=True), text
+    result = _candidates(
+        matcher, DetectOptions(only_spdx=False, only_common=True), text
     ).found
 
     assert any(c["license_id"] == "POPULAR" for c in result)
@@ -197,8 +204,8 @@ def test_get_candidates_only_common_includes_osi_approved_low_usage(
     text = _words(30)
     _seed(db_path, "OSI-NICHE", text, is_high_usage=False, is_osi_approved=True)
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, only_common=True), text
+    result = _candidates(
+        matcher, DetectOptions(only_spdx=False, only_common=True), text
     ).found
 
     assert any(c["license_id"] == "OSI-NICHE" for c in result)
@@ -210,8 +217,8 @@ def test_get_candidates_exclude_list_filters_named_id(
     text = _words(30)
     _seed(db_path, "EXCLUDE-ME", text)
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, exclude=["EXCLUDE-ME"]), text
+    result = _candidates(
+        matcher, DetectOptions(only_spdx=False, exclude=["EXCLUDE-ME"]), text
     ).found
 
     assert all(c["license_id"] != "EXCLUDE-ME" for c in result)
@@ -225,8 +232,8 @@ def test_get_candidates_adds_no_hint(db_path: str, matcher: LicenseDetector) -> 
     last, after the markers."""
     _seed(db_path, "HINTED", "totally unrelated other text")
 
-    result = matcher._get_candidates(
-        DetectOptions(only_spdx=False, hint=["HINTED"]), _words(30)
+    result = _candidates(
+        matcher, DetectOptions(only_spdx=False, hint=["HINTED"]), _words(30)
     ).found
 
     assert all(c["license_id"] != "HINTED" for c in result)

@@ -12,6 +12,7 @@ import struct
 
 import pytest
 
+from licenseid import textgrams
 from licenseid.textgrams import (
     GramScore,
     GramTable,
@@ -99,6 +100,28 @@ def test_input_grams_are_distinct_in_first_order() -> None:
     expected = [gram_hash(g) for g in ("a b c", "b c a", "c a b")]
     assert input_grams("a b c a b c") == expected
     assert not input_grams("one two")
+
+
+@pytest.mark.parametrize("size", [1, 3, 7])
+@pytest.mark.parametrize("limit", [0, 1, 2, 5, 9, 1000])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "a b c a b c a b c d e f g h",
+        "ab" * 11 + " cd ef gh ij kl",  # a run longer than a piece
+        "許可 \u3000 ライセンス ok café\u00a0x y z",
+        "本ソフトウェアはMITlicenseです 本ソフトウェア x1 x2 x3",
+        "\n\t a  b\u2003c\u200bd e f g",
+    ],
+)
+def test_a_limit_reads_the_first_grams_of_the_whole_input(
+    text: str, limit: int, size: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Read a piece at a time (here of 1, 3 or 7 characters, cut where no
+    token runs across), an input gives the first ``limit + 1`` grams it gives
+    whole."""
+    monkeypatch.setattr(textgrams, "CHUNK_CHARS", size)
+    assert input_grams(text, limit) == input_grams(text)[: limit + 1]
 
 
 def test_the_score_is_shared_over_the_smaller_side() -> None:

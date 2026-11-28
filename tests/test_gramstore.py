@@ -11,10 +11,12 @@ bound on the grams looked up. The database around them:
 # pylint: disable=missing-function-docstring
 
 import contextlib
+import random
 import sqlite3
 import struct
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from unittest import mock
 
 import pytest
 
@@ -245,11 +247,74 @@ def test_a_bound_looks_up_only_the_first_grams() -> None:
         seen = _statements(conn)
         table = cache.scores(conn, text, limit=900)
         assert sum("FROM text_postings WHERE" in s for s in seen) == 1
-        assert (table.grams, table.total, table.bounded) == (900, 100_010, True)
+        assert (table.grams, table.total, table.bounded) == (900, 901, True)
         assert [row[:3] for row in table.rows] == [("A-1.0", 10, 10), ("D-1.0", 5, 10)]
         assert cache.scores(conn, TEXTS["A-1.0"], limit=3).rows[0][:2] == ("A-1.0", 3)
         unbounded = cache.scores(conn, TEXTS["A-1.0"])
         assert (unbounded.grams, unbounded.bounded) == (10, False)
+
+
+@pytest.mark.parametrize(
+    ("grams", "total", "bounded"),
+    [(49_999, 49_999, False), (50_000, 50_000, False), (50_001, 50_001, True)]
+    + [(50_002, 50_001, True), (130_000, 50_001, True)],
+)
+def test_the_limit_of_50000_grams_reads_what_the_whole_input_gives(
+    grams: int, total: int, bounded: bool
+) -> None:
+    """Just under, at and just over the limit of ``gramselect.GRAM_LIMIT``:
+    the rows are those of the first 50,000 grams of the whole input, the
+    count of grams read is the limit at most, and the table says it is
+    bounded from 50,001 on. A-1.0's 10 grams last: they cross the limit."""
+    text = " ".join([*(f"w{n}" for n in range(grams - 10)), TEXTS["A-1.0"]])
+    first = input_grams(text)[:50_000]
+    with _connection(TEXTS) as conn:
+        index = load(conn)
+        table = GramCache().scores(conn, text, limit=50_000)
+        reference = score_rows(index.shared(conn, first), len(first), *_sizes(index))
+    assert (table.grams, table.total, table.bounded) == (len(first), total, bounded)
+    assert table.rows == reference
+    held = 10 - max(0, grams - 50_000)  # the grams of A-1.0 inside the limit
+    assert [row[:2] for row in table.rows if row[0] == "A-1.0"] == (
+        [("A-1.0", held)] if held > 0 else []
+    )
+
+
+def _sizes(index: gramstore.Postings) -> tuple[Sequence[str], Sequence[int]]:
+    return index.ids, index.sizes
+
+
+def _han(count: int) -> str:
+    """*count* Han characters, a gram of three of them each."""
+    rnd = random.Random(1)
+    return "".join(chr(rnd.randrange(0x4E00, 0x9FFF)) for _ in range(count))
+
+
+@pytest.mark.parametrize(
+    ("text", "hashed", "everything"),
+    [
+        (" ".join(f"w{n}" for n in range(400_000)), 60_000, 399_998),
+        (_han(300_000), 70_000, 299_998),
+    ],
+    ids=["words", "han"],
+)
+def test_a_bounded_input_hashes_the_grams_of_its_first_pieces_only(
+    text: str, hashed: int, everything: int
+) -> None:
+    """400,000 words (3 million characters), or 300,000 Han characters with
+    no white space: the grams of the first pieces (65,536 characters each) are
+    hashed, not those of the whole input, and they are the first the whole
+    input gives."""
+    with mock.patch.object(
+        textgrams, "gram_hash", autospec=True, side_effect=textgrams.gram_hash
+    ) as calls:
+        grams = input_grams(text, 50_000)
+        assert len(grams) == 50_001
+        assert 50_001 <= calls.call_count < hashed
+        calls.reset_mock()
+        whole = input_grams(text)
+        assert calls.call_count == everything
+    assert grams == whole[:50_001]
 
 
 def test_a_count_of_true_is_no_count_of_texts() -> None:
