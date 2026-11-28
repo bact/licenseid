@@ -29,7 +29,9 @@ Item 2 (data file) waits on an upstream release. Release 0.10.0
 (2026-11-28) is the
 new detection engine (PR #249). Next: item 68, then items 69 and 70
 (decided 2026-11-27); after or beside them what Pitloom reported on
-2026-11-28: item 13 here, items 79 to 81 in the reading file. Items 71 to
+2026-11-28: item 13 here, items 79 to 81 in the reading file; its second
+handoff of that day, on 0.10.0 itself, is in items 68 to 70 and item 82
+(its order: 82, then 69, 70). Items 71 to
 75 were found while that engine was built; 72 waits on 71. Items 76 to 78
 (2026-11-28) are for after 0.10.0. The open items
 that need a rule or a decision before a fix are grouped in
@@ -275,6 +277,13 @@ Of the 14 real files with one text in `TEXTS` (measured on the T5 tree,
 in the top row under 0.85, 2 stay as they were (guard). Open: those 2,
 and `real:f3b34c66` at 211 ms (item 78); the 25 files were not read again.
 
+Pitloom (second handoff of 2026-11-28, on 0.10.0; its cases were run again
+here the same day, with the same numbers): C1 and C2 are fixed (wcwidth
+0.9.5 answers `MIT` 0.9197, mypy_extensions 1.2.0 `MIT` 0.9641). What is
+left is a text found whole that the top row names under 0.85 (the 4 files
+above; Pitloom's D1, its first priority) and a first text of several that
+is not the answer (D2): item 82.
+
 ## 69. A Mozilla Public License header as a notice — Priority 16
 
 Next: after item 68.
@@ -286,6 +295,15 @@ LICENSE BLOCK`, and gets no answer (top `EFL-2.0` 0.51); an Apache-2.0 header
 answers as a notice. The made-up case `mpl-header-notice` in
 `tests/fixtures/several-texts/cases.json` pins today's no answer; the
 long-text fixture database holds no MPL-2.0 text, so add it there first.
+
+On 0.10.0 (Pitloom's second handoff of 2026-11-28, item D3; run again
+here): certifi 2026.11.20 `LICENSE` (138 words) still has no answer
+(`below threshold`, `TEXTS` empty), but the top row is now the right
+licence: `MPL-2.0` 0.5301 (similarity 0.4854, coverage 0.0669, the same
+text as `MPL-2.0-no-copyleft-exception`), not `EFL-2.0`. For comparison,
+cachecontrol 0.15.0 `LICENSE.txt`, an Apache header of 82 words, answers
+`Apache-2.0` at 1 (similarity 0.9238, coverage 0.0571). The List gives
+MPL-2.0 a standard header: measure this with item 71.
 
 Impact 2, Risk 2, Effort 2.
 
@@ -299,6 +317,10 @@ whole GCC Runtime Library Exception 3.1 after the GPL-3.0 text; `TEXTS` names
 whether exception texts can be found and named, or at least flagged. Design
 first: `TEXTS` holds licences only, and a `WITH` expression would be a
 conclusion, not a finding.
+
+No change on 0.10.0 (Pitloom's second handoff of 2026-11-28, item D4;
+numpy 2.2.6 run here: `TEXTS` ends in `GPL-3.0-only` and names no
+exception). Pitloom asks only to be told when the design is written.
 
 Impact 2, Risk 2, Effort 3.
 
@@ -490,6 +512,74 @@ figures are CPU time of one call, measured on 0.10.0 and 0.9.4.
 Done when: each is fixed or decided not to be, with its number measured again.
 
 Impact 2, Risk 2, Effort 3.
+
+## 82. The first whole text of a file gives no answer — Priority 21
+
+Next: beside item 68; measure, then a decision by the maintainer.
+
+Pitloom (second handoff of 2026-11-28, items D1 and D2). Pitloom declares
+a package's licence from `detect`'s answer on its licence file; no answer
+leaves the licence out, here for plain MIT and BSD projects. Each case
+was run again here on 0.10.0 (List 3.29.0, `--top 1 -v`, and `--threshold
+0 --top 2 -v`), with the numbers Pitloom gives.
+
+- D1, a text found whole and named by the top row, under 0.85
+  (`REASON=below threshold`; `--threshold 0` shows the row). Similarity
+  is measured on the whole file, and the file holds more. mdurl 0.1.2
+  `LICENSE` (355 words: the MIT text, then a second grant for code taken
+  from node.js): `MIT` 0.6730, similarity 0.6413, coverage 2.1059,
+  `TEXTS=MIT`. tqdm 4.70.1 `LICENCE` (294 words): `MIT` 0.7565, coverage
+  1.8529, `TEXTS=MIT`. ruff 0.17.6 `LICENSE` (3,055 words: its own MIT
+  text, then more than 20 grants of bundled projects; ast_serialize
+  0.13.1 ships the same bytes): `MIT` 0.1624, coverage 17.9824,
+  `TEXTS=MIT`. sympy 1.14.0 `LICENSE` (1,114 words): `BSD-3-Clause`
+  0.3554, coverage 5.1514, `TEXTS=BSD-3-Clause MIT`.
+- D2, several texts found, and the first-text rule takes the answer away
+  (`REASON=several texts`, with `--threshold 0` too). numpy 2.2.6
+  `LICENSE.txt` (7,375 words): `TEXTS=BSD-3-Clause BSD-3-Clause-Open-MPI
+  GPL-3.0-only`. mypy 2.4.1 and librt 0.17.0 `LICENSE`: `TEXTS=MIT
+  Python-2.0.1 BSD-2-Clause`. exceptiongroup 1.3.2 `LICENSE` (575 words):
+  `TEXTS=MIT PSF-2.0`. Losing the wrong answer (`GPL-3.0-only` for numpy)
+  was right.
+
+Pitloom asks, for D1, an answer where the top row's text is the first
+whole text of the file, or else a documented way to read the same from
+the record of no answer; for D2, what still blocks an answer, and how a
+caller tells a vendored text that comes first (pytype) from a project's
+own, if it can be told.
+
+Today the record of no answer carries `TEXTS`, in file order. The caller
+rule of `docs/output.md` (declare `EXPRESSION` when `TEXTS` is exactly
+`EXPRESSION`) holds for mdurl, tqdm and ruff, but they have no
+`EXPRESSION` to read. The plan for item 68 (`texts-ranking-evidence-plan.md`,
+question 5; not merged on 2026-11-28) recommends to leave the D1 files
+without an answer, since a score lifted because a text is found makes
+answers. Pitloom's first priority is the other way: answer that question
+with this item in view.
+
+Two ways, neither taken; measure before either (precision over recall):
+
+- Docs only. Extend the caller rule to the record of no answer: under
+  `below threshold`, one ID in `TEXTS` is the one whole text of the file;
+  under `several texts`, the first ID is the first text. No result
+  changes, and the caller takes the risk of a vendored text.
+- An answer from the text found. Where the top row's text is the first
+  text found, answer it, its similarity measured on the span found, not
+  on the whole file. It makes answers: count first, on the labelled real
+  files and on `tests/fixtures/several-texts/`, how often the first ID of
+  `TEXTS` is the label where there is no answer today, and how often it
+  is not (a vendored text first, a notice file). A similarity that
+  changes its meaning is a change to a result field: ask first.
+
+For information, from the same sweep (223 licence files of one Python
+3.10 environment; files not read by Pitloom, not run here): three files
+answer at 0.85 or more a text that `TEXTS` does not name (`HDF5` 0.9196,
+`BSD-3-Clause-HP` 1, and a `README.rst` as `Apache-2.0` 0.9025).
+
+Done when: the count is made, the maintainer chooses, and Pitloom is told
+which field to read and in which release.
+
+Impact 4, Risk 3, Effort 3.
 
 ## Already resolved
 

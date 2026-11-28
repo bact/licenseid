@@ -273,6 +273,12 @@ of a normal call; "old" means 0.9.4 does the same.
 - `tools/cli_matrix/baseline.txt` was recorded without a packaged bundle:
   against a wheel, cells D4-001, D4-002 and D8-003 flag (`update` falls back
   to `packaged` and exits 0); 0.9.4 flags the same.
+- Environments that share the default database (Pitloom, 2026-11-28):
+  the first one moved to 0.10.0 builds the file as build 10, which
+  0.9.x can neither read nor remove, so the others break. The changelog
+  and `docs/installation.md` say so; the README's quick start does not.
+  Add a sentence there (move every environment at once, or give each
+  its own file with `--db`).
 
 Done when: each is fixed or decided not to be, with a test.
 
