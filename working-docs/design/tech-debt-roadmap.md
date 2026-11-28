@@ -25,7 +25,8 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
 PR #247): the new detection engine of release 0.10.0, then item 68, then
-items 69 and 70 (decided 2026-11-27). The open items
+items 69 and 70 (decided 2026-11-27). Items 71 to 73 were found while
+that engine was built; 72 waits on 71. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
@@ -457,6 +458,90 @@ first: `TEXTS` holds licences only, and a `WITH` expression would be a
 conclusion, not a finding.
 
 Impact 2, Risk 2, Effort 3.
+
+## 71. Store the List's standard licence headers — Priority 14
+
+Next: after release 0.10.0 (decided 2026-11-27); measure first.
+
+The List gives a `standardLicenseHeader` for 79 licences in use (3.29.0): the
+notice a source file carries. The database holds none (only each licence's
+text and its core), and hand-written rules in `markers` read the GNU ones
+alone (12 of the 79). Measured while 0.10.0 was built (the 79 headers as
+given; right, wrong, no answer at 0.85, same-text twins counted as one):
+0.9.4 56, 11, 12; the 0.10.0 engine 54, 10, 15. With the placeholder lines
+taken out: 52, 13, 14 and 49, 15, 15. Wrong on both: the GFDL-1.2 and 1.3
+`-only` headers answer the GFDL-1.1 forms, `LGPL-2.0` and `LGPL-2.1` swap,
+`Pixar` answers `Apache-2.0` (item 13). No answer on both: the AFL headers,
+`UCL-1.0`, `SSPL-1.0`, `W3C`. The 0.10.0 engine also answers GFDL-1.1 for
+the GFDL-1.2 `-or-later` headers (and the cut 1.3 ones), which 0.9.4 had
+right by 0.014: their wording is the GFDL-1.1 text's own notice, only the
+number differs, and such near ties move with the window Tier 2 aligns (it
+gains `GPL-2.0-only` cut the same way). A header known as a text ends that.
+
+Idea: a header is a second text of its licence, in the gram postings and the
+whole-text search of 0.10.0; an input that holds it whole names that ID, and
+the `-only` or `-or-later` form comes stated, not guessed. It could replace
+the hand-written GNU patterns. Open before a design:
+
+- Measure on real source-file headers first (wrapped, in comment marks,
+  edited): the 79 clean headers are not what files hold.
+- A header inside a licence's own text (the GPL's appendix) is not a second
+  text; a header beside another licence's text (an Apache-2.0 header above a
+  BSD-3-Clause text, item 68's file) is.
+- Whether a header is in `TEXTS`, and under which `method`.
+- The header's own template marks (`<alt>`, `<optional>`) go through the
+  template reader.
+- The data changes in all three sources (`compact`, `upstream`, `packaged`)
+  and in the bundle format.
+
+The benchmark harness of 0.10.0 keeps the 79 headers as a set, in both forms.
+
+Impact 4, Risk 3, Effort 4.
+
+## 72. A fragment that several List texts hold names one of them — Priority 18
+
+Next: after item 71 (decided 2026-11-27: not in 0.10.0).
+
+A fragment that two licences' texts hold word for word scores the same
+against both; the sort decides which ID is printed. Measured on 12,136
+slices of List texts (8 to 120 words; truth: the texts that hold the slice
+whole), 2,557 of them held by several licences: 0.9.4 names one holder in
+1,953 and another licence in 30; the 0.10.0 engine 1,989 and 3. The MIT grant
+sentence answers `Clips`; a BSD disclaimer paragraph `BSD-2-Clause`.
+
+Rule measured, not built: no answer when another licence's text scores the
+same, or both hold the input whole (same-text twins and the `-only` and
+`-or-later` forms are one licence; an exact text is exempt). It takes 1,963
+of the 1,989 away and no real file of 300 moves, but it also refuses the
+standard `GPL-3.0-or-later` header (`LGPL-3.0-or-later` holds the GPL's
+text), the `BitTorrent-1.0` header and the Apache-2.0 header without its
+copyright line (`FSL-1.1-ALv2` holds it). No reader of today settles those:
+the name tier reads a bag of words, and `grantsubject.grants` loses the family
+at "either version". Hence item 71 first. Also measured:
+
+- "Holds the input" must ask the stored word codes (the input's codes as one
+  run of the text's), not a similarity of 1: `token_sort_ratio` ignores word
+  order and a window can end inside a word, which cost 4 right answers.
+- The fingerprint bonus goes to the one text that lists a phrase several
+  hold; giving it to all, or to none, loses real files (labels agree 187 to
+  182 to 185): leave it.
+- The cap of 20 candidates can cut inside a group of equal gram scores (81
+  texts hold one BSD disclaimer); the rule above refuses every such input.
+- What a tie prints is open: a new `REASON`, or the rows without an answer.
+
+Impact 3, Risk 3, Effort 3.
+
+## 73. A GNU header that `markers` reads right gets another answer — Priority 20
+
+Found 2026-11-27 with item 71's headers. `markers` reads all 12 GNU standard
+headers as their own ID, yet `detect()` answers `LGPL-2.0-only` (0.88) for
+the `LGPL-2.1-only` header and `LGPL-2.1-only` (0.89) for the `LGPL-2.0-only`
+one, and gives no answer for the `GPL-3.0-only` and `AGPL-3.0-only` headers
+(their own ID at 0.84): the text match outranks the marker's reading. Same in
+0.9.4. Find where the marker candidate loses (the floor, the merge, the
+ranking) before a fix; it belongs with item 7.
+
+Impact 3, Risk 2, Effort 2.
 
 ## Already resolved
 
