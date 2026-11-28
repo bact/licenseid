@@ -7,14 +7,21 @@
 removed the text that fits best (``gramselect.beyond_bar``), through
 ``detect()`` on the long-text fixtures (every licence of the List with its
 text, so the near neighbours are real). The rule on made-up tables:
-``test_gramselect``; the text found whole: ``test_whole_text_first``."""
+``test_gramselect``; the text found whole: ``test_whole_text_first``.
+
+Beside a text found whole no runner-up is a result
+(``ranking.under_found``), so the tests of the MIT text read the texts Tier 2
+scores (``scored``), which the bar shapes, beside the answers."""
 # pylint: disable=missing-function-docstring
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from long_text_db import LONG_TEXTS, long_text_detector
+
+from licenseid.retrieval import get_candidates
+from licenseid.types import DetectOptions
 
 pytestmark = pytest.mark.filterwarnings("ignore::licenseid.LicenseIdWarning")
 
@@ -47,13 +54,17 @@ def answers(text: str, **options: Any) -> list[tuple[str, float]]:
     return [(r["expression"], r["score"]) for r in found]
 
 
+def scored(text: str, **options: Any) -> list[str]:
+    """The texts Tier 2 scores for *text*, best first by gram score."""
+    db = long_text_detector().db
+    with db.reading():
+        found = get_candidates(db, cast(DetectOptions, options), text)
+    return [c["license_id"] for c in found.found]
+
+
 def test_no_option_is_the_unfiltered_answer() -> None:
-    assert answers(MIT) == [
-        ("MIT", 1.0),
-        ("JSON", 0.9871),
-        ("FSL-1.1-MIT", 0.9252),
-        ("Xnet", 0.9017),
-    ]
+    assert scored(MIT) == ["MIT", "JSON", "Xnet", "FSL-1.1-MIT"]
+    assert answers(MIT) == [("MIT", 1.0)]  # the text found whole, alone
 
 
 def test_excluding_the_text_the_input_is_gives_no_answer() -> None:
@@ -66,7 +77,8 @@ def test_excluding_a_neighbour_that_scores_less_keeps_the_answer() -> None:
 
 def test_excluding_a_neighbour_drops_the_texts_that_score_less_than_it() -> None:
     # JSON shares more of MIT than FSL-1.1-MIT does.
-    assert answers(MIT, exclude=["JSON"]) == [("MIT", 1.0), ("Xnet", 0.9017)]
+    assert scored(MIT, exclude=["JSON"]) == ["MIT", "Xnet"]
+    assert answers(MIT, exclude=["JSON"]) == [("MIT", 1.0)]
 
 
 def test_excluding_a_short_text_that_scores_more_keeps_the_answer() -> None:
@@ -77,7 +89,8 @@ def test_excluding_a_short_text_that_scores_more_keeps_the_answer() -> None:
 
 
 def test_only_common_keeping_the_holder_drops_what_the_removed_one_beats() -> None:
-    assert answers(MIT, only_common=True) == [("MIT", 1.0), ("Xnet", 0.9017)]
+    assert scored(MIT, only_common=True) == ["MIT", "Xnet"]
+    assert answers(MIT, only_common=True) == [("MIT", 1.0)]
 
 
 def test_only_common_removing_the_holder_gives_no_answer() -> None:

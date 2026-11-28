@@ -60,7 +60,10 @@ expression cannot be judged and the others do not decide it
 (`MIT OR LicenseRef-x` is `True`, `MIT AND LicenseRef-x` is `None`).
 
 `detect()` applies no threshold and no top: it returns every candidate it
-ranks (one to nine for a licence text, four for most), best first. Filter
+ranks, best first: one for most files that hold one licence text whole (the
+licences of that text, those the file or `hint` names, and no other
+look-alike of it), more for a fragment.
+Filter
 on `score` and `exact` yourself; the `is_*()` predicates use a bar of 0.85.
 A file of the texts of several licences whose first text is not the top
 result's returns `[]` ([output.md](output.md), `TEXTS`).

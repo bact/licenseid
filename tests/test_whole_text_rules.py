@@ -6,7 +6,7 @@
 """The rules of whole text first on made-up score tables
 (``licenseid.gramselect``): the texts the whole-text search reads, the
 guard, the narrowing and its runner-ups; the rule that leaves out a
-runner-up scoring as high as the text found (``ranking.under_found``); and
+runner-up nothing names beside the text found (``ranking.under_found``); and
 ``variants`` sorting with the one ranking key. Numbers are written
 literally."""
 # pylint: disable=missing-function-docstring
@@ -180,45 +180,83 @@ def test_the_guard_reads_the_unfiltered_table() -> None:
     assert narrowed(rows[:1], passed, {"F"}) is not None
 
 
-# -- Runner-ups rank under the text found ------------------------------------
+# -- Runner-ups nothing names are no results beside the text found -----------
 
 
 def match(license_id: str, score: float) -> Any:
     return {"license_id": license_id, "score": score}
 
 
-@pytest.mark.parametrize(
-    ("score", "kept"),
-    [(0.9, True), (0.95, False), (0.96, False)],
-    ids=["under", "equal", "above"],
-)
-def test_a_runner_up_at_or_above_the_answer_is_left_out(
-    score: float, kept: bool
-) -> None:
+def left(
+    ranked: list[Any], group: set[str], runner_ups: set[str], named: Any = ()
+) -> list[str]:
+    return [m["license_id"] for m in under_found(ranked, group, runner_ups, named)]
+
+
+@pytest.mark.parametrize("score", [0.3, 0.94, 0.95, 0.96], ids=str)
+def test_an_unnamed_runner_up_is_left_out_whatever_it_scores(score: float) -> None:
+    """Under the answer (0.3; 0.94, a near tie), equal to it and above it."""
     ranked = sorted(
         [match("F", 0.95), match("R", score), match("Q", 0.5)],
         key=lambda m: -m["score"],
     )
-    out = under_found(ranked, {"F"}, {"R", "Q"})
-    assert ("R" in [m["license_id"] for m in out]) is kept
-    assert [m["license_id"] for m in out][-1] == "Q"
+    assert left(ranked, {"F"}, {"R", "Q"}) == ["F"]
+    assert left(ranked, {"F"}, {"R", "Q"}, ["Other-1.0"]) == ["F"]
+
+
+@pytest.mark.parametrize(
+    ("score", "kept"),
+    [(0.3, True), (0.94, True), (0.95, False), (0.96, False)],
+    ids=["under", "near", "equal", "above"],
+)
+def test_a_named_runner_up_stays_only_under_the_answer(
+    score: float, kept: bool
+) -> None:
+    ranked = [match("F", 0.95), match("R", score), match("Q", 0.5)]
+    assert left(ranked, {"F"}, {"R", "Q"}, ["R"]) == (["F", "R"] if kept else ["F"])
+
+
+@pytest.mark.parametrize(
+    "named",
+    ["GPL-2.0", "gpl-2.0", "GPL-2.0-only", "GPL-2.0-or-later", "GPL-2.0+"],
+)
+def test_a_name_stands_for_both_twins(named: str) -> None:
+    """A bare deprecated ID, either twin, any case: the pair stays, so the
+    tie-breaker and ``variants`` read both rows."""
+    ranked = [
+        match("F", 0.95),
+        match("GPL-2.0-only", 0.6),
+        match("GPL-2.0-or-later", 0.59),
+        match("LGPL-2.0-only", 0.5),
+    ]
+    runner_ups = {"GPL-2.0-only", "GPL-2.0-or-later", "LGPL-2.0-only"}
+    assert left(ranked, {"F"}, runner_ups, [named]) == [
+        "F",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+    ]
+
+
+def test_every_member_of_the_group_stays() -> None:
+    ranked = [match("F-twin", 0.97), match("R", 0.96), match("F", 0.9)]
+    assert left(ranked, {"F", "F-twin"}, {"R"}) == ["F-twin", "F"]
 
 
 def test_the_best_member_of_the_group_is_the_bar() -> None:
     ranked = [match("F-twin", 0.97), match("R", 0.96), match("F", 0.9)]
-    out = under_found(ranked, {"F", "F-twin"}, {"R"})
-    assert [m["license_id"] for m in out] == ["F-twin", "R", "F"]
+    assert left(ranked, {"F", "F-twin"}, {"R"}, ["R"]) == ["F-twin", "R", "F"]
 
 
 def test_a_candidate_that_is_no_runner_up_stays() -> None:
-    """A marker's candidate merged after the grams is no runner-up."""
-    ranked = [match("MARKER", 0.99), match("F", 0.9)]
-    assert under_found(ranked, {"F"}, set()) == ranked
+    """A marker's candidate merged after the grams is no runner-up, above
+    the text found or under it."""
+    ranked = [match("MARKER", 0.99), match("F", 0.9), match("R", 0.8), match("H", 0.2)]
+    assert left(ranked, {"F"}, {"R"}) == ["MARKER", "F", "H"]
 
 
 def test_no_member_of_the_group_ranked_leaves_all() -> None:
-    ranked = [match("R", 0.99)]
-    assert under_found(ranked, {"F"}, {"R"}) == ranked
+    ranked = [match("R", 0.99), match("Q", 0.5)]
+    assert under_found(ranked, {"F"}, {"R", "Q"}) == ranked
 
 
 # -- The size of a core --------------------------------------------------------

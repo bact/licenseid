@@ -10,7 +10,8 @@ filtered the same way.
 Whole text first (plan of 0.10.0, section 3.1, steps 5 to 7): when the
 search of ``TEXTS`` (``licenseid.textcandidates``) finds exactly one text in
 the input, Tier 2 scores that text's same-text group and three runner-ups
-(``gramselect.narrowed``), which rank under it; otherwise the selection."""
+(``gramselect.narrowed``), which are no results beside it unless a marker
+or a hint names them (``ranking.under_found``); otherwise the selection."""
 
 from collections.abc import Collection, Iterable, Sequence
 from typing import Final, NamedTuple

@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-27
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -233,3 +233,58 @@ both trees (0.9197 and 0.9641). No file moves against its label.
 - Mutation: 27 mutants of the new code, all killed (two survivors on the
   first run: a redundant clause of `guarded`, removed; the `!= 1` of
   `_narrowed`, killed by a test of two texts found).
+
+### 10. Unnamed runner-ups are no results (after 0.10.0, items 13 and 68)
+
+Built 2026-11-28 on release 0.10.0; plan and the prototype's measures in
+`working-docs/design/texts-ranking-evidence-plan.md`.
+
+- **The rule.** Where a member of the group is ranked, `ranking.under_found`
+  leaves out every runner-up that nothing names, whatever it scores
+  (section 1 left out only one scoring as high as the group's best). A
+  verbatim Apache 2.0 file (rfc8785 0.1.4) answered `Apache-2.0` 1.0 with
+  `Pixar` 0.9947 and `ImageMagick` 0.9871 beside it; it answers
+  `Apache-2.0` alone. Decision Q1 of the 0.10.0 plan (a runner-up ranks
+  under the text found) is replaced, for a runner-up nothing names, by the
+  maintainer's decision of 2026-11-28.
+- **A named runner-up keeps the rule of 0.10.0.** A runner-up whose ID a
+  marker or `hint` names stays where it scores under the group's best.
+  Names compare by `plusoperator.grant_stem`, case-folded, so a bare
+  deprecated ID or either twin names both twins. The detector gives the
+  IDs of the marker candidates and of `hint`.
+- **Why (the review's findings on the first build, which left out every
+  runner-up).** The steps after `under_found` read the lower rows:
+  `variants` fills a bare deprecated marker row from its twins (with
+  `License: GPL-1.0` above a `Dotseqn` text and `variant="as-written"`,
+  the first result's similarity went from 0.5877 to 0.0), the tie-breaker
+  reads a pair, and a declared licence that was one of the three runner-ups
+  lost its row and its warning (`License: GPL-2.0-only` above an
+  `Arphic-1999` text; `option: overridden by input` not given). Which
+  declared licence stayed depended on the three slots.
+- **Measured on the built tree** against the `under_found` of 0.10.0, one
+  process, 1,704 speed gate inputs and 1,099 golden texts: the first
+  result differs in no field on no input; no warning differs; every row
+  kept is equal in every field; 587 gate inputs lose 1,684 rows and 311
+  golden texts lose 881 (under `--top 3`: 1,077 and 561 rows). `tools.golden`
+  moves nothing. A sweep of 125 List texts (every third, the first 125)
+  under 80 shapes each (a `License:` or `Licensed under` line of eight
+  IDs, hints, a grant sentence, the four `variant` values): 10,080 runs,
+  6,660 lose rows, none differs in its first result, its warnings or a
+  row kept.
+- **Rejected: runner-ups not scored.** `narrowed` giving the group only is
+  another rule: a look-alike that a marker also names then joins as the
+  marker's candidate, which is never left out, at any score. 15 of 2,803
+  inputs differ and one first row moves (the head of `X11`, `MIT` 0.9617
+  to `X11` 1.0).
+- **Rejected: every row `TEXTS` does not name.** Dropping marker rows too
+  loses the labelled licence's row in three more real files.
+- **Left open.** Tier 2 still scores the three runner-ups, about a tenth
+  of the `core` CPU time; not scoring the unnamed ones needs the names
+  before the scoring, and a measure. A look-alike the text itself names
+  stays (`AGPL-3.0-only` 0.986 beside the `GPL-3.0` text, `BSD-4-Clause`
+  beside `BSD-3-Clause-Attribution`).
+- **Tests.** `tests/test_whole_text_alone.py` (the rfc8785 file and the
+  four real texts of the Apache family, a twin, a licence the text names,
+  a declared and a hinted runner-up, the CLI),
+  `tests/test_whole_text_rules.py` (`under_found`). Mutants: 14, all
+  killed.

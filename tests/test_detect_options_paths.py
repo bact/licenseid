@@ -130,13 +130,13 @@ def answers(detector: LicenseDetector, **kwargs: Any) -> list[str]:
     return [r["expression"] for r in detector.detect(**kwargs)]
 
 
-# BODY's answers, best first: BODY holds MIT's text whole, so Tier 2 scores
-# MIT and the three runner-ups by gram score (whole text first), which rank
-# under it: FOUND. NEAR is the top 3 by gram score (X11 is fourth, over 0.05
-# under MIT). With MIT excluded, no text of the rest shares as much of BODY as
-# MIT does, so none answers (``gramselect.beyond_bar``).
-NEAR = ["MIT", "JSON", "MIT-0"]
-FOUND = [*NEAR, "X11"]
+# BODY's answers: BODY holds MIT's text whole, so Tier 2 scores MIT and the
+# three runner-ups by gram score (JSON, MIT-0, X11; whole text first), and
+# a runner-up that no marker or hint names is no result beside the text
+# found (``ranking.under_found``): FOUND. With MIT excluded, no text of the
+# rest shares as much of BODY as MIT does, so none answers
+# (``gramselect.beyond_bar``).
+FOUND = ["MIT"]
 GPL = "GPL-2.0-only"
 
 
@@ -149,7 +149,7 @@ GPL = "GPL-2.0-only"
         ({"exclude": ["mit"]}, []),
         # A text that shares less than the one left out is no candidate.
         ({"exclude": ["JSON"]}, ["MIT"]),
-        ({"exclude": ["X11"]}, FOUND[:3]),
+        ({"exclude": ["X11"]}, FOUND),
         ({"exclude": ["Nope-1.0"]}, FOUND),
         ({"exclude": FOUND}, []),
         ({"hint": ["MIT"]}, FOUND),  # already a candidate: nothing added
@@ -157,6 +157,8 @@ GPL = "GPL-2.0-only"
         ({"hint": [GPL]}, [*FOUND, GPL]),  # added last, scored on its text
         ({"hint": ["gpl-2.0-only"]}, [*FOUND, GPL]),
         ({"hint": ["mit"]}, FOUND),  # folded: already a candidate
+        # A hinted runner-up stays, under the text found.
+        ({"hint": ["JSON"]}, [*FOUND, "JSON"]),
         ({"hint": [GPL, GPL]}, [*FOUND, GPL]),  # an ID given twice, once
         ({"hint": [GPL, "gpl-2.0-only"]}, [*FOUND, GPL]),
         # DECISION: every filter wins: a hint is a candidate that passes
@@ -190,12 +192,9 @@ def test_the_options_shape_the_text_candidates(
         ({}, ["MIT"]),
         ({"only_spdx": True, "hint": ["Acme-MIT"]}, ["MIT"]),
         ({"hint": ["Acme-MIT"]}, ["MIT"]),  # only_spdx is on by default
-        # Acme-MIT (0.99) is the first runner-up: X11 is no longer one.
-        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON", "MIT-0"]),
-        (
-            {"only_spdx": False, "hint": ["Acme-MIT"]},
-            ["MIT", "Acme-MIT", "JSON", "MIT-0"],
-        ),
+        # Acme-MIT (0.99) is the first runner-up: no result beside MIT.
+        ({"only_spdx": False}, ["MIT"]),
+        ({"only_spdx": False, "hint": ["Acme-MIT"]}, ["MIT", "Acme-MIT"]),
     ],
     ids=repr,
 )
@@ -337,8 +336,8 @@ def test_the_order_of_the_ids_does_not_change_the_answer(
     detector: LicenseDetector,
 ) -> None:
     """Hinted candidates are added last, in no order that ranks them."""
-    forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=NEAR[:2])
-    backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=NEAR[1::-1])
+    forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=["MIT", "JSON"])
+    backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=["JSON", "MIT"])
     assert forward == backward == [GPL]
 
 
