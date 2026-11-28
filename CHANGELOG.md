@@ -17,13 +17,15 @@ and this project adheres to
   `only_spdx` no longer answers a text that fits the input less than a text
   the filter removed: `exclude=["MIT"]` on the MIT text answers nothing, not
   `JSON`
-- **Breaking:** licenseid reads only a database of its own build; an older
-  one exits 2 with `database: build vN outdated`. Migration: run `licenseid
-  update` once after upgrading
+- **Breaking:** licenseid reads only a database of its own build (build 10);
+  an older one exits 2 with `database: build vN outdated`, and 0.9.x calls a
+  build 10 database `invalid`. Migration: run `licenseid update` once after
+  upgrading; to go back to 0.9.x, run `licenseid clear-cache` first
 - `detect()` on a declared value is about two fifths faster (462 PyPI values:
   1.39 s to 0.84 s); every answer, score and warning is unchanged
-- Database build 9 (3.5 MB more) stores the word 3-gram postings of every
-  licence text and a check of each stored text
+- Database build 10 is 18 MB, 7 MB smaller than 0.9.4's: it stores the word
+  3-gram postings of every licence text and a check of each stored text, and
+  drops the full-text index, which nothing read
 - `import licenseid` and `licenseid --version` start in about a third of the
   time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
 - `detect()` on free text finds its candidates by the word 3-grams it shares

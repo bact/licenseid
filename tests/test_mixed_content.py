@@ -61,7 +61,7 @@ def test_db() -> Generator[str, None, None]:
                     ),
                 )
                 conn.execute(
-                    "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                    "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
                     (data["license_id"], normalize_text(data["license_text"])),
                 )
                 count += 1

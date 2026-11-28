@@ -46,7 +46,7 @@ def fixture_template(data: dict[str, object]) -> str | None:
 
 
 def long_text_rows() -> tuple[list[tuple[object, ...]], list[tuple[str, str]]]:
-    """The ``licenses`` and ``license_index`` rows of every long-text fixture,
+    """The ``licenses`` and ``license_texts`` rows of every long-text fixture,
     in file-name order (the order does not change what a query returns),
     with the core of each that has a template (``records.core_of``) and the
     ``same_text`` of each, as a production build keeps them."""

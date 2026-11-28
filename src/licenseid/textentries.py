@@ -66,7 +66,7 @@ class Reads(Protocol):
         """A connection for one query (``Connections.connection``)."""
 
     def index_rows(self) -> Mapping[str, int]:
-        """The first ``license_index`` rowid of each ID, in table order."""
+        """The first ``license_texts`` rowid of each ID, in table order."""
 
     def text_parts(self) -> Mapping[str, TextParts]:
         """The core and the same-text group of each licence with one."""
@@ -125,11 +125,11 @@ def groups_of(index: Mapping[str, int], parts: Mapping[str, TextParts]) -> Group
 def read_rows(
     conn: sqlite3.Connection, parts: Mapping[str, TextParts]
 ) -> list[TextRow]:
-    """Every text of ``license_index``, in table order (the first row of an
+    """Every text of ``license_texts``, in table order (the first row of an
     ID wins, as a scan finds it), with its core and same-text group: what a
     build codes."""
     rows: list[tuple[str | None, str | None]] = conn.execute(
-        "SELECT license_id, search_text FROM license_index ORDER BY rowid"
+        "SELECT license_id, search_text FROM license_texts ORDER BY rowid"
     ).fetchall()
     texts: dict[str, str] = {}
     for license_id, text in rows:
@@ -163,7 +163,7 @@ def read_raw_entries(
         rowids = [rowid for _, rowid in first[start : start + CHUNK]]
         texts.update(
             conn.execute(
-                "SELECT rowid, search_text FROM license_index"
+                "SELECT rowid, search_text FROM license_texts"
                 f" WHERE rowid IN ({_marks(rowids)})",
                 rowids,
             ).fetchall()
@@ -210,10 +210,10 @@ def _head_rows(conn: sqlite3.Connection) -> tuple[dict[str, object], object]:
 
 
 def _first_rowids(conn: sqlite3.Connection) -> dict[str, int]:
-    """The first ``license_index`` rowid of each ID, in table order."""
+    """The first ``license_texts`` rowid of each ID, in table order."""
     found: dict[str, int] = {}
     for license_id, rowid in conn.execute(
-        "SELECT license_id, rowid FROM license_index ORDER BY rowid"
+        "SELECT license_id, rowid FROM license_texts ORDER BY rowid"
     ):
         if license_id is not None:
             found.setdefault(license_id, rowid)

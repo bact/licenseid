@@ -35,11 +35,11 @@ def packaged_update(handle: LicenseDatabase) -> bool:
 
 
 def foreign_license_index(path: Path) -> None:
-    """licenseid's schema, but ``license_index`` is a plain table of a row:
-    ``reject_foreign_database`` calls the file ``invalid``."""
+    """licenseid's schema, of this build's shape, and beside it a plain table
+    of a row under the name of 0.9.x's FTS5 table, which licenseid never made
+    plain: ``reject_foreign_database`` calls the file ``invalid``."""
     create_database(path)
     with writer(path) as conn:
-        conn.execute("DROP TABLE license_index")
         conn.execute("CREATE TABLE license_index (license_id TEXT, search_text TEXT)")
         conn.execute("INSERT INTO license_index VALUES ('X', 'mine')")
 
@@ -52,7 +52,7 @@ def snapshot(path: Path) -> list[tuple[object, ...]]:
 def test_update_refuses_a_foreign_file_with_a_current_schema(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Was: ``license_index`` emptied; the constructor, which returns on
+    """Was: the table of texts emptied; the constructor, which returns on
     a current schema, did not judge the file, and nothing else did."""
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "f.db"

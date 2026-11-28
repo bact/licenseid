@@ -274,13 +274,15 @@ refuses, and for a tag or a manifest field.
 database is missing, empty, invalid (another program's file), unreadable,
 or built by an older licenseid, for example before the first `licenseid
 update` or after an upgrade; its `condition` (`not found`, `empty`,
-`invalid`, `unreadable`, `build v6 outdated`) and `detail` say which, apart
+`invalid`, `unreadable`, `build v7 outdated`) and `detail` say which, apart
 from the message, and are `None` when nothing was said. A `file_path` or
 `db_path` takes a `str` or an `os.PathLike[str]`; any other type raises
 `TypeError`.
 Any later call, such as `detect()`, raises `DatabaseNotReadyError` too if the
 file is deleted, truncated or damaged in the meantime; then the `sqlite3`
-error is its `__cause__`. A lookup creates nothing and writes nothing: it
+error is its `__cause__`. A licence row whose normalised ID or name is not
+text, found when a lookup first reads the names, raises it with condition
+`empty`. A lookup creates nothing and writes nothing: it
 reads only a database of this version's build, so a program that upgrades
 licenseid runs `licenseid update` (or
 `LicenseDatabase(path).update_from_remote()`) once before its first lookup.

@@ -35,10 +35,10 @@ PROSE = (
 
 
 class Lic(NamedTuple):
-    """One row of the ``licenses`` table, plus its ``license_index`` text.
+    """One row of the ``licenses`` table, plus its ``license_texts`` text.
 
-    A row is indexed for FTS5 only when ``search_text`` is non-empty, so
-    a licence can be given a name but no searchable body.
+    A row gets a text only when ``search_text`` is non-empty, so a licence
+    can be given a name but no text to match.
     """
 
     license_id: str

@@ -394,7 +394,7 @@ and finds no match.
 A database is not ready when it is missing, empty (no licences, or a table
 of this version's database missing), invalid (another program's file),
 unreadable (a symlink loop included), or built by an older licenseid
-(`database: build v6 outdated: current v7; run 'licenseid update'`, or
+(`database: build v7 outdated: current v10; run 'licenseid update'`, or
 `normalization vN outdated`). `detect` and the `is-*` commands refuse to
 answer from one, rather than exiting 1 for no licence or `false`; `resolve`
 reads the list shipped with licenseid instead, unless `--db` or `--source

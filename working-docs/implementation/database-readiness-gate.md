@@ -80,7 +80,9 @@ Each of these cost at least one review round.
   somebody's database. A table of ours whose columns are not ours is
   `invalid`, with no hint (`_foreign_schema`). The check also verifies that
   `license_index` is FTS5, since a plain table of that name passes a naive
-  existence test.
+  existence test. Build 10 (0.10.0, task T7) keeps that last check only to
+  tell a file of 0.9.x from another program's: the texts are in the plain
+  table `license_texts` ([plain-text-table.md](plain-text-table.md)).
 
 ## Test traps
 
@@ -149,7 +151,7 @@ empty one, so the next matcher said `empty` instead of `not found`.
   file that is gone). `update` refuses a file that is not a database, fails
   on a malformed one, and cannot open one that is there but unreadable.
 - **The constructor**: without `create` (the matcher) `_check_ready` reads
-  `dbcheck.connection_refusal` through its own read-only connection and
+  `dbverdict.connection_refusal` through its own read-only connection and
   raises what it says, writing nothing, so a file deleted between the
   readiness check and the constructor raises `not found`, where it used to
   be re-created empty and answer `false`. With `create` (`update`),
@@ -207,7 +209,7 @@ of its own build, and keeps no code that reads or migrates an older one.
 - **The rule.** `dbschema` holds the one shape (`TABLES` with every column,
   `INDEXES`) and the stamps (`BUILD_VERSION`, `NORMALIZATION_VERSION`,
   moved there from `records` and `database` so that `dbcheck` can judge a
-  file without importing the builder). `dbcheck.connection_refusal` is the
+  file without importing the builder). `dbverdict.connection_refusal` is the
   one verdict: after `invalid` and `empty` as before, an older stamp is
   `build vN outdated` (normalisation first; a missing or non-numeric stamp
   is older), then a missing table, index or column, or a row whose norm

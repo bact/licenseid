@@ -107,8 +107,8 @@ def _built(build_now: Path, monkeypatch: pytest.MonkeyPatch) -> TextCorpus:
     return corpus
 
 
-def test_the_build_is_9() -> None:
-    assert BUILD_VERSION == "9"
+def test_the_build_is_10() -> None:
+    assert BUILD_VERSION == "10"
 
 
 def test_update_stores_the_head_each_text_and_core_and_their_checks(
@@ -263,15 +263,15 @@ def test_a_row_sqlite_cannot_read_as_text_is_an_unreadable_database(
 
 EDITS = {
     "text": (
-        "UPDATE license_index SET search_text = search_text || ' and more'"
+        "UPDATE license_texts SET search_text = search_text || ' and more'"
         " WHERE license_id = 'A-1.0'"
     ),
     "shorter-text": (
-        "UPDATE license_index SET search_text = 'one two three four'"
+        "UPDATE license_texts SET search_text = 'one two three four'"
         " WHERE license_id = 'B-1.0'"
     ),
     "empty-text": (
-        "UPDATE license_index SET search_text = '' WHERE license_id = 'A-1.0'"
+        "UPDATE license_texts SET search_text = '' WHERE license_id = 'A-1.0'"
     ),
     "core": "UPDATE licenses SET core_text = 'clause0 of' WHERE license_id = 'A-1.0'",
     "no-core": "UPDATE licenses SET core_text = NULL WHERE license_id = 'A-1.0'",

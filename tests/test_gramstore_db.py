@@ -71,7 +71,7 @@ def _inputs(path: Path) -> list[str]:
     """Each stored text, a fragment of one, and an input of no List word."""
     with contextlib.closing(sqlite3.connect(path)) as conn:
         texts = [
-            text for (text,) in conn.execute("SELECT search_text FROM license_index")
+            text for (text,) in conn.execute("SELECT search_text FROM license_texts")
         ]
     return [*texts, " ".join(BODY.split()[40:90]), "nothing in here is a list word"]
 
@@ -194,7 +194,7 @@ DAMAGE: dict[str, str] = {
         "UPDATE db_metadata SET value = 'later' WHERE key = 'last_update_datetime'"
     ),
     "texts-changed-since": (
-        "UPDATE license_index SET search_text = 'permission is hereby granted"
+        "UPDATE license_texts SET search_text = 'permission is hereby granted"
         " to any person' WHERE license_id = 'A-1.0';"
         " UPDATE db_metadata SET value = 'later' WHERE key = 'last_update_datetime'"
     ),

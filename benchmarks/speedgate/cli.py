@@ -73,7 +73,9 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def _compare(args: argparse.Namespace) -> int:
-    text, failed = compare_folders(args.base, args.candidate, args.twin, args.inputs)
+    text, failed = compare_folders(
+        args.base, args.candidate, args.twin, args.inputs, args.storage_alone
+    )
     print(text)
     return 1 if failed else 0
 
@@ -130,6 +132,9 @@ def parser() -> argparse.ArgumentParser:
     cmp_.add_argument("candidate", type=Path)
     cmp_.add_argument("--twin", type=Path, help="a second run of base (A/A)")
     cmp_.add_argument("--inputs", type=Path, help="inputs.json, for the labels")
+    cmp_.add_argument(
+        "--storage-alone", action="store_true", help="judge: no answer moved"
+    )
     cmp_.set_defaults(run=_compare)
     return top
 

@@ -90,8 +90,7 @@ def test_search_text_by_exact_id(db: LicenseDatabase, asked: str, text: str) -> 
 
 
 def _selects(statements: list[str], table: str) -> list[str]:
-    """The SELECTs on *table*; FTS5's reads of its own shadow tables
-    ('main'.'license_index_config') are not ours."""
+    """The SELECTs on *table* (none of SQLite's own, on ``'main'``)."""
     return [
         s
         for s in statements
@@ -109,7 +108,7 @@ def test_lookups_scan_each_table_once(
             for license_id in [*ids, f"LicenseRef-{i}"]:
                 db.get_license_details(license_id)
                 db.get_search_text(license_id)
-    tables = [*_selects(statements, "licenses"), *_selects(statements, "license_index")]
+    tables = [*_selects(statements, "licenses"), *_selects(statements, "license_texts")]
     assert len([s for s in tables if "WHERE" not in s]) == 2  # once per table
     # Known IDs only: a LicenseRef or an unknown ID costs no query at all.
     # Details for MIT, mit, SK-1.0 and Apache-2.0; text for MIT and SK-1.0.
@@ -121,15 +120,16 @@ def test_lookups_scan_each_table_once(
 def _rebuild(db: LicenseDatabase, stamp: str | None) -> None:
     """Rewrite the index in another order, as another process's update."""
     with sqlite3.connect(db.db_path, uri=True) as conn:
-        conn.execute("DELETE FROM license_index")
+        conn.execute("DELETE FROM license_texts")
         conn.executemany(
-            "INSERT INTO license_index (rowid, license_id, search_text)"
+            "INSERT INTO license_texts (rowid, license_id, search_text)"
             " VALUES (?, ?, ?)",
             [(1, "SK-1.0", "new k"), (2, "MIT", "new mit"), (3, "Zlib", "zlib")],
         )
         conn.execute(
             "INSERT INTO licenses (license_id, name) VALUES ('Zlib', 'zlib License')"
         )
+        fill_norm_columns(conn)
         stamp_rebuild(conn, stamp)
 
 
@@ -187,8 +187,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
             conn.execute("INSERT INTO licenses (license_id, name) VALUES (NULL, 'x')")
             conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Y', NULL)")
             conn.execute(
-                "INSERT INTO license_index (license_id, search_text) VALUES (NULL, 'x')"
+                "INSERT INTO license_texts (license_id, search_text) VALUES (NULL, 'x')"
             )
+            fill_norm_columns(conn)
         db = LicenseDatabase(path)
         assert db.get_license_details("mit")
         assert db.get_search_text("MIT") == "permission is hereby"

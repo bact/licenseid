@@ -158,7 +158,7 @@ def test_an_empty_or_licenseid_file_is_still_opened_and_completed(
     path = tmp_path / "licenses.db"
     make(path)
     LicenseDatabase(str(path))
-    assert {"licenses", "license_index", "db_metadata"} <= names_in(path)
+    assert {"licenses", "license_texts", "db_metadata"} <= names_in(path)
 
 
 def spellings(path: Path) -> dict[str, object]:
@@ -211,7 +211,7 @@ def test_the_first_write_makes_the_file_and_its_tables(tmp_path: Path) -> None:
     handle = LicenseDatabase(str(path))
     assert not path.exists()
     handle._write_db_records(NO_RECORDS, None)  # pylint: disable=protected-access
-    assert {"licenses", "license_index", "db_metadata"} <= names_in(path)
+    assert {"licenses", "license_texts", "db_metadata"} <= names_in(path)
     assert "release_date" in handle.get_metadata()
 
 

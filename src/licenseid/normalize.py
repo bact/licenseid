@@ -237,7 +237,7 @@ _RE_HTTPS: Final = re.compile(r"https://")
 # (-0.72% overall; worst on mixed content and Tier 0.5/Tier 1 recall,
 # several categories down 5-7%). Disabling just this one step and
 # re-running the same benchmark flipped the result to a net improvement
-# (+0.51% overall). Root cause: this codebase's matching pipeline (FTS5 +
+# (+0.51% overall). Root cause: the matching pipeline measured then (FTS5 +
 # RapidFuzz + word-level fingerprints) partly relies on copyright-notice
 # boilerplate as *accidental* discriminative signal between near-duplicate
 # license bodies (e.g. ISC vs Python-2.0) — guideline-9 compliance removes

@@ -149,14 +149,25 @@ installed packages that hold "licens".
 | onecall | 8 files, 3 value commands, a fresh process, 11 runs | Milliseconds (minimum) |
 | memory | Peak RSS at import, 1, 300 and 868 inputs | MB |
 | threads | 4 threads on one detector, answers against one thread | Counts |
-| damage | 10 damaged copies of the side's database (stored codes) | Rows against the intact build |
+| damage | 26 damaged copies of the side's database (codes, postings, texts) | Rows against the intact build |
+| versions | The side on a copy of the 0.9.4 database, 0.9.4 on a copy of the side's | Exit codes, lines, file states |
 
 The Damage gate also damages the stored word-gram postings (a stale or missing
 stamp, another gram size or width, a short or out-of-range blob, an emptied
 table), and requires `gram_scores` of fixed inputs, the answers of the damage
 inputs and the bytes of the damaged file to equal the intact build's; a side
 without the postings tables (before build 8) records these kinds as not
-applicable.
+applicable. The texts table is damaged too (missing, misshaped: not ready;
+rows removed: as a rebuild without them); a side of build 9 or older damages
+its FTS5 table instead.
+
+The Versions set runs the side on a copy of the database of the last tag
+(`<db>/0.9.4/licenses.db`, `SPEEDGATE_OLD_DB`) and the last tag's tree
+(`<sides>/0.9.4`, `SPEEDGATE_OLD_SIDE`) on a copy of the side's database: each
+lookup of the side exits 2 with `build vN outdated` and leaves the file as it
+was (bytes, time, no file beside it), `update` makes its tables, rows and
+answers those of a fresh build, `clear-cache` deletes it, and every command of
+the last tag exits 2 with `database: invalid` and writes nothing.
 
 Labels are not a run: `compare --inputs` counts agree, other and none of the
 225 real files with one declared ID, at 0.85, 0.7 and 0.5, from the core
@@ -169,12 +180,11 @@ sympy and Pillow, and the HPND family of item 64. Item 62 (100,000 `License:`
 lines) is a test of its own, not here. The 18 many-text inputs of cores are in
 addition to the 165 of the plan.
 
-Not built yet, and added by the task that makes them: the per-entry checks
-table of the stored codes (T6: two damage kinds are recorded as not applicable
-until then), and the Versions set (T7). Not
-measured by this tool, so `compare` prints them as not measured: the 462 PyPI
-values, the accuracy test, the golden answers, `--diff`, storage alone and the
-platforms.
+Not measured by this tool, so `compare` prints them as not measured: the 462
+PyPI values, the accuracy test, the golden answers, `--diff` and the
+platforms. Storage alone is judged only by `compare --storage-alone` with a
+`--twin` of the base: no field of any set moves, and core CPU within the
+noise of the two base runs (3 percent at least).
 
 ### The headers set
 
@@ -236,6 +246,7 @@ core where the answer is the same), roadmap inputs
 (0.2 s), item 68 (no new answer on an HPND-family fragment), damage (equal to
 the intact build, or to its reference where the text itself changed), threads,
 memory (no peak over the base, 1 MB of slack), database size (under 20 MB),
+versions (above),
 headers (in each form no fewer right and no more wrong than the base; the
 headers whose verdict moved are listed under "Headers"; not applicable when the
 base has no headers results).

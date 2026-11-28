@@ -41,7 +41,7 @@ def matcher(db_path: str) -> LicenseDetector:
 
 
 def _seed(db_path: str, license_id: str, search_text: str, **flags: bool) -> None:
-    """Insert a license + license_index row. Recognized **flags: is_spdx
+    """Insert a license + license_texts row. Recognized **flags: is_spdx
     (default True), is_high_usage, is_osi_approved, is_fsf_libre
     (default False)."""
     with sqlite3.connect(db_path, uri=True) as conn:
@@ -60,7 +60,7 @@ def _seed(db_path: str, license_id: str, search_text: str, **flags: bool) -> Non
             ),
         )
         conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
             (license_id, search_text),
         )
         conn.commit()

@@ -287,7 +287,7 @@ def insert_mit_license(conn: sqlite3.Connection) -> None:
         ("MIT", "MIT License", True, True, True),
     )
     conn.execute(
-        "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+        "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
         ("MIT", MIT_SEARCH_TEXT),
     )
     fill_norm_columns(conn)

@@ -63,33 +63,16 @@ def test_license_rows_whose_ids_are_not_in_the_index_never_traceback(
     db_path = tmp_path / "licenses.db"
     make_ready_file_db(db_path)
     with writer(db_path) as conn:
-        conn.execute("UPDATE license_index SET license_id = 'NOT-A-LICENSE'")
+        conn.execute("UPDATE license_texts SET license_id = 'NOT-A-LICENSE'")
     result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
     assert_no_traceback(result)
     assert result.exit_code in (0, 1), result.stderr
     assert "unreadable" not in result.stderr
 
 
-@pytest.mark.parametrize("shadow", ["license_index_data", "license_index_content"])
-def test_damaged_fts_shadow_table_is_refused_not_a_traceback(
-    tmp_path: Path, shadow: str
-) -> None:
-    """The FTS5 table still exists and SELECT-ability of its shadow tables is
-    what actually decides whether a query works."""
-    db_path = tmp_path / "licenses.db"
-    make_ready_file_db(db_path)
-    with writer(db_path) as conn:
-        names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
-        if shadow not in names:
-            pytest.skip(f"{shadow} is not a shadow table in this SQLite build")
-        conn.execute(f"DROP TABLE {shadow}")
-    result = run("--db", str(db_path), "detect", "--text", MIT_TEXT)
-    assert_refused(result, REFUSED, str(db_path))
-
-
 def _foreign_lookalike(db_path: Path) -> None:
-    """All three table names, a version and rows -- but license_index is a
-    plain table, not the FTS5 index match reads."""
+    """The licences, the metadata, a version and rows -- and a plain table
+    under the name of 0.9.x's FTS5 table, which licenseid never made plain."""
     with writer(db_path) as conn:
         conn.execute(
             "CREATE TABLE licenses (license_id TEXT PRIMARY KEY, name TEXT, "
@@ -312,7 +295,8 @@ def test_a_table_row_that_disagrees_with_its_key_index_is_refused(
 ) -> None:
     """The table row says NULL while the key's index still says 'MIT'. Reading
     only the index (a covering scan) would call the database ready; the
-    command then crashes on the NULL id."""
+    command then crashes on the NULL id. The row's columns read shifted, so
+    its normalised ID is not text: refused where the names are read."""
     path = make_ready_file_db(tmp_path / "licenses.db")
     with sqlite3.connect(str(path)) as conn:
         root = conn.execute(
@@ -327,9 +311,9 @@ def test_a_table_row_that_disagrees_with_its_key_index_is_refused(
     data[data.rindex(bytes([19]), start, body)] = 0  # NULL
     path.write_bytes(bytes(data))
     with pytest.raises(DatabaseNotReadyError):
-        check_database_ready(str(path))
-    result = run("--db", str(path), "is-osi", "MIT")
-    assert_refused(result, REFUSED, str(path))
+        LicenseDatabase(str(path), create=False).get_all_names_and_ids()
+    for args in (["is-osi", "MIT"], ["detect", "--text", MIT_TEXT]):
+        assert_refused(run("--db", str(path), *args), REFUSED, str(path))
 
 
 def test_a_plain_path_with_mode_memory_in_a_directory_name_is_a_file(
@@ -369,6 +353,10 @@ FOREIGN_TABLES = {
     "license_index": (
         "CREATE TABLE license_index (a TEXT)",
         "INSERT INTO license_index VALUES ('x')",
+    ),
+    "license_texts": (
+        "CREATE TABLE license_texts (id INTEGER PRIMARY KEY, title TEXT, body TEXT)",
+        "INSERT INTO license_texts VALUES (1, 'Acme CAD', 'terms')",
     ),
 }
 

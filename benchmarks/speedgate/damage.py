@@ -12,7 +12,10 @@ before. The word-gram postings tables (database build 8) are damaged in eight
 ways; a side without them (the 0.9.4 baseline) records those kinds as not
 applicable. A file without the checks table, or with one of another shape,
 is not of build 9: every lookup must refuse it as not ready
-(:data:`NOT_READY`)."""
+(:data:`NOT_READY`). The table of the texts is ``license_texts`` from build
+10 (task T7), the FTS5 table ``license_index`` before: each damage of a text
+finds the one the side has (:func:`text_table`); without it, or with it in
+another shape, the file is not ready either."""
 
 import json
 import shutil
@@ -49,14 +52,50 @@ def _swap_codes(con: sqlite3.Connection) -> None:
     _set_body(con, "text", "MIT", body[1] + body[0] + body[2:])
 
 
-def _change_text(con: sqlite3.Connection) -> None:
-    row = con.execute(
-        "SELECT search_text FROM license_index WHERE license_id = 'MIT'"
+def text_table(con: sqlite3.Connection) -> str:
+    """The table of the texts of the side's build (a fixed name)."""
+    found = con.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'license_texts'"
     ).fetchone()
+    return "license_texts" if found else "license_index"
+
+
+def _text_of(con: sqlite3.Connection, license_id: str) -> str:
+    row = con.execute(
+        f"SELECT search_text FROM {text_table(con)} WHERE license_id = ?",
+        (license_id,),
+    ).fetchone()
+    return str(row[0])
+
+
+def _set_text(con: sqlite3.Connection, license_id: str, text: str) -> None:
     con.execute(
-        "UPDATE license_index SET search_text = ? WHERE license_id = 'MIT'",
-        (str(row[0]).replace("permission", "permision", 1),),
+        f"UPDATE {text_table(con)} SET search_text = ? WHERE license_id = ?",
+        (text, license_id),
     )
+
+
+def _change_text(con: sqlite3.Connection) -> None:
+    _set_text(con, "MIT", _text_of(con, "MIT").replace("permission", "permision", 1))
+
+
+def _drop_texts(con: sqlite3.Connection) -> None:
+    con.execute(f"DROP TABLE {text_table(con)}")
+
+
+def _misshape_texts(con: sqlite3.Connection) -> None:
+    """The texts in a plain table of two columns: no row key (build 10), not
+    the FTS5 table (before)."""
+    table = text_table(con)
+    con.execute("CREATE TABLE plain_texts (license_id TEXT, search_text TEXT)")
+    con.execute(f"INSERT INTO plain_texts SELECT license_id, search_text FROM {table}")
+    con.execute(f"DROP TABLE {table}")
+    con.execute(f"ALTER TABLE plain_texts RENAME TO {table}")
+
+
+def _remove_rows(con: sqlite3.Connection) -> None:
+    """The texts of MIT and ISC gone, all else kept (their codes too)."""
+    con.execute(f"DELETE FROM {text_table(con)} WHERE license_id IN ('MIT', 'ISC')")
 
 
 def _swap_words(con: sqlite3.Connection) -> None:
@@ -139,10 +178,7 @@ def _cut_codes(con: sqlite3.Connection) -> None:
 
 def _half_text(con: sqlite3.Connection) -> str:
     """The first half of the text of MIT (fewer tokens than its codes)."""
-    row = con.execute(
-        "SELECT search_text FROM license_index WHERE license_id = 'MIT'"
-    ).fetchone()
-    text = str(row[0])
+    text = _text_of(con, "MIT")
     return text[: len(text) // 2].strip()
 
 
@@ -150,10 +186,7 @@ def _edit_text_stamped(con: sqlite3.Connection) -> None:
     """A text edited by hand, stamped as a rebuild: a new
     ``last_update_datetime``, the codes of the old text kept (0.9.4 and layer
     11 raise ``IndexError`` on it)."""
-    con.execute(
-        "UPDATE license_index SET search_text = ? WHERE license_id = 'MIT'",
-        (_half_text(con),),
-    )
+    _set_text(con, "MIT", _half_text(con))
     con.execute(
         "UPDATE db_metadata SET value = '2099-01-01 00:00:00'"
         " WHERE key = 'last_update_datetime'"
@@ -236,6 +269,12 @@ def _change_text_and_drop_codes(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM text_codes")
 
 
+def _remove_rows_and_drop_codes(con: sqlite3.Connection) -> None:
+    """The rows removed with no codes stored: built from the texts left."""
+    _remove_rows(con)
+    con.execute("DELETE FROM text_codes")
+
+
 def _edit_text_stamped_and_drop_codes(con: sqlite3.Connection) -> None:
     """The stamped edit with no codes stored: they are built from the texts."""
     _edit_text_stamped(con)
@@ -247,7 +286,14 @@ POSTINGS: Final = "text_postings"
 #: The table of the checks of the coded texts (database build 9).
 CHECKS: Final = "text_code_checks"
 #: Kinds every lookup refuses (``DatabaseNotReadyError``) and never writes.
-NOT_READY: Final = frozenset({"no checks table", "checks table misshaped"})
+NOT_READY: Final = frozenset(
+    {
+        "no checks table",
+        "checks table misshaped",
+        "no texts table",
+        "texts table misshaped",
+    }
+)
 #: Name, damage, table it needs (empty: none beyond ``text_codes``).
 KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     (INTACT, lambda con: None, ""),
@@ -277,6 +323,9 @@ KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     ("postings number out of range", _number_out_of_range, POSTINGS),
     ("postings table emptied", _empty_postings, POSTINGS),
     ("posting ids table emptied", _empty_posting_ids, POSTINGS),
+    ("no texts table", _drop_texts, ""),
+    ("texts table misshaped", _misshape_texts, ""),
+    ("texts of MIT and ISC removed, codes kept", _remove_rows, ""),
 )
 
 
@@ -287,6 +336,7 @@ REFERENCES: Final[dict[str, Damage]] = {
     "text of MIT edited, new update time, codes kept": (
         _edit_text_stamped_and_drop_codes
     ),
+    "texts of MIT and ISC removed, codes kept": _remove_rows_and_drop_codes,
 }
 
 

@@ -61,9 +61,9 @@ _UPDATED: Final = "SELECT value FROM db_metadata WHERE key = 'last_update_dateti
 # The texts each licence row is matched by: the index rows that have a
 # licence row, in table order.
 _TEXTS: Final = """
-    SELECT li.license_id, li.search_text FROM license_index li
-    JOIN licenses l ON l.license_id = li.license_id
-    ORDER BY li.rowid
+    SELECT t.license_id, t.search_text FROM license_texts t
+    JOIN licenses l ON l.license_id = t.license_id
+    ORDER BY t.rowid
 """
 
 

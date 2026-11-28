@@ -52,7 +52,7 @@ def detector() -> Generator[LicenseDetector, None, None]:
     for path in corpus_db_path("name_tier_leftovers", make_memory_db_path):
         with sqlite3.connect(path, uri=True) as conn:
             conn.execute(
-                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
                 ("HIDAPI", _search_text("HIDAPI")),
             )
         yield LicenseDetector(path)

@@ -466,5 +466,8 @@ def test_random_corruption_sweep(tmp_path: Path) -> None:
                 f"ERROR: database: empty: {target};",
                 f"ERROR: database: invalid: {target}\n",
                 f"ERROR: database: unreadable: {target}: ",
+                # A flip in a stamp: older rules, as the file now says.
+                "ERROR: database: normalization v",
+                "ERROR: database: build v",
             )
         ), context + repr(result.stderr)

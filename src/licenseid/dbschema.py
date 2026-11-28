@@ -49,7 +49,9 @@ NORMALIZATION_VERSION = "2"
 # ``text_codes`` and one of each entry (``textentries.write_checks``), so a
 # lookup reads the entries of its candidates only; ``text_codes`` holds the
 # gram counts of the cores and no check of the whole corpus.
-BUILD_VERSION = "9"
+# Version 10: the texts are in a plain table, ``license_texts``; the FTS5
+# table ``license_index``, whose trigram index nothing read, is gone.
+BUILD_VERSION = "10"
 
 # The flags of a licence: BOOLEAN columns, which SQLite stores as integers.
 LICENSE_FLAGS = (
@@ -60,9 +62,8 @@ LICENSE_FLAGS = (
     "is_deprecated",
 )
 # Every table licenseid creates, with every column it creates in it. A file
-# that lacks one is not of this build. The FTS5 index's shadow tables
-# (``license_index_*``) and SQLite's own are not listed: ``dbcheck`` calls any
-# other object foreign.
+# that lacks one is not of this build. SQLite's own tables are not listed:
+# ``dbcheck`` calls any other object foreign, but those of RETIRED_TABLES.
 TABLES: Mapping[str, tuple[str, ...]] = {
     "licenses": (
         "license_id",
@@ -81,7 +82,7 @@ TABLES: Mapping[str, tuple[str, ...]] = {
         "same_text",
     ),
     "exceptions": ("exception_id", "name", "is_deprecated", "superseded_by"),
-    "license_index": ("license_id", "search_text"),
+    "license_texts": ("text_id", "license_id", "search_text"),
     "db_metadata": ("key", "value"),
     "license_fingerprints": ("license_id", "ngram", "idf_norm"),
     "license_urls": ("owner_id", "is_exception", "url"),
@@ -92,6 +93,18 @@ TABLES: Mapping[str, tuple[str, ...]] = {
 }
 INDEXES = ("idx_fp_ngram", "idx_licenses_name")
 SCHEMA_OBJECTS = (*TABLES, *INDEXES)
+#: The table of the texts, read by every reader of a text by ID or by row.
+TEXT_TABLE = "license_texts"
+#: Tables an older build made and this one does not (the FTS5 index of the
+#: texts until build 9, with its shadow tables ``license_index_*``): known
+#: only so that a file of 0.9.x is seen as licenseid's own (``dbverdict``) and
+#: so that ``update`` drops them (:func:`replace_schema`). Never read.
+RETIRED_TABLES = ("license_index",)
+#: The shadow tables of the FTS5 table, as a ``LIKE`` pattern (escaped with
+#: ``\``): SQLite drops them with their table, a damaged file may hold one alone.
+RETIRED_SHADOWS = "license\\_index\\_%"
+#: The column that names the rowid of a table whose row order readers keep.
+ROWID_KEYS: Mapping[str, str] = {TEXT_TABLE: "text_id"}
 # The tables made WITHOUT ROWID; every other one has a rowid.
 WITHOUT_ROWID = frozenset({"text_codes", "text_code_checks"})
 _WITHOUT_ROWID_SQL = re.compile(r"\bWITHOUT\s+ROWID\s*\Z", re.ASCII | re.IGNORECASE)
@@ -100,8 +113,9 @@ _WITHOUT_ROWID_SQL = re.compile(r"\bWITHOUT\s+ROWID\s*\Z", re.ASCII | re.IGNOREC
 def has_shape(conn: sqlite3.Connection) -> bool:
     """Whether every table and index of this build is there, each table a
     table (not a view), with a rowid unless it is made WITHOUT ROWID
-    (:data:`WITHOUT_ROWID`), and with every column of :data:`TABLES`. Reads
-    only."""
+    (:data:`WITHOUT_ROWID`), with every column of :data:`TABLES`, and the
+    rowid of the texts named by their integer key (:data:`ROWID_KEYS`).
+    Reads only."""
     marks = ", ".join("?" * len(SCHEMA_OBJECTS))
     found = {
         name: (kind, sql)
@@ -121,11 +135,22 @@ def has_shape(conn: sqlite3.Connection) -> bool:
         for table in TABLES
     ):
         return False
-    # Each table is one of the fixed names above, never user input.
-    return all(
-        set(columns) <= {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
-        for table, columns in TABLES.items()
-    )
+    for table, columns in TABLES.items():
+        # Each table is one of the fixed names above, never user input.
+        info = {row[1]: row for row in conn.execute(f"PRAGMA table_info({table})")}
+        key = ROWID_KEYS.get(table)
+        if not set(columns) <= info.keys() or (key and not _rowid_key(info, key)):
+            return False
+    return True
+
+
+def _rowid_key(info: Mapping[str, tuple[object, ...]], key: str) -> bool:
+    """Whether the column *key* of a table (its ``PRAGMA table_info`` rows by
+    name) is its one ``INTEGER PRIMARY KEY``, the rowid's own name: an order
+    ``VACUUM`` keeps."""
+    column = info[key]
+    keys = [row for row in info.values() if row[5]]
+    return str(column[2]).upper() == "INTEGER" and keys == [column]
 
 
 def stamp(value: object) -> int:
@@ -185,19 +210,28 @@ def create_schema(conn: sqlite3.Connection) -> None:
 
 
 def replace_schema(conn: sqlite3.Connection) -> None:
-    """Drop licenseid's tables, with their indexes and the FTS5 index's shadow
-    tables, and create the shape of this build: ``update`` builds every file
-    from nothing, whatever build made it. Inside the caller's transaction.
+    """Drop licenseid's tables, with their indexes, and those of an older
+    build (:data:`RETIRED_TABLES`: the FTS5 table, which drops its shadow
+    tables, then any shadow table left alone), and create the shape of this
+    build: ``update`` builds every file from nothing, whatever build made it.
+    Inside the caller's transaction.
 
     An object of one of its names that has another kind (a view, or an index
     of a table's name) is dropped as what it is (roadmap item 66)."""
-    marks = ", ".join("?" * len(SCHEMA_OBJECTS))
+    names = (*SCHEMA_OBJECTS, *RETIRED_TABLES)
+    marks = ", ".join("?" * len(names))
     found = conn.execute(
-        f"SELECT type, name FROM sqlite_master WHERE name IN ({marks})",
-        SCHEMA_OBJECTS,
+        f"SELECT type, name FROM sqlite_master WHERE name IN ({marks})", names
     ).fetchall()
     for kind, name in found:  # a fixed name; a table, index, view or trigger
         conn.execute(f"DROP {kind.upper()} IF EXISTS {name}")
+    shadows = conn.execute(
+        "SELECT type, name FROM sqlite_master"
+        f" WHERE name LIKE '{RETIRED_SHADOWS}' ESCAPE '\\'"
+    ).fetchall()
+    for kind, name in shadows:  # left alone; the name quoted, as it may be any
+        quoted = name.replace('"', '""')
+        conn.execute(f'DROP {kind.upper()} IF EXISTS "{quoted}"')
     _create_objects(conn)
 
 
@@ -233,12 +267,15 @@ def _create_objects(conn: sqlite3.Connection) -> None:
             superseded_by TEXT
         )
     """)
-
+    # The normalised text of each licence that has one, in List order: the
+    # rowid (text_id) is the order every reader keeps (the first row of an
+    # ID wins), and a lookup by ID seeks on it through the IDs that
+    # dbcache.TableCache reads once (index_rows), so none scans.
     conn.execute("""
-        CREATE VIRTUAL TABLE IF NOT EXISTS license_index USING fts5(
-            license_id UNINDEXED,
-            search_text,
-            tokenize = 'trigram'
+        CREATE TABLE IF NOT EXISTS license_texts (
+            text_id     INTEGER PRIMARY KEY,
+            license_id  TEXT,
+            search_text TEXT
         )
     """)
     # Metadata table for version tracking

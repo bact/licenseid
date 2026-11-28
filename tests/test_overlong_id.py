@@ -28,6 +28,7 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
 )
 from db_variants import BREAKERS, make_ready_file_db, stamp_rebuild
 from matcher_db import Lic, seeded_db
+from seed_sql import fill_norm_columns
 
 from licenseid.cli import cli
 from licenseid.database import LicenseDatabase
@@ -232,6 +233,7 @@ def test_an_id_before_a_plus_follows_a_rebuild(db_path: str, stamp: str | None) 
     assert normalize_identifier("Zlib-1+", db) == "Zlib-1+"  # fills the cache
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Zlib-1.0', 'z')")
+        fill_norm_columns(conn)
         stamp_rebuild(conn, stamp)
     assert normalize_identifier("Zlib-1+", db) == ("Zlib-1.0+" if stamp else "Zlib-1+")
 

@@ -111,7 +111,7 @@ def test_non_deprecated_license_without_text_is_dropped(
         {"text/A-1.txt": _TEXT.encode()},
     )
     assert _rows(conn, "SELECT license_id FROM licenses") == [("A-1",)]
-    assert _rows(conn, "SELECT license_id FROM license_index") == [("A-1",)]
+    assert _rows(conn, "SELECT license_id FROM license_texts") == [("A-1",)]
 
 
 def test_deprecated_license_without_text_keeps_a_metadata_row(
@@ -136,7 +136,7 @@ def test_deprecated_license_without_text_keeps_a_metadata_row(
         ("Old-1", "Old-1 name", None, 1, 0, 0, 0, 1, None,
          1, 0, "old 1", "old 1 name"),
     ]  # fmt: skip
-    assert _rows(conn, "SELECT license_id FROM license_index") == [
+    assert _rows(conn, "SELECT license_id FROM license_texts") == [
         ("GPL-2.0-or-later",)
     ]
 
@@ -147,7 +147,7 @@ def test_crlf_text_is_read_with_lf_line_endings(
     # Text-mode reading turns CRLF into LF; a reader of bytes must match.
     crlf = b"Permission is hereby\r\ngranted, free of\r\ncharge to any person."
     conn = _update(tmp_path, monkeypatch, [_lic("A-1")], {"text/A-1.txt": crlf})
-    assert _rows(conn, "SELECT search_text FROM license_index") == [
+    assert _rows(conn, "SELECT search_text FROM license_texts") == [
         ("permission is hereby granted free of charge to any person",)
     ]
     assert _rows(conn, "SELECT word_count FROM licenses") == [(10,)]

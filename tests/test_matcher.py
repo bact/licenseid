@@ -45,7 +45,7 @@ def test_db() -> Generator[str, None, None]:
             ("AML", "Apple MIT License", True, True),
         )
         conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
             ("MIT", mit_text),
         )
         conn.execute(

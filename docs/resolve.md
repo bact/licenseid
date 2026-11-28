@@ -291,7 +291,7 @@ licenseid built it. With no database file it reads the shipped list; with a
 database that is there but unusable, the shipped list after one warning,
 `database: <condition>: <detail>; using packaged data v<version>`. A
 database an older licenseid built is unusable, whatever List it holds
-(`database: build v6 outdated: current v7; using packaged data v3.29.0`),
+(`database: build v7 outdated: current v10; using packaged data v3.29.0`),
 as an empty one is, until `licenseid update` builds it again.
 `source="database"` reads only the database (and raises for one that
 cannot answer, as `auto` would call it unusable) and `source="packaged"`
@@ -309,7 +309,7 @@ one tick.
 A warning is a `licenseid.LicenseIdWarning` given through Python's
 `warnings` (see [the Python API](python-api.md#warnings)), never a line written
 to standard error: the fallback above, a database built by a newer
-licenseid (`database: build v8 newer: current v7`) and an unusable shipped
+licenseid (`database: build v11 newer: current v10`) and an unusable shipped
 list (`spdx-bundle.json.gz: invalid: ...`). Each is given once per process,
 not once per value; `licenseid resolve` prints each as a `WARNING:` line.
 Opening a database writes nothing.

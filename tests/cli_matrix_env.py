@@ -31,7 +31,7 @@ _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
     " is_fsf_libre) VALUES (?, ?, ?, ?, ?)"
 )
-_INSERT_INDEX = "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)"
+_INSERT_INDEX = "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)"
 _INSERT_METADATA = "INSERT INTO db_metadata (key, value) VALUES (?, ?)"
 
 

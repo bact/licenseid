@@ -30,6 +30,7 @@ from click.testing import CliRunner
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import writer
 from list_entries import exc_entry, lic_entry
+from older_shapes import BUILD_7, TO_FTS
 from packaged_list import database_of, synthetic_bundle
 from release_fakes import ship
 
@@ -54,6 +55,14 @@ RAW = synthetic_bundle(
     (exc_entry("LLVM-exception", "LLVM Exception"),),
 )
 ACTION = "; run 'licenseid update'"
+# The table of the texts made again with its key column as *key*, *more*
+# after the columns and *after* the table's brackets.
+_TEXTS_AS = (
+    "ALTER TABLE license_texts RENAME TO kept; CREATE TABLE license_texts"
+    " ({key}, license_id TEXT, search_text TEXT{more}){after};"
+    " INSERT INTO license_texts SELECT text_id, license_id, search_text FROM kept;"
+    " DROP TABLE kept"
+)
 OUTDATED = "database: {} outdated: current v{}" + ACTION
 EMPTY = "database: empty: {path}" + ACTION
 # Each way a file is not of this build: the change that makes it, and the
@@ -75,24 +84,24 @@ NOT_OF_THIS_BUILD: dict[str, tuple[str, str]] = {
         "UPDATE db_metadata SET value = '1' WHERE key = 'normalization_version'",
         OUTDATED.format("normalization v1", NORMALIZATION_VERSION),
     ),
-    # A file of build 7: no postings, and its stamp.
-    "build-7": (
-        (
-            "DROP TABLE text_postings; DROP TABLE text_posting_ids;"
-            " DELETE FROM db_metadata"
-            " WHERE key IN ('text_postings', 'text_postings_update');"
-            " UPDATE db_metadata SET value = '7' WHERE key = 'build_version'"
-        ),
-        OUTDATED.format("build v7", BUILD_VERSION),
-    ),
-    # A file of build 8: no checks of the coded texts, and its stamp.
+    # A file of 0.9.4 (build 7): the texts in the FTS5 table, no postings,
+    # no checks, and its stamp.
+    "build-7": (BUILD_7, OUTDATED.format("build v7", BUILD_VERSION)),
+    # A file of build 8: the FTS5 table, no checks of the coded texts.
     "build-8": (
         (
-            "DROP TABLE text_code_checks;"
+            TO_FTS + " DROP TABLE text_code_checks;"
             " UPDATE db_metadata SET value = '8' WHERE key = 'build_version'"
         ),
         OUTDATED.format("build v8", BUILD_VERSION),
     ),
+    # A file of build 9: the FTS5 table, and its stamp.
+    "build-9": (
+        TO_FTS + " UPDATE db_metadata SET value = '9' WHERE key = 'build_version'",
+        OUTDATED.format("build v9", BUILD_VERSION),
+    ),
+    # The FTS5 table under a stamp of this build: the stamp lies.
+    "fts-stamped-10": (TO_FTS, EMPTY),
     # A stamp of this build on a file without a table: the stamp lies.
     "no-text_codes": ("DROP TABLE text_codes", EMPTY),
     "no-text_code_checks": ("DROP TABLE text_code_checks", EMPTY),
@@ -118,6 +127,45 @@ NOT_OF_THIS_BUILD: dict[str, tuple[str, str]] = {
         EMPTY,
     ),
     "no-text_postings": ("DROP TABLE text_postings", EMPTY),
+    "no-license_texts": ("DROP TABLE license_texts", EMPTY),
+    "texts-emptied": ("DELETE FROM license_texts", EMPTY),
+    # The table of the texts in another shape: a missing one.
+    "texts-view": (
+        (
+            "DROP TABLE license_texts; CREATE VIEW license_texts AS"
+            " SELECT 1 AS text_id, 'MIT' AS license_id, 'x' AS search_text"
+        ),
+        EMPTY,
+    ),
+    "texts-without-rowid": (
+        _TEXTS_AS.format(
+            key="text_id INTEGER PRIMARY KEY", more="", after=" WITHOUT ROWID"
+        ),
+        EMPTY,
+    ),
+    "texts-key-not-integer": (
+        _TEXTS_AS.format(key="text_id TEXT PRIMARY KEY", more="", after=""),
+        EMPTY,
+    ),
+    "texts-key-not-key": (
+        _TEXTS_AS.format(key="text_id INTEGER", more="", after=""),
+        EMPTY,
+    ),
+    "texts-two-keys": (
+        _TEXTS_AS.format(
+            key="text_id INTEGER", more=", PRIMARY KEY (text_id, license_id)", after=""
+        ),
+        EMPTY,
+    ),
+    "texts-no-key": (
+        (
+            "ALTER TABLE license_texts RENAME TO kept;"
+            " CREATE TABLE license_texts (license_id TEXT, search_text TEXT);"
+            " INSERT INTO license_texts SELECT license_id, search_text FROM kept;"
+            " DROP TABLE kept"
+        ),
+        EMPTY,
+    ),
     "no-text_posting_ids": ("DROP TABLE text_posting_ids", EMPTY),
     # A table of this build's name and another shape (roadmap item 66).
     "postings-view": (

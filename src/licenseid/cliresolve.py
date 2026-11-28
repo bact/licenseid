@@ -116,9 +116,9 @@ def given_database(ctx: click.Context, source: Source) -> "LicenseDatabase | Non
     db_path = ctx.obj["db_path"]
     check_database_ready(db_path)
     # Imported here: the module loads RapidFuzz (start-up).
-    from licenseid.database import LicenseDatabase
+    from licenseid.database import judged_database
 
-    return LicenseDatabase(db_path, create=False)
+    return judged_database(db_path)
 
 
 @click.command(name="resolve", cls=LicenseIdCommand)

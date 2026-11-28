@@ -16,22 +16,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from licenseid.console import end_line, status
-from licenseid.datadir import get_default_db_path
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
-    Refusal,
     absolute_path,
-    connection_refusal,
     is_absent,
-    is_built,
     is_memory_database,
     named_file,
     needs_writing,
     not_found_error,
     reject_blank_path,
     reject_foreign_database,
-    require_path,
 )
+from licenseid.dbclear import clear_database
 from licenseid.dbconnection import Connections, QueryConnection
 from licenseid.dbschema import (
     BUILD_VERSION,
@@ -42,6 +38,7 @@ from licenseid.dbschema import (
     stamp,
     stamped_rules,
 )
+from licenseid.dbverdict import Refusal, connection_refusal, rebuild_refusal
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.gramselect import ListFlags
@@ -75,27 +72,14 @@ def is_current_build(metadata: DatabaseMetadata) -> bool:
     return stamp(metadata.get("build_version", "1")) == stamp(BUILD_VERSION)
 
 
-def _holds_own_cache(db_path: Path) -> bool:
-    """Whether the directory of *db_path* holds licenseid's download cache,
-    so ``clear-cache`` may delete the cache files in it: the default data
-    directory, or the directory of a database licenseid built, ready or of
-    older rules (``update`` writes its cache beside the database it builds).
-    Fail-closed, as a delete is (``reject_foreign_database``): a mistyped
-    ``--db`` names a database that is not there, and the ``licenses.json``
-    beside it is somebody else's."""
-    if is_built(str(db_path)):
-        return True
-    try:
-        default = Path(get_default_db_path()).parent
-        return os.path.samefile(db_path.parent, default)
-    except (DatabaseNotReadyError, OSError):
-        return False  # no home, or no such directory: none of licenseid's
-
-
 class LicenseDatabase:
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
     """
+
+    # Whether opening without *create* judges the file (``dbverdict``); not
+    # when check_database_ready has just judged it (judged_database).
+    _judge = True
 
     def __init__(
         self,
@@ -143,11 +127,10 @@ class LicenseDatabase:
 
         if create:
             self._init_schema()
-        else:
-            self._check_ready()
+        metadata = None if create else self._check_ready()
         self._tables = TableCache(self._connections)
-        if not create:
-            for condition, detail in stamped_rules(self.get_metadata(), newer=True):
+        if metadata is not None:
+            for condition, detail in stamped_rules(metadata, newer=True):
                 warn("database", condition, detail)
 
     def _connection(self, write: bool = False) -> QueryConnection:
@@ -158,27 +141,39 @@ class LicenseDatabase:
         """One connection and one rebuild check for a block's queries (one match)."""
         return self._connections.reading()
 
-    def _check_ready(self) -> None:
+    def _check_ready(self) -> DatabaseMetadata:
         """Without *create*: raise the refusal of a file that cannot answer
-        (``dbcheck.connection_refusal``), read through this handle's own
-        connection. Its tables are never written: a lookup never writes."""
+        (``dbverdict.connection_refusal``, unless :func:`judged_database`
+        opened it), else read its metadata, through this handle's own connection.
+        Its tables are never written: a lookup never writes."""
         try:
-            refusal = self._refusal()
+            judged = self._judged()
         except DatabaseNotReadyError as exc:
             if needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
                 self._connections.recover()
-                refusal = self._refusal()
+                judged = self._judged()
             elif is_absent(str(self.db_path)):
                 raise not_found_error(str(self.db_path)) from exc
             else:
                 raise
-        if refusal is not None:
-            raise refusal[1]
+        if isinstance(judged, tuple):
+            raise judged[1]
+        return judged
+
+    def _judged(self) -> Refusal | DatabaseMetadata:
+        """The refusal of the file, or its metadata, in one read."""
+        with self._connection() as conn:
+            if self._judge:
+                refusal = connection_refusal(conn, str(self.db_path))
+                if refusal is not None:
+                    return refusal
+            return _metadata(conn)
 
     def _refusal(self) -> Refusal | None:
-        """The verdict of ``dbcheck`` on this file, through a read."""
+        """The verdict on this file for ``update``
+        (``dbverdict.rebuild_refusal``), through a read."""
         with self._connection() as conn:
-            return connection_refusal(conn, str(self.db_path))
+            return rebuild_refusal(conn, str(self.db_path))
 
     def _init_schema(self) -> None:
         """With *create*: leave a missing file to the first write, and refuse
@@ -236,40 +231,11 @@ class LicenseDatabase:
     @staticmethod
     def clear_cache(db_path: str | os.PathLike[str]) -> bool:
         """Delete the database (unopened) at *db_path* and, where they are
-        licenseid's (:func:`_holds_own_cache`), the cache files beside it;
+        licenseid's, the cache files beside it (``dbclear.clear_database``);
         True if there was any of them to delete. Raises
         :class:`licenseid.DatabaseNotReadyError` for a path licenseid did not
         build a database at, as the CLI does."""
-        # Local import: spdx_source pulls in `requests` (~60ms at import),
-        # unused on the match path; update_from_remote() defers it too.
-        from licenseid import spdx_source
-
-        require_path(db_path, "db_path")
-        db_path = os.fspath(db_path)
-        reject_foreign_database(db_path)
-        status("Clearing cache...")
-        named = named_file(db_path)
-        if named is None:
-            return False  # in-memory: no directory to clear
-        db_path = Path(named)
-        # Asked before the database goes: then nothing would show it.
-        own_cache = _holds_own_cache(db_path)
-        deleted = False
-        # The database goes first, so a refused delete leaves the cache
-        # intact. Its sidecars follow, best effort: once it is gone a stale
-        # -wal cannot be replayed, and reporting one would claim the delete
-        # failed when it succeeded.
-        if db_path.is_symlink() or db_path.exists():
-            status(f"Deleting database at {db_path}...")
-            db_path.unlink(missing_ok=True)
-            deleted = True
-        for suffix in ("-wal", "-shm", "-journal"):
-            with contextlib.suppress(OSError):
-                db_path.with_name(db_path.name + suffix).unlink()
-                deleted = True
-        if own_cache and spdx_source.clear_cache_files(db_path.parent):
-            return True
-        return deleted
+        return clear_database(db_path)
 
     def update_from_remote(
         self,
@@ -385,8 +351,8 @@ class LicenseDatabase:
         and compact the file."""
         self._write_db_records(build_records(data, popularity_map), release_date)
 
-        # Compute fingerprints in a separate transaction so that the FTS5
-        # virtual table is fully committed and readable before we scan it.
+        # Fingerprints in a transaction of their own, read from the texts
+        # the one before committed.
         store_fingerprints(self._connections)
         with self._connection(write=True) as conn:
             conn.execute(
@@ -444,8 +410,8 @@ class LicenseDatabase:
                 """,
                     records.licenses,
                 )
-                conn.executemany(
-                    "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                conn.executemany(  # text_id: 1, 2, ... in List order
+                    "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
                     records.index_entries,
                 )
                 conn.executemany(
@@ -530,14 +496,14 @@ class LicenseDatabase:
         return cast(ExceptionDetails, d)
 
     def get_search_text(self, license_id: str) -> str:
-        """Return the normalized search text for a license from the FTS index."""
+        """The normalised text of a licence (exact case), or ``""``."""
         rowid = self._tables.index_rows().get(license_id)
         if rowid is None:
             return ""
         with self._connection() as conn:
             # The ID too: a rebuild during this match may move the rows.
             row = conn.execute(
-                "SELECT search_text FROM license_index"
+                "SELECT search_text FROM license_texts"
                 " WHERE rowid = ? AND license_id = ?",
                 (rowid, license_id),
             ).fetchone()
@@ -578,8 +544,29 @@ class LicenseDatabase:
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
         with self._connection() as conn:
-            cursor = conn.execute("SELECT key, value FROM db_metadata")
-            return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
+            return _metadata(conn)
+
+
+def _metadata(conn: sqlite3.Connection) -> DatabaseMetadata:
+    """The rows of ``db_metadata``, by key."""
+    cursor = conn.execute("SELECT key, value FROM db_metadata")
+    return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
+
+
+class _JudgedDatabase(LicenseDatabase):
+    """A handle opened right after ``check_database_ready`` judged its file
+    (:func:`judged_database`): opening reads the metadata, never the verdict
+    again. A file gone since is ``not found``, a hot journal is rolled back,
+    as for a handle that judges."""
+
+    _judge = False
+
+
+def judged_database(db_path: str | os.PathLike[str]) -> LicenseDatabase:
+    """The handle a lookup reads *db_path* through, right after
+    :func:`licenseid.dbcheck.check_database_ready` passed it: the verdict is
+    made once (``LicenseDatabase(db_path, create=False)`` makes it again)."""
+    return _JudgedDatabase(db_path, create=False)
 
 
 def _skip(version: str) -> bool:
@@ -621,11 +608,11 @@ def list_flags(db: LicenseDatabase) -> dict[str, ListFlags]:
     return db._tables.list_flags()  # pylint: disable=protected-access
 
 
-# The columns of a candidate: its text from the index, the rest from its row.
+# The columns of a candidate: its text, the rest from its licence row.
 _CANDIDATE_ROWS = """
     SELECT
-        li.license_id,
-        li.search_text,
+        t.license_id,
+        t.search_text,
         l.word_count,
         l.is_spdx,
         l.is_high_usage,
@@ -634,9 +621,9 @@ _CANDIDATE_ROWS = """
         l.pop_score,
         l.is_deprecated,
         l.superseded_by
-    FROM license_index li
-    JOIN licenses l ON li.license_id = l.license_id
-    WHERE li.rowid IN ({})
+    FROM license_texts t
+    JOIN licenses l ON t.license_id = l.license_id
+    WHERE t.rowid IN ({})
 """
 
 

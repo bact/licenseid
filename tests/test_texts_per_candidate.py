@@ -262,12 +262,12 @@ def test_at_most_900_values_are_bound_to_a_query_of_entries(
 ) -> None:
     """800 names a query: the codes query binds the four entry kinds too."""
     conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE license_index (search_text TEXT)")
+    conn.execute("CREATE TABLE license_texts (search_text TEXT)")
     conn.execute("CREATE TABLE text_codes (kind TEXT, owner_id TEXT, body TEXT)")
     conn.execute("CREATE TABLE text_code_checks (owner_id TEXT, digest TEXT)")
     ids = {f"L{i}": i for i in range(1, names + 1)}
     conn.executemany(
-        "INSERT INTO license_index (rowid, search_text) VALUES (?, ?)",
+        "INSERT INTO license_texts (rowid, search_text) VALUES (?, ?)",
         [(rowid, f"text {rowid}") for rowid in ids.values()],
     )
     conn.executemany(

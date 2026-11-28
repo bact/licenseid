@@ -308,9 +308,7 @@ def test_a_relative_path_names_one_file_for_reads_and_writes(
     monkeypatch.chdir(tmp_path / "one")
     db = LicenseDatabase("x.db")
     monkeypatch.chdir(tmp_path / "two")
-    with writer(tmp_path / "one" / "x.db") as conn:
-        conn.execute("UPDATE licenses SET norm_license_id = NULL")
-    db.get_all_names_and_ids()  # reads, then writes the backfill
+    assert db.get_all_names_and_ids()  # reads x.db in "one"
     assert not list((tmp_path / "two").iterdir())
 
 

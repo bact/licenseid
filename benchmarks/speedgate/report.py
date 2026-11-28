@@ -14,6 +14,7 @@ from benchmarks.speedgate import headergate
 from benchmarks.speedgate.gates import FAIL, TIMED_SETS, Gate, Sets, evaluate, noise
 from benchmarks.speedgate.moved import THRESHOLDS, label_counts, moved_answers
 from benchmarks.speedgate.results import cases_of, kind_times, load_folder
+from benchmarks.speedgate.storage import storage_alone
 
 SHOW: Final = 12
 CUT: Final = 70
@@ -117,13 +118,21 @@ def noise_lines(base: Sets, twin: Sets | None) -> list[str]:
 
 
 def compare_folders(
-    base_dir: Path, cand_dir: Path, twin_dir: Path | None, inputs: Path | None
+    base_dir: Path,
+    cand_dir: Path,
+    twin_dir: Path | None,
+    inputs: Path | None,
+    storage: bool = False,
 ) -> tuple[str, bool]:
-    """The report and whether a gate failed."""
+    """The report and whether a gate failed; with *storage*, the gate
+    "Storage alone" judged (``storage.storage_alone``)."""
     base, cand = load_folder(base_dir), load_folder(cand_dir)
     twin = load_folder(twin_dir) if twin_dir else None
     labelled = json.loads(inputs.read_text("utf-8"))["labels"] if inputs else None
     gates = headergate.with_gate(evaluate(base, cand, labelled), base, cand)
+    if storage:
+        gates = [g for g in gates if g.name != "Storage alone"]
+        gates.append(storage_alone(base, cand, twin))
     same = {
         r.get("inputs_digest")
         for r in (*base.values(), *cand.values())

@@ -181,11 +181,9 @@ declared values, SPDX expressions and the matching pipeline.
     within 2 percent, name neither, unless the input holds one's own words there
     and not the other's. A longer text around such a hit doubts it with its
     own parts left out whatever their length: a long clause in a part of X11
-    names neither X11 nor the MIT text inside it. A database built before
-    `licenseid update` stored
-    those parts (build 7) compares them as written. A
-    copy that drops a critical word such as "not", or misses 150 characters or
-    more of the text in one run (a clause), is not counted. Hits are kept
+    names neither X11 nor the MIT text inside it. A copy that drops a
+    critical word such as "not", or misses 150 characters or more of the
+    text in one run (a clause), is not counted. Hits are kept
     best first, and one that overlaps a kept hit by more than a tenth of the
     shorter span is dropped; copies of one text are then named once. Every
     cost is bounded by a count (characters, tokens, votes, windows, cells):

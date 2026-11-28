@@ -224,7 +224,7 @@ def test_the_corpus_is_built_again_after_the_tables_are_rewritten(
         conn.execute(
             "INSERT OR REPLACE INTO db_metadata VALUES ('last_update_datetime', 'x')"
         )
-        conn.execute("DELETE FROM license_index WHERE license_id = 'B-1.0'")
+        conn.execute("DELETE FROM license_texts WHERE license_id = 'B-1.0'")
     detector.detect(text=MORE)
     assert len(found_rows.built) == 2
     assert "B-1.0" not in {row.license_id for row in found_rows.built[1]}

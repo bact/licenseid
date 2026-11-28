@@ -108,10 +108,22 @@ def test_a_busy_machine_at_either_end_flags_a_run(
     assert runner.is_loaded(start, end) is loaded
 
 
-def _database(path: Path) -> None:
+# The table of the texts of each build: plain from build 10, FTS5 before.
+TEXT_TABLES = {
+    "license_texts": (
+        "CREATE TABLE license_texts"
+        " (text_id INTEGER PRIMARY KEY, license_id TEXT, search_text TEXT)"
+    ),
+    "license_index": (
+        "CREATE VIRTUAL TABLE license_index USING fts5(license_id, search_text)"
+    ),
+}
+
+
+def _database(path: Path, table: str = "license_texts") -> None:
     con = sqlite3.connect(path)
     con.execute("CREATE TABLE text_codes (kind TEXT, owner_id TEXT, body TEXT)")
-    con.execute("CREATE TABLE license_index (license_id TEXT, search_text TEXT)")
+    con.execute(TEXT_TABLES[table])
     rows = [
         ("text", "MIT", "abcd"),
         ("words", "", '["permission","warranty"]'),
@@ -121,7 +133,10 @@ def _database(path: Path) -> None:
     ]
     con.executemany("INSERT INTO text_codes VALUES (?, ?, ?)", rows)
     con.execute("INSERT INTO text_codes VALUES ('text', 'Apache-2.0', 'zz')")
-    con.execute("INSERT INTO license_index VALUES ('MIT', 'permission is granted')")
+    con.executemany(
+        f"INSERT INTO {table} (license_id, search_text) VALUES (?, ?)",
+        [("MIT", "permission is granted"), ("ISC", "isc"), ("X", "x")],
+    )
     con.commit()
     con.close()
 
@@ -226,7 +241,7 @@ def test_each_damage_of_the_checks_changes_what_it_names(tmp_path: Path) -> None
         "blob",
     )
     edited = "text of MIT edited, new update time, codes kept"
-    text = "SELECT search_text FROM license_index"
+    text = "SELECT search_text FROM license_texts WHERE license_id = 'MIT'"
     stamp = "SELECT value FROM db_metadata"
     assert _rows_of(copies[edited], text) == [("permission",)]
     assert _rows_of(copies[edited], stamp) == [("2099-01-01 00:00:00",)]
@@ -234,7 +249,12 @@ def test_each_damage_of_the_checks_changes_what_it_names(tmp_path: Path) -> None
     reference = copies[edited + damage.REFERENCE]
     assert _rows_of(reference, text) == [("permission",)]
     assert not _rows_of(reference, codes)
-    assert damage.NOT_READY == {"no checks table", "checks table misshaped"}
+    assert damage.NOT_READY == {
+        "no checks table",
+        "checks table misshaped",
+        "no texts table",
+        "texts table misshaped",
+    }
 
 
 def test_a_database_is_built_from_cached_files_or_not_at_all(tmp_path: Path) -> None:
@@ -334,3 +354,37 @@ def test_a_side_without_the_postings_tables_has_no_such_kind(
     _database(source)
     assert damage.make_copies(source, tmp_path / "out")[kind] is None
     assert not damage.has_postings(source)
+
+
+@pytest.mark.parametrize("table", sorted(TEXT_TABLES))
+def test_each_damage_of_the_texts_changes_what_it_names(
+    tmp_path: Path, table: str
+) -> None:
+    """On the table of the side's build: plain (build 10) or FTS5 (before)."""
+    source = tmp_path / "src.db"
+    _database(source, table)
+    copies = damage.make_copies(source, tmp_path / "out")
+    texts = f"SELECT license_id, search_text FROM {table}"
+    shape = f"SELECT sql FROM sqlite_master WHERE name = '{table}'"
+    assert _rows_of(copies[damage.INTACT], texts) == [
+        ("MIT", "permission is granted"),
+        ("ISC", "isc"),
+        ("X", "x"),
+    ]
+    assert _rows_of(copies["text of MIT changed, codes kept"], texts)[0] == (
+        "MIT",
+        "permision is granted",
+    )
+    assert not _rows_of(copies["no texts table"], shape)
+    ((sql,),) = _rows_of(copies["texts table misshaped"], shape)
+    assert sql.startswith((f'CREATE TABLE "{table}"', f"CREATE TABLE {table}"))
+    assert "text_id" not in sql and "fts5" not in sql
+    assert _rows_of(copies["texts table misshaped"], texts) == _rows_of(
+        copies[damage.INTACT], texts
+    )
+    removed = "texts of MIT and ISC removed, codes kept"
+    assert _rows_of(copies[removed], texts) == [("X", "x")]
+    assert _rows_of(copies[removed], "SELECT count(*) FROM text_codes") == [(6,)]
+    assert _rows_of(
+        copies[removed + damage.REFERENCE], "SELECT count(*) FROM text_codes"
+    ) == [(0,)]

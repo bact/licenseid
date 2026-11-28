@@ -20,7 +20,7 @@ INSERT_LICENSE = (
     " is_fsf_libre, is_deprecated, superseded_by)"
     " VALUES (?, ?, ?, ?, ?, ?, ?)"
 )
-INSERT_INDEX = "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)"
+INSERT_INDEX = "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)"
 INSERT_EXCEPTION = (
     "INSERT INTO exceptions (exception_id, name, is_deprecated, superseded_by)"
     " VALUES (?, ?, ?, ?)"

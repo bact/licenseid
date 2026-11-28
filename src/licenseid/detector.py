@@ -14,7 +14,7 @@ from typing_extensions import Unpack
 
 from licenseid.candidates import as_matches
 from licenseid.classify import is_pure_license_text
-from licenseid.database import LicenseDatabase, snapshot, text_parts, text_source
+from licenseid.database import judged_database, snapshot, text_parts, text_source
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.detectrequest import PathInput, check_request, target_text_of
@@ -119,10 +119,10 @@ class LicenseDetector:
         else:
             db_path = get_default_db_path()
         reject_blank_path(db_path, "db_path")
-        # Before LicenseDatabase, which opens the file (create=False below: it
-        # must be there, and a lookup never makes one).
+        # The one verdict on the file, before the handle opens it (it must be
+        # there, and a lookup never makes one).
         check_database_ready(db_path)
-        self.db = LicenseDatabase(db_path, create=False)
+        self.db = judged_database(db_path)  # judged once, just above
         self.markers = MarkerDetector(self.db)
         self.enable_popularity = enable_popularity
 

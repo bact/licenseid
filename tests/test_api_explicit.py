@@ -44,7 +44,7 @@ def test_db() -> Generator[str, None, None]:
             ("Apache-2.0", "Apache License 2.0", True, True, True),
         )
         conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
                 (

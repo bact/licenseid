@@ -28,6 +28,7 @@ from benchmarks.speedgate.results import (
     kind_times,
     total_seconds,
 )
+from benchmarks.speedgate.versions import problems
 
 PASS: Final = "pass"
 FAIL: Final = "fail"
@@ -52,8 +53,7 @@ NOT_HERE: Final = (
     ("Accuracy test", "tests/test_accuracy.py"),
     ("Golden", "python -m tools.golden"),
     ("--diff", "read by hand"),
-    ("Versions", "added by task T7"),
-    ("Storage alone", "needs two runs of T6 and T7"),
+    ("Storage alone", "compare --storage-alone, against a base with its twin"),
     ("Platforms", "CI, tools.cli_matrix"),
 )
 
@@ -387,6 +387,21 @@ def db_size(cand: Sets) -> Gate:
     )
 
 
+def versions_gate(cand: Sets) -> Gate:
+    """Versions: the side on a file of the last tag, and back (``versions``)."""
+    result = cand.get("versions")
+    if not result:
+        return Gate("Versions", NA, "versions set missing")
+    found = problems(result)
+    return _gate(
+        "Versions",
+        not found,
+        "; ".join(found)
+        or "every lookup refused, nothing written; update and"
+        " clear-cache as a fresh build; the last tag refuses the new file",
+    )
+
+
 def evaluate(base: Sets, cand: Sets, labelled: dict[str, Any] | None) -> list[Gate]:
     """Every gate, in the order of the plan's table."""
     gates = [
@@ -404,6 +419,7 @@ def evaluate(base: Sets, cand: Sets, labelled: dict[str, Any] | None) -> list[Ga
         threads(cand),
         memory(base, cand),
         db_size(cand),
+        versions_gate(cand),
     ]
     gates.extend(Gate(name, NA, why) for name, why in NOT_HERE)
     return gates

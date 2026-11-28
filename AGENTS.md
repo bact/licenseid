@@ -129,7 +129,9 @@ in another module.
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
 - Data: `database`, `dbconnection`, `dbcache`, `dbschema` (the one shape,
-  its stamps), `dbcheck`, `datadir`,
+  its stamps, the retired tables), `dbverdict` (whether a file is ready: the
+  `Refusal` of a connection), `dbcheck` (paths, files, both policies),
+  `dbclear` (`clear-cache`), `datadir`,
   `records` (rows), `spdxdata` (a release as data; no `requests`, `click` or
   `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
   `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
@@ -462,14 +464,23 @@ and `--json`) against these rules and checks the default output against the
 - One shape: licenseid reads only a database of its own build
   (`dbschema`: `TABLES`, `INDEXES`, the stamps). An older stamp (build or
   normalisation; missing or no number counts as older) is not ready,
-  `build vN outdated`; a missing table, index or column, or a row whose norm
-  columns are not text, is `empty` (`dbcheck.connection_refusal`, the one
-  verdict of `check_database_ready` and `LicenseDatabase(path,
-  create=False)`). Every caller treats both as it treats `empty`: no caller
-  gets a rule of its own. Never write a reader of an older shape: a new
-  table or column joins `dbschema.TABLES` and bumps `BUILD_VERSION`. A view,
-  or a table without the rowid it should have (`WITHOUT_ROWID`), of one of
-  these names is a missing one.
+  `build vN outdated`; a missing table, index or column, or no text row, is
+  `empty` (`dbverdict.connection_refusal`, the one verdict, made once per
+  handle: `check_database_ready`, then `database.judged_database` skips it).
+  A row whose norm columns are not text is `empty` where the names are first
+  read (`dbcache`), and `update` rebuilds it (`dbverdict.rebuild_refusal`).
+  Every caller treats both as it treats `empty`: no caller gets a rule of its
+  own. Never write a reader of an older shape: a new table or column joins
+  `dbschema.TABLES` and bumps `BUILD_VERSION`. A view, a table without the
+  rowid it should have (`WITHOUT_ROWID`), or a key that is not its one
+  `INTEGER PRIMARY KEY` (`ROWID_KEYS`), of one of these names is a missing
+  one.
+- The texts are in the plain table `license_texts` (build 10), keyed by
+  `text_id` in List order. The FTS5 table of builds 7 to 9, `license_index`
+  and its shadow tables (`dbschema.RETIRED_TABLES`, `RETIRED_SHADOWS`), is
+  known only so that a file of 0.9.x is `outdated`, not `invalid`, and so
+  that `replace_schema` drops it; a plain table of that name is `invalid`.
+  Nothing reads it.
 - A lookup never creates or writes. `Connections.connect` opens read-only
   (`dbcheck.open_uri`); `LicenseDatabase(path, create=False)` only reads
   (but `Connections.recover` for a hot journal). `LicenseDatabase(path)`
@@ -491,7 +502,7 @@ and `--json`) against these rules and checks the default output against the
   (folded by `listlookup.fold_case`; an unknown ID costs no query), drops
   them when `last_update_datetime` changes (checked once per `reading()`
   block and at every lookup outside one), and keeps no read made during a
-  clear (`_generation`). A new write to `licenses` or `license_index` calls
+  clear (`_generation`). A new write to `licenses` or `license_texts` calls
   `self._tables.clear()`, as `_write_db_records` does.
 - `text_codes` and `text_code_checks`: the coded texts, read per candidate
   (`textentries`), and their checks, which `update` writes in the same
@@ -737,10 +748,9 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   review of the finished diff: green tests pin the author's reading. A change
   to a signal several readers share (`ranking`, `grantsubject`): grep every
   caller, rerun the full golden.
-- Eight tests fail on a clean `main` on the developer's machine (SQLite
-  3.51.0): six `wal_copy_without_wal` cases of `test_db_ready.py`, two
-  damaged-FTS cases of `test_db_ready_adversarial.py`. Compare with `main`
-  before blaming a change.
+- Six tests fail on a clean `main` on the developer's machine (SQLite
+  3.51.0): the `wal_copy_without_wal` cases of `test_db_ready.py`. Compare
+  with `main` before blaming a change.
 - Give a huge parameter a short `id` (Windows caps an environment variable,
   and `PYTEST_CURRENT_TEST` holds the ID; `conftest.MAX_TEST_ID` is 300).
   Keep long single words short: Tier 1 cost grows with length.

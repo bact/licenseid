@@ -21,7 +21,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from conftest import posix_only
+from conftest import GivenWarnings, posix_only
 from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
     HOLD_PROBE,
     SCAN_PROBE,
@@ -35,6 +35,7 @@ from db_variants import (
     make_ready_file_db,
     writer,
 )
+from release_fakes import release_bundle, ship
 
 import licenseid
 from licenseid import DatabaseNotReadyError, LicenseDetector, spdx_source
@@ -96,20 +97,48 @@ def _fingerprint(path: Path) -> tuple[bytes, int]:
     return path.read_bytes(), path.stat().st_mtime_ns
 
 
+NORM_READS: dict[str, Callable[[str], object]] = {
+    "names": lambda p: LicenseDatabase(p, create=False).get_all_names_and_ids(),
+    "detect": lambda p: LicenseDetector(p).detect(text="MIT License"),
+}
+
+
+@pytest.mark.parametrize("read", sorted(NORM_READS))
 @pytest.mark.parametrize("column", ["norm_license_id", "norm_name"])
 def test_rows_without_norm_columns_are_not_ready_and_not_written(
-    tmp_path: Path, column: str
+    tmp_path: Path, column: str, read: str
 ) -> None:
     """A lookup never writes and fills nothing in memory: a row without its
-    normalised columns, which ``update`` always writes, is ``empty``."""
+    normalised columns, which ``update`` always writes, is ``empty`` where
+    the names are read (no pass of its own at opening)."""
+    path = make_ready_file_db(tmp_path / "e.db")
+    with writer(path) as conn:
+        conn.execute(f"UPDATE licenses SET {column} = NULL WHERE license_id = 'MIT'")
+    before = _fingerprint(path)
+    LicenseDatabase(str(path), create=False)  # opening reads no names
+    with pytest.raises(DatabaseNotReadyError) as raised:
+        NORM_READS[read](str(path))
+    assert str(raised.value) == f"database: empty: {path}; run 'licenseid update'"
+    assert _fingerprint(path) == before, "the lookup wrote to the database"
+
+
+@pytest.mark.parametrize("column", ["norm_license_id", "norm_name"])
+def test_update_rebuilds_rows_without_norm_columns_at_their_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, given: GivenWarnings, column: str
+) -> None:
+    """``update`` judges the norm columns the lookups judge at their read: a
+    file that holds the release asked for is built again, not skipped."""
     path = make_ready_file_db(tmp_path / "e.db")
     with writer(path) as conn:
         conn.execute(f"UPDATE licenses SET {column} = NULL")
-    before = _fingerprint(path)
-    for opener in (LicenseDetector, lambda p: LicenseDatabase(p, create=False)):
-        with pytest.raises(DatabaseNotReadyError, match="^database: empty: "):
-            opener(str(path))
-    assert _fingerprint(path) == before, "the lookup wrote to the database"
+        version = conn.execute(
+            "SELECT value FROM db_metadata WHERE key = 'license_list_version'"
+        ).fetchone()[0]
+    ship(monkeypatch, release_bundle(version))
+    db = LicenseDatabase(str(path))
+    assert db.update_from_remote(source="packaged", use_cache=False)
+    given.take()  # popularity.csv: missing
+    assert db.get_all_names_and_ids()
 
 
 def test_a_read_failing_during_update_is_an_update_failure(

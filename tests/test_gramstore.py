@@ -64,7 +64,10 @@ def _connection(
             "INSERT INTO licenses (license_id, name) VALUES (?, ?)",
             [(key, key) for key in texts],
         )
-        conn.executemany("INSERT INTO license_index VALUES (?, ?)", texts.items())
+        conn.executemany(
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
+            texts.items(),
+        )
         conn.execute("INSERT INTO db_metadata VALUES ('last_update_datetime', 't1')")
         if stored:
             write_postings(conn, "t1")
@@ -124,10 +127,21 @@ def test_a_text_with_no_gram_holds_no_number() -> None:
 
 def test_the_first_row_of_an_id_wins_and_rows_without_a_licence_are_left() -> None:
     with _connection({"A-1.0": TEXTS["A-1.0"]}) as conn:
-        conn.execute("INSERT INTO license_index VALUES ('A-1.0', ?)", (TEXTS["B-1.0"],))
-        conn.execute("INSERT INTO license_index VALUES ('Z-1.0', ?)", (TEXTS["B-1.0"],))
-        conn.execute("INSERT INTO license_index VALUES (NULL, 'a b c d')")
-        conn.execute("INSERT INTO license_index VALUES ('A-1.0', '')")
+        conn.execute(
+            "INSERT INTO license_texts (license_id, search_text) VALUES ('A-1.0', ?)",
+            (TEXTS["B-1.0"],),
+        )
+        conn.execute(
+            "INSERT INTO license_texts (license_id, search_text) VALUES ('Z-1.0', ?)",
+            (TEXTS["B-1.0"],),
+        )
+        conn.execute(
+            "INSERT INTO license_texts (license_id, search_text)"
+            " VALUES (NULL, 'a b c d')"
+        )
+        conn.execute(
+            "INSERT INTO license_texts (license_id, search_text) VALUES ('A-1.0', '')"
+        )
         assert read_texts(conn) == [("A-1.0", TEXTS["A-1.0"])]
 
 

@@ -48,7 +48,7 @@ def test_db() -> Generator[str, None, None]:
             ("0BSD", "BSD Zero Clause License", True, True, False),
         )
         conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
                 (

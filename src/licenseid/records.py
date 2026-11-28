@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The rows of the ``licenses``, ``license_index``, ``exceptions`` and
+"""The rows of the ``licenses``, ``license_texts``, ``exceptions`` and
 ``license_urls`` tables, built in memory from one :class:`licenseid.spdxdata.SpdxData`.
 
 No database access and no network: whatever the source of the data (an

@@ -111,7 +111,8 @@ yet started, see [`../design/`](../design/).
 
 - **Pipeline**: a whole input `resolve()` reads (0.7.2) → Tier 0.5 (marker
   detection: tags, then a manifest's `license` field) → Tier 0 (short-text
-  ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz
+  ID/name shortcut) → Tier 1 (SQLite FTS5 recall; stored word 3-grams from
+  0.10.0, [gram-candidates.md](gram-candidates.md)) → Tier 2 (RapidFuzz
   ranking). Tier 0 first asks `resolve()` about a "+": a value under 30
   words refused with a reason of that family
   (`resolvereason.is_plus_refusal`) skips the text tiers (2026-11-09, item
@@ -216,6 +217,7 @@ yet started, see [`../design/`](../design/).
 | 2026-11-27 | [word-region.md](word-region.md) | implemented (0.10.0 task T4, not merged) | Tier 2 aligns a fragment where its word codes place it: accepted at 60, 4 words of padding, walls at the cut ends, growth, no alignment that its shared codes bar; measures, moved answers, the short-word inputs. |
 | 2026-11-27 | [whole-text-first.md](whole-text-first.md) | implemented (0.10.0 task T5, not merged) | The whole-text search runs first, on one candidate set an input (the top 20 by gram score and every text held at half, cores counted); one text found narrows Tier 2 to its group and three runner-ups, which rank under it or are left out; the guard; measures, the JSON-over-MIT files, item 68. |
 | 2026-11-27 | [texts-per-candidate.md](texts-per-candidate.md) | implemented (0.10.0 task T6, not merged) | A call reads the coded texts it searches and scores, in one transaction, each checked by its own SHA-256 in `text_code_checks` (build 9); damage builds the corpus in memory for that database; the store of loaded entries is filled under a lock; measures. |
+| 2026-11-27 | [plain-text-table.md](plain-text-table.md) | implemented (0.10.0 task T7, not merged) | The texts in a plain table, `license_texts` (build 10), the FTS5 table dropped: 28 to 18 MB; a file of 0.9.x is `outdated`, not `invalid`, and `update` drops its tables; the readiness verdict made once per call, the norm columns checked where they are read; the Versions and Storage alone gates. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

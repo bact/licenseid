@@ -174,10 +174,10 @@ def _opened(path: str) -> "LicenseDatabase":
     if kept is not None and kept[0] == stamp:
         return kept[1]
     check_database_ready(path)
-    from licenseid.database import LicenseDatabase  # start-up
+    from licenseid.database import judged_database  # start-up
 
     with once():
-        database = LicenseDatabase(path, create=False)
+        database = judged_database(path)
     if not isinstance(stamp, Exception):
         with _CHOICE_LOCK:
             _paths[path] = (stamp, database)
@@ -257,10 +257,10 @@ def _choose(mode: Source, path: str | None) -> tuple[ListLookup, ListSource, boo
     if mode == "database":
         path = get_default_db_path() if path is None else path
         check_database_ready(path)  # what auto calls unusable, this refuses
-        from licenseid.database import LicenseDatabase  # start-up
+        from licenseid.database import judged_database  # start-up
 
         with once():
-            database = LicenseDatabase(path, create=False)
+            database = judged_database(path)
         return database, "database", True
     return _auto(path)
 
@@ -271,10 +271,10 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     try:
         path = get_default_db_path() if path is None else path
         check_database_ready(path)
-        from licenseid.database import LicenseDatabase, is_current_build  # start-up
+        from licenseid.database import is_current_build, judged_database  # start-up
 
         with once():
-            database = LicenseDatabase(path, create=False)
+            database = judged_database(path)
         metadata = database.get_metadata()
     except DatabaseNotReadyError as exc:
         index = listindex.packaged_index()

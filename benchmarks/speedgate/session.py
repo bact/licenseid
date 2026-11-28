@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Final
 
-from benchmarks.speedgate import damage, headerclasses
+from benchmarks.speedgate import damage, headerclasses, versions
 from benchmarks.speedgate.buildinputs import read_inputs
 from benchmarks.speedgate.model import DETECT_SETS
 from benchmarks.speedgate.runner import (
@@ -33,6 +33,7 @@ ALL_SETS: Final = (
     "damage",
     "memory",
     "threads",
+    "versions",
 )
 META: Final = "meta.json"
 STAMP: Final = "%Y-%m-%d %H:%M:%S"
@@ -101,8 +102,9 @@ def run_one(side: Side, name: str, job: Job) -> dict[str, Any]:
         return run_onecall(side, read_inputs(job.inputs)["onecall"], job)
     if name == "damage":
         return run_damage(side, job)
-    if name == "stress":
-        return run_stress(side, job)
+    if name in ("stress", "versions"):
+        run = run_stress if name == "stress" else versions.run_versions
+        return run(side, job)
     if name == "memory":
         return timed(side, core_job(job), ["memory"])
     if name == "threads":

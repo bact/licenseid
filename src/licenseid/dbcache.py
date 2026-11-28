@@ -6,11 +6,12 @@
 """Whole-table reads a licence database keeps until it is rebuilt.
 
 A tag value takes about five lookups by ID, and two of them could use no
-index: ``license_index`` is an FTS5 table whose ``license_id`` is
-``UNINDEXED``, and the primary key of ``licenses`` is binary, so
-``license_id = ? COLLATE NOCASE`` cannot seek on it. Each scanned the whole
-table, about 1.2 s for 4,000 distinct tags. Reading each table's IDs once
-turns every later lookup into a seek, and an unknown ID into no query.
+index: ``license_texts`` is keyed by its row (``text_id``), not by ID, and the
+primary key of ``licenses`` is binary, so ``license_id = ? COLLATE NOCASE``
+cannot seek on it. Each scanned the whole table, about 1.2 s for 4,000
+distinct tags (0.9.x read an FTS5 table, which has no index on an ID either).
+Reading each table's IDs once turns every later lookup into a seek, and an
+unknown ID into no query.
 """
 
 import contextlib
@@ -21,6 +22,7 @@ from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
 from licenseid.dbschema import LICENSE_FLAGS
+from licenseid.dbverdict import empty_refusal
 from licenseid.gramselect import ListFlags
 from licenseid.gramstore import GramCache
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
@@ -206,12 +208,13 @@ class TableCache:
         return ids.get(fold_case(license_id))
 
     def index_rows(self) -> dict[str, int]:
-        """The first ``license_index`` rowid of each ID, in table order."""
+        """The first ``license_texts`` row (``text_id``) of each ID, in table
+        order."""
         self._check_stamp()
         generation, rows = self._generation, self._index_rows
         if rows is None:
             rows = self._first_rows(
-                "SELECT license_id, rowid FROM license_index ORDER BY rowid", int
+                "SELECT license_id, rowid FROM license_texts ORDER BY rowid", int
             )
             if generation == self._generation:
                 self._index_rows = rows
@@ -237,9 +240,23 @@ class TableCache:
             names = [
                 cast(LicenseNameId, dict(cast_license_details(row))) for row in rows
             ]
+            self._check_norm_columns(names)
             if generation == self._generation:
                 self._names_and_ids = names
         return names
+
+    def _check_norm_columns(self, names: list[LicenseNameId]) -> None:
+        """Refuse rows whose normalised ID or name is not text: ``update``
+        always writes them, and Tier 0 reads them as stored (a script's row
+        without them, a NULL). ``database: empty``, as the readiness check
+        said of such a file before it was checked here, where the rows are
+        read, at no cost of its own."""
+        for name in names:
+            if not (
+                isinstance(name["norm_license_id"], str)
+                and isinstance(name["norm_name"], str)
+            ):
+                raise empty_refusal(self._connections.label)[1]
 
     def name_index(self) -> NameIndex:
         """What Tier 0 reads from names_and_ids() (its ``rows``, the very
@@ -420,7 +437,7 @@ class ListTexts:
         return StoredTexts(self._keyed.texts, self)
 
     def index_rows(self) -> Mapping[str, int]:
-        """The first ``license_index`` rowid of each ID, in table order."""
+        """The first ``license_texts`` row of each ID, in table order."""
         return self._tables.index_rows()
 
     def text_parts(self) -> Mapping[str, TextParts]:
