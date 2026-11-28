@@ -36,6 +36,11 @@ def same_as_or(db: LicenseDatabase, first: str, second: str) -> None:
     if {first, second} in ({"MIT", "X11"}, {"Libpng", "Zlib"}):  # refused pairs
         assert slashed["expression"] is None
         return
+    if db.get_license_details(f"{first}-{second}") is not None:
+        # Also one List ID, "/" for its "-" (HPND/DOC, HPND-doc): none is read.
+        assert slashed["expression"] is None, (first, second)
+        assert slashed["reason"] == "character dropped: U+002F", (first, second)
+        return
     alone = resolve(f"{first} OR {second}", db)
     assert slashed["expression"] == alone["expression"], (first, second)
     if alone["expression"] is not None:
@@ -57,6 +62,22 @@ def test_every_id_beside_mit_reads_as_or_in_both_orders(
     for license_id in ids:
         same_as_or(corpus_db, license_id, "MIT")
         same_as_or(corpus_db, "MIT", license_id)
+
+
+@pytest.mark.parametrize(("first", "second"), [("HPND", "DOC"), ("HPND", "Intel")])
+def test_two_ids_that_are_one_id_with_a_dash_are_not_read(
+    corpus_db: LicenseDatabase, ids: list[str], first: str, second: str
+) -> None:
+    """``HPND/DOC`` may be ``HPND OR DOC`` or a slip for ``HPND-doc``: no
+    answer. The other order names no ID, so it reads as OR. These are the two
+    such pairs of 547,600 (``test_all_pairs_read_as_or``, a benchmark)."""
+    assert first in ids and second in ids
+    assert any(i.lower() == f"{first}-{second}".lower() for i in ids)
+    assert resolve(f"{first}/{second}", corpus_db)["expression"] is None
+    same_as_or(corpus_db, first, second)
+    assert resolve(f"{second}/{first}", corpus_db)["expression"] == " OR ".join(
+        sorted((first, second))
+    )
 
 
 def test_random_pairs_read_as_or(corpus_db: LicenseDatabase, ids: list[str]) -> None:

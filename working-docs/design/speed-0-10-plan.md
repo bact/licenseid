@@ -5,7 +5,7 @@ SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-status: built, not released
+status: built, released as 0.10.0
 ---
 
 # Speed plan for 0.10.0
