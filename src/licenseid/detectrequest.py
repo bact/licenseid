@@ -12,6 +12,7 @@ from typing import Final, TypeAlias, cast
 
 from licenseid.dbcheck import require_path
 from licenseid.errors import InvalidInputError, one_line
+from licenseid.textinput import read_text_file, reject_lone_surrogate
 from licenseid.types import DetectOptions
 from licenseid.variants import VARIANTS
 
@@ -113,3 +114,11 @@ def check_request(
     _check_option_values(options)
     _check_inputs(text, license_id, file_path)
     return None if file_path is None else os.fspath(cast(PathInput, file_path))
+
+
+def target_text_of(text: str | None, file_path: str | None) -> str:
+    """Phase 2: read *file_path* as the CLI reads a file, or use the *text*."""
+    if file_path is not None:
+        return read_text_file(file_path)
+    reject_lone_surrogate(text or "")
+    return text or ""

@@ -18,10 +18,12 @@ from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from long_text_db import long_text_detector
 from several_texts import several_text
 from test_wholetexts import FILLER, NOTICE, corpus_of, fake
-from texts_db import texts_database
+from texts_db import A, texts_database
 
 from licenseid import firsttext
 from licenseid.detector import LicenseDetector
+from licenseid.normalize import normalize_text
+from licenseid.retrieval import text_candidates
 from licenseid.textnames import named_texts
 from licenseid.wholetexts import Found, found_rows, found_texts
 
@@ -86,13 +88,16 @@ def _result(license_id: str = "A-1.0", **changes: Any) -> Any:
     return {"license_id": license_id, "method": "text", "exact": False, **changes}
 
 
-WORDS_40 = " ".join(f"w{i}" for i in range(40))
+# A-1.0's text and more words (``texts_db``): the search reads the texts that
+# share a gram with the input (``textcandidates``), so it shares some.
+WORDS_40 = normalize_text(A) + " and more words"
 
 
 def _settle(db_path: str, results: list[Any], norm_input: str = WORDS_40) -> Any:
     db = LicenseDetector(db_path).db
     with db.reading():
-        return firsttext.settle_texts(results, norm_input, db)
+        texts = text_candidates(db, norm_input, norm_input)
+        return firsttext.settle_texts(results, texts, db)
 
 
 def test_a_refused_top_leaves_no_result_and_the_search(
@@ -112,7 +117,7 @@ def test_a_refused_top_leaves_no_result_and_the_search(
         (_result(method="name"), WORDS_40),
         (_result(method="tag"), WORDS_40),
         (_result(exact=True), WORDS_40),
-        (_result(), " ".join(f"w{i}" for i in range(39))),
+        (_result(), " ".join(WORDS_40.split()[:39])),
     ],
     ids=["name", "tag", "exact", "39-tokens"],
 )

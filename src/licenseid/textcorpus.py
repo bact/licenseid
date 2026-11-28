@@ -15,27 +15,21 @@ A corpus is built once (``TextCorpus.build``) and never changed after: a
 search reads it from any thread. Cores are coded at build time. The database
 stores it (``licenseid.textstore``).
 
-Standard library only, apart from ``licenseid.similarity``'s list of
-critical words.
+Standard library only, apart from the tokens and critical words of
+``licenseid.textgrams``.
 """
 
-import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from itertools import accumulate
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
-from licenseid.similarity import CRITICAL_TOKENS
+from licenseid.textgrams import CRITICAL_TOKENS, GRAM_SIZE, TOKEN, split_words
 
 #: The code of an input word that no List text holds: it matches nothing.
 UNKNOWN: Final = "\0"
-
-# Han and kana are written without spaces between words, so each of their
-# characters is a token of its own; a phrase of 60 characters as one "word"
-# would make a one-character change a whole-word miss.
-_CJK: Final = "぀-ヿ㐀-䶿一-鿿豈-﫿"
-TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
 
 # Word numbers run from 1 (0 is UNKNOWN); a code point is never a surrogate,
 # which a str may hold but RapidFuzz and the encoders refuse.
@@ -52,14 +46,6 @@ COUNTED_WITH: Final = MappingProxyType({"not": ("not", "neither")})
 _CLASSES: Final = tuple(COUNTED_WITH.get(word, (word,)) for word in CRITICAL_ORDER)
 
 Span = tuple[int, int]
-
-
-def split_words(text: str) -> list[str]:
-    """The tokens of *text*: its words, and each Han or kana character
-    alone. ASCII text is split on white space only (the fast path)."""
-    if text.isascii():
-        return text.split()
-    return TOKEN.findall(text)
 
 
 def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:
@@ -206,6 +192,16 @@ class CodedText:
                 least -= right - left - (1 if start and inner else 0)
         object.__setattr__(self, "least", least)
 
+    @cached_property
+    def gram_count(self) -> int:
+        """The distinct word 3-grams of the text (a gram of codes is one of
+        words, as ``licenseid.gramstore`` counts a text's size), worked out
+        at the first question and kept."""
+        codes = self.codes
+        return len(
+            {codes[at : at + GRAM_SIZE] for at in range(len(codes) - GRAM_SIZE + 1)}
+        )
+
 
 def _token_runs(regions: Sequence[VarRegion]) -> list[Span]:
     """The token runs of *regions* that hold a token, sorted, those that
@@ -258,29 +254,47 @@ class _Vocabulary:
         )
 
 
-def _representative(row: TextRow) -> str:
-    """The ID that names *row*'s same-text group: the least of its IDs."""
-    return min((row.license_id, *row.group))
-
-
-def group_rows(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
-    """The first row of each same-text group by its name, and the name of the
-    group of each ID. A row with no text has none."""
-    first: dict[str, TextRow] = {}
+def group_names(
+    members: Iterable[tuple[str, tuple[str, ...]]],
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Of each licence with a text, in table order, its ID and its same-text
+    group: the ID of the first licence of each group by the group's name (the
+    least of its IDs), and the name of the group of each ID (the first group
+    that names an ID wins)."""
+    first: dict[str, str] = {}
     representatives: dict[str, str] = {}
-    for row in rows:
-        if not row.text:
-            continue
-        name = _representative(row)
-        first.setdefault(name, row)
-        for member in (row.license_id, *row.group):
+    for license_id, group in members:
+        name = min((license_id, *group))
+        first.setdefault(name, license_id)
+        for member in (license_id, *group):
             representatives.setdefault(member, name)
     return first, representatives
 
 
+def group_rows(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
+    """The first row of each same-text group by its name, and the name of the
+    group of each ID (:func:`group_names`). A row with no text has none."""
+    with_text = [row for row in rows if row.text]
+    by_id: dict[str, TextRow] = {}
+    for row in with_text:
+        by_id.setdefault(row.license_id, row)
+    first, representatives = group_names(
+        (row.license_id, row.group) for row in with_text
+    )
+    return {name: by_id[license_id] for name, license_id in first.items()}, (
+        representatives
+    )
+
+
 def core_of_row(row: TextRow) -> str | None:
     """*row*'s core, or None when it has none or it is the text."""
-    return row.core if row.core and row.core != row.text else None
+    return own_core(row.text, row.core)
+
+
+def own_core(text: object, core: str | None) -> str | None:
+    """*core*, the core of a licence whose text is *text*, or None when it
+    has none or it is the text."""
+    return core if core and core != text else None
 
 
 @dataclass(frozen=True)
@@ -291,6 +305,12 @@ class TextCorpus:
     vocabulary: Mapping[str, str]
     entries: tuple[CorpusEntry, ...]
     representatives: Mapping[str, str]
+    #: Each entry by the name of its same-text group (``entry``).
+    _by_name: Mapping[str, CorpusEntry] = field(init=False, compare=False, repr=False)
+
+    def __post_init__(self) -> None:
+        by_name = {entry.text.row_id: entry for entry in self.entries}
+        object.__setattr__(self, "_by_name", MappingProxyType(by_name))
 
     @classmethod
     def build(cls, rows: Iterable[TextRow]) -> "TextCorpus":
@@ -320,6 +340,23 @@ class TextCorpus:
         """The ID that names *license_id*'s same-text group, or None when
         the corpus has no text of it."""
         return self.representatives.get(license_id)
+
+    def entry(self, license_id: str) -> CorpusEntry | None:
+        """The entry of *license_id*'s same-text group, or None when the
+        corpus has no text of it."""
+        name = self.representatives.get(license_id)
+        return None if name is None else self._by_name.get(name)
+
+    def cut(self, ids: Iterable[str]) -> "TextCorpus":
+        """The corpus of the same-text groups of the licences *ids*, its
+        entries in this corpus's order (a tie of a search keeps the order the
+        whole corpus gives), with this corpus's vocabulary and names."""
+        names = {self.representatives.get(license_id) for license_id in ids}
+        return TextCorpus(
+            vocabulary=self.vocabulary,
+            entries=tuple(e for e in self.entries if e.text.row_id in names),
+            representatives=self.representatives,
+        )
 
     def encode(self, words: Iterable[str]) -> str:
         """*words* as codes; a word no List text holds is UNKNOWN."""

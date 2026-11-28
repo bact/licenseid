@@ -107,11 +107,16 @@ def _add_shell_and_python(cells: CellSet) -> None:
         )
 
 
+def _locale_of(env: str) -> str | None:
+    """The locale that the assignments of *env* name, which the host may lack."""
+    match = _LOCALE_RE.search(env)
+    return match.group(1) if match else None
+
+
 def _add_locales(cells: CellSet) -> None:
     """E2: the same answers under every locale and I/O encoding."""
     for env, name in LOCALES:
-        match = _LOCALE_RE.search(env)
-        needs = match.group(1) if match else None
+        needs = _locale_of(env)
         for desc, cmd, kind, exit_code in CORE[:6]:
             cells.add(
                 "E2",
@@ -151,6 +156,17 @@ def _add_locales(cells: CellSet) -> None:
             kind="detect",
             group="E2-nonascii-id",
             needs_locale=needs,
+        )
+    for env, name in LOCALES:  # last, so the cells above keep their identifiers
+        cells.add(
+            "E2",
+            f"locale {name}: resolve an OR expression",
+            # The parser of an AND or OR is loaded only here (tech-debt item 2).
+            f"{env} " + licenseid("resolve 'MIT OR Apache-2.0'"),
+            kind="resolve",
+            exp_exit=0,
+            group="E2-resolve-or",
+            needs_locale=_locale_of(env),
         )
 
 

@@ -20,14 +20,14 @@ def store_fingerprints(connections: Connections) -> None:
     """Compute and store discriminative n-gram fingerprints for all licenses.
 
     See ``fingerprint.compute_idf_fingerprints`` for the scoring method.
-    Must be called after ``license_index`` has been fully populated.
+    Must be called after ``license_texts`` has been fully populated.
     Replaces any previously stored fingerprints.
     """
     status("Computing discriminative fingerprints...", end="")
 
     with connections.connection() as conn:
         rows: list[tuple[str, str]] = conn.execute(
-            "SELECT license_id, search_text FROM license_index"
+            "SELECT license_id, search_text FROM license_texts"
         ).fetchall()
 
     if not rows:

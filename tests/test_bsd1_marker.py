@@ -34,8 +34,7 @@ from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
 from licenseid.markers import MarkerDetector
 from licenseid.normalize import normalize_text
-from licenseid.retrieval import get_candidates
-from licenseid.types import CandidateMatch
+from licenseid.retrieval import Candidates, get_candidates
 
 LONG = Path(__file__).parent / "fixtures" / "license-text-long"
 
@@ -200,9 +199,11 @@ def _tier1_misses_bsd_1(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tier 1 as the full list makes it: BSD-1-Clause not among the
     candidates of a filled BSD-1-Clause text."""
 
-    def without_bsd_1(*args: Any, **kwargs: Any) -> list[CandidateMatch]:
-        found = get_candidates(*args, **kwargs)
-        return [c for c in found if c["license_id"] != "BSD-1-Clause"]
+    def without_bsd_1(*args: Any, **kwargs: Any) -> Candidates:
+        got = get_candidates(*args, **kwargs)
+        return got._replace(
+            found=[c for c in got.found if c["license_id"] != "BSD-1-Clause"]
+        )
 
     monkeypatch.setattr(detector, "get_candidates", without_bsd_1)
 

@@ -327,14 +327,15 @@ TAGGED = "SPDX-License-Identifier: LicenseRef-x+\n" + FRAGMENT
 @pytest.mark.parametrize("text", [FRAGMENT, TAGGED], ids=["fragment", "tagged"])
 def test_the_diff_pair_is_what_ranking_aligned(db: str, text: str) -> None:
     """--diff recomputes the window Tier 2 aligned, for one license, against
-    the input Tier 2 read. (Characterisation: reads the internal window.)"""
+    the input Tier 2 read, widened to whole words (it cut "alphaj" and
+    "betah"). (Characterisation: reads the internal window.)"""
     matcher = LicenseDetector(db)
     raw = matcher._match_raw(text)  # pylint: disable=protected-access
     assert (raw[0]["license_id"], raw[0]["method"]) == ("Long-1.0", "text")
-    window = raw[0].get("best_window")
-    # A window of its own, not the whole text.
-    assert isinstance(window, str)
-    assert window and len(window.split()) < len(LONG_TEXT.split())
+    # A window of its own, not the whole text, cut inside a word at each end.
+    middle = "alphak alphal alpham alphan alphao betaa betab betac betad betae betaf"
+    assert raw[0].get("best_window") == f"aj {middle} betag b"
+    window = f"alphaj {middle} betag betah"
     assert matcher._diff_pair(text, "Long-1.0") == (FRAGMENT, window)
     assert matcher._diff_pair(text, "NoSuch-1.0") == ("", "")
     # A "WITH Font-exception-2.0" the License List lacks was ranked on its
@@ -354,6 +355,11 @@ def test_diff_shows_one_diff_of_the_text_matched(db: str, text: str) -> None:
     assert result.stderr.count("WORD DIFF:") == 1
     assert "+zulu" in result.stderr
     assert "spdx" not in result.stderr.lower()
+    # The window's words whole: it was aligned from inside "alphaj" to
+    # inside "betah" (it printed "-aj" and "-b").
+    lines = result.stderr.splitlines()
+    assert {"-alphaj", "-betah"} <= set(lines)
+    assert not {"-aj", "-b"} & set(lines)
 
 
 def test_diff_is_for_the_top_result_only() -> None:

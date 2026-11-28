@@ -23,7 +23,7 @@ from matcher_db import Lic, seeded_db
 from rapidfuzz import fuzz
 from timing import slack
 
-from licenseid import similarity
+from licenseid import regionalign, similarity
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.types import CandidateMatch
@@ -76,7 +76,6 @@ LONG_WORD_CANDIDATE: CandidateMatch = {
 def scans(norm_input: str, cand: CandidateMatch | None = None) -> bool:
     """Whether scoring *norm_input* against *cand* (CANDIDATE by default) runs
     the alignment."""
-    words = norm_input.split()
     with mock.patch.object(
         fuzz,
         "partial_ratio_alignment",
@@ -84,11 +83,7 @@ def scans(norm_input: str, cand: CandidateMatch | None = None) -> bool:
         wraps=fuzz.partial_ratio_alignment,
     ) as alignment:
         similarity.calculate_base_similarity(
-            norm_input,
-            len(words),
-            set(words),
-            cand or CANDIDATE,
-            similarity.build_probe(words),
+            similarity.query_of(norm_input), cand or CANDIDATE
         )
     return alignment.called
 
@@ -148,6 +143,26 @@ def test_which_queries_get_a_probe(
     assert (len(norm_input.split()), len(norm_input)) == (words, chars)
     probe = similarity.build_probe(norm_input.split())
     assert (None if probe is None else len(probe)) == probe_len
+
+
+@pytest.mark.parametrize(
+    ("alignment", "expected"),
+    [(0.6, (1.0, "gamma alpha beta")), (0.59, (0.59, "gamma alpha beta delta"))],
+    ids=["60-is-scored-by-sorted-words", "59-is-the-alignment"],
+)
+def test_a_window_is_scored_again_by_sorted_words_from_60(
+    monkeypatch: pytest.MonkeyPatch,
+    alignment: float,
+    expected: tuple[float, str],
+) -> None:
+    """The alignment score is the similarity under 0.6; from 0.6 the aligned
+    window (here the first 16 characters) is scored by its sorted words."""
+    text = "gamma alpha beta delta"
+    monkeypatch.setattr(regionalign, "aligned", lambda *_args: (alignment, (0, 16)))
+    got = similarity.fragment_similarity(
+        similarity.query_of("alpha beta gamma"), "X-1.0", text
+    )
+    assert got == expected
 
 
 def test_the_word_probe_is_the_middle_60_words() -> None:

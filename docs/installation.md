@@ -20,12 +20,25 @@ Or using `uv`:
 uv tool install licenseid
 ```
 
+Then build the licence database with `licenseid update`, and build it again
+after each upgrade of licenseid: a lookup reads only a database its own
+version built, and refuses an older one with `database: build vN outdated`
+(exit 2) until then. An older licenseid refuses a database a newer one
+built in a shape it cannot read, as `database: build vN newer` (exit 2), or
+may call it `database: invalid`: to go back, run `licenseid clear-cache`
+with the newer version (it also deletes the downloaded data, so the older
+version's `licenseid update` needs the network), or delete the file, then
+run `licenseid update` with the older one. See [the command line
+reference](cli.md).
+
 ## Non-UTF-8 locales
 
 A dependency, `py-spdx-license` 0.0.1, reads its bundled licence data with
 the locale's encoding. Under a multibyte locale that is not UTF-8, such as
-`ja_JP.eucJP`, every command then fails at start-up with a
-`UnicodeDecodeError`. The fix is merged upstream in
+`ja_JP.eucJP`, a command that reads an expression joined by `AND` or `OR`
+(`MIT OR Apache-2.0`, as a value or in a tag) then fails with a
+`UnicodeDecodeError`; one licence ID, a name or a licence text is read. The
+fix is merged upstream in
 [JPEWdev/py-spdx-license#5](https://github.com/JPEWdev/py-spdx-license/pull/5)
 but no release holds it yet. Until one does, set `PYTHONUTF8=1` to run
 Python in UTF-8 mode:

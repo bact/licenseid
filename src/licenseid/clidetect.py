@@ -35,7 +35,6 @@ from licenseid.cliinput import (
     exit_no_input,
     get_input_content,
 )
-from licenseid.dbcheck import check_database_ready
 from licenseid.detector import LicenseDetector
 from licenseid.errors import one_line
 from licenseid.output import echo, echo_json
@@ -125,10 +124,9 @@ def detect_license_record(
     id_val: str | None = None,
 ) -> Detection | None:
     """The top match of the input of a predicate command, or None."""
-    db_path = ctx.obj["db_path"]
-    check_database_ready(db_path)  # before input handling: report the database first
+    # Before input handling: report the database first (its one verdict).
+    detector = LicenseDetector(ctx.obj["db_path"])
     checked_inputs(ctx, input_val, text, id_val)
-    detector = LicenseDetector(db_path)
     check_db_staleness(detector.db)
     if id_val:
         # pylint: disable-next=protected-access
@@ -242,9 +240,8 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     --verbose, the full record of each. One tab separates the fields of a
     verbose line: read them with cut -f or awk -F'\\t'.
     """
-    db_path = ctx.obj["db_path"]
-
-    check_database_ready(db_path)  # before input handling: report the database first
+    # Before input handling: report the database first (its one verdict).
+    detector = LicenseDetector(ctx.obj["db_path"], enable_popularity=enable_popularity)
     checked_inputs(ctx, input_val, text, id_val)
     _reject_conflicts(
         ctx,
@@ -254,7 +251,6 @@ def detect_command(  # pylint: disable=too-many-arguments,too-many-positional-ar
     )
 
     chosen = _checked_variant(ctx, variant)
-    detector = LicenseDetector(db_path, enable_popularity=enable_popularity)
     check_db_staleness(detector.db)
 
     # A warning of the detector is for the result this command prints.
@@ -368,3 +364,6 @@ PREDICATE_COMMANDS: tuple[click.Command, ...] = (
         lambda record: record["is_spdx"],
     ),
 )
+
+# What `licenseid.clicommands` loads when one of these names is asked for.
+COMMANDS: tuple[click.Command, ...] = (detect_command, *PREDICATE_COMMANDS)

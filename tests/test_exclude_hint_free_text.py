@@ -25,9 +25,9 @@ from matcher_db import PROSE, Lic, seeded_db
 
 from licenseid.deprecatedids import BARE_TO_OR_LATER, DEPRECATED_BARE_LICENSE_IDS
 from licenseid.detector import LicenseDetector
-from licenseid.idoptions import excluded_ids, upgraded_options
+from licenseid.idoptions import excluded_ids, free_text_hits, upgraded_options
 from licenseid.normalize import normalize_text
-from licenseid.types import DetectOptions
+from licenseid.types import DetectOptions, RawMatch
 
 LONG = Path(__file__).parent / "fixtures" / "license-text-long"
 MIT = json.loads((LONG / "MIT.json").read_text(encoding="utf-8"))["license_text"]
@@ -304,3 +304,43 @@ def test_a_hint_without_the_text_adds_the_twins_not_the_bare_row(
     assert {ONLY, LATER} <= set(got)
     assert "GPL-2.0" not in got
     given.take()
+
+
+def _hit(license_id: str, score: float, similarity: float | None = 0.9) -> RawMatch:
+    return RawMatch(
+        license_id=license_id,
+        method="name",
+        exact=False,
+        score=score,
+        similarity=similarity,
+        coverage=None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("hits", "excluded", "kept"),
+    [
+        ([("A", 1.01), ("B", 0.94)], (), ["A", "B"]),
+        ([("A", 1.01), ("B", 0.94)], ("b",), ["A"]),
+        ([("A", 1.01), ("B", 0.94)], ("a",), []),  # a near name of the one excluded
+        ([("A", 1.01), ("B", 1.01), ("C", 0.94)], ("a",), ["B"]),  # a tie stays
+        ([("A", 0.1 + 0.2), ("B", 0.3)], ("a",), ["B"]),  # up to float rounding
+        ([("A", 0.94), ("B", 1.01), ("C", 0.9)], ("a",), ["B"]),
+        ([("A", 1.01), ("B", 0.94), ("C", 0.9)], ("a", "b"), []),
+        ([("A", 1.01), ("B", 0.94), ("C", 0.9)], ("a", "c"), []),  # the best bars
+    ],
+    ids=str,
+)
+def test_a_name_hit_under_the_best_one_excluded_is_cut(
+    hits: list[tuple[str, float]], excluded: tuple[str, ...], kept: list[str]
+) -> None:
+    found = free_text_hits([_hit(lid, s) for lid, s in hits], frozenset(excluded))
+    assert [m["license_id"] for m in found] == kept
+
+
+def test_a_declaration_is_no_bar_and_never_cut() -> None:
+    read = _hit("A", 0.5, similarity=None)
+    found = free_text_hits([_hit("B", 1.01), read], {"b"})
+    assert found == [read]
+    found = free_text_hits([_hit("A", 1.01, similarity=None), _hit("B", 0.94)], {"a"})
+    assert [m["license_id"] for m in found] == ["A", "B"]

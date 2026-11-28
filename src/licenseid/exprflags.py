@@ -27,8 +27,6 @@ the ``GPL-2.0-with-*`` rows are neither OSI nor FSF).
 
 from typing import TYPE_CHECKING, Final
 
-import py_spdx_license
-
 from licenseid.deprecatedids import DEPRECATED_BARE_LICENSE_IDS, DEPRECATED_WITH_IDS
 from licenseid.exprtokens import without_addition_refs
 from licenseid.identifiers import parse_declared
@@ -36,6 +34,8 @@ from licenseid.listlookup import fold_case
 from licenseid.types import LicenseDetails, LicenseFlags
 
 if TYPE_CHECKING:
+    import py_spdx_license
+
     from licenseid.database import LicenseDatabase
 
 #: A kept deprecated ID (case-folded) to the ``-only`` ID that is judged for it.
@@ -64,6 +64,8 @@ def declared_flags(value: str, db: "LicenseDatabase") -> LicenseFlags | None:
     tree = parse_declared(value)
     if tree is None:
         return None  # not an expression (or too deep to parse)
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     known = (py_spdx_license.LicenseId, py_spdx_license.LicenseRef)
     if not any(isinstance(leaf, known) for leaf in _leaves(tree)):
         return None
@@ -82,14 +84,18 @@ def judged_flags(value: str, db: "LicenseDatabase") -> LicenseFlags | None:
     return flags
 
 
-def _leaves(node: py_spdx_license.Node) -> list[py_spdx_license.Node]:
+def _leaves(node: "py_spdx_license.Node") -> "list[py_spdx_license.Node]":
     """The identifier nodes of a parsed expression."""
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     if isinstance(node, py_spdx_license.Identifier):
         return [node]
     return [leaf for child in node.children for leaf in _leaves(child)]
 
 
-def expression_flags(tree: py_spdx_license.Node, db: "LicenseDatabase") -> LicenseFlags:
+def expression_flags(
+    tree: "py_spdx_license.Node", db: "LicenseDatabase"
+) -> LicenseFlags:
     """The flags of the expression *tree*, read from the rows of *db*."""
     osi, fsf = _flags(tree, db)
     return {
@@ -99,10 +105,12 @@ def expression_flags(tree: py_spdx_license.Node, db: "LicenseDatabase") -> Licen
     }
 
 
-def _flags(node: py_spdx_license.Node, db: "LicenseDatabase") -> Flags:
+def _flags(node: "py_spdx_license.Node", db: "LicenseDatabase") -> Flags:
     """The (OSI, FSF) flags of *node*: its row's for a licence ID, its
     licence's for a ``WITH``, all or any of its operands' for an ``AND`` or
     an ``OR``. The parser's depth cap bounds the recursion."""
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     if isinstance(node, py_spdx_license.WithOp):
         return _flags(node.license, db)
     if isinstance(node, (py_spdx_license.AndOp, py_spdx_license.OrOp)):
@@ -160,8 +168,10 @@ def _combined(values: list[bool | None], decisive: bool) -> bool | None:
     return not decisive
 
 
-def _on_the_list(node: py_spdx_license.Node, db: "LicenseDatabase") -> bool:
+def _on_the_list(node: "py_spdx_license.Node", db: "LicenseDatabase") -> bool:
     """Whether every licence and exception ID of *node* is on the List."""
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     if isinstance(node, py_spdx_license.LicenseRef):
         return False
     if isinstance(node, py_spdx_license.ExceptionId):

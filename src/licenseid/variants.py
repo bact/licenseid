@@ -41,6 +41,7 @@ from licenseid.ranking import (
     leave_signal,
     only_signal,
     or_later_signal,
+    ranking_key,
 )
 from licenseid.types import (
     CandidateMatch,
@@ -351,16 +352,29 @@ def _is_variant_id(license_id: str) -> bool:
     return _head(license_id).lower().endswith((_ONLY, _OR_LATER))
 
 
+_Order = Callable[[RawMatch | InternalMatch], Any]
+
+
+def _order(popular: bool) -> _Order:
+    """The one ordering of ranked results (``ranking.ranking_key``), by
+    popularity too when *popular*: a result it changed sorts as the detector
+    sorted it."""
+    return cast(_Order, ranking_key(popular))
+
+
 def settle_free_text(
     results: Sequence[RawMatch | InternalMatch],
     text: str,
     is_pure: bool,
     options: DetectOptions,
+    *,
+    popular: bool = False,
 ) -> list[RawMatch | InternalMatch]:
     """:func:`settle_text` of the *results* for *text*, the input, as it
     grants later versions or states "only" (:func:`licenseid.ranking.
     or_later_signal`, :func:`licenseid.ranking.only_signal`), read as the
-    ``variant`` of *options* says."""
+    ``variant`` of *options* says; sorted again by popularity too when
+    *popular*."""
     written = {id(r): r["license_id"] for r in results}
     out = settle_text(
         list(results),
@@ -371,6 +385,7 @@ def settle_free_text(
         ),
         options.get("variant", DEFAULT),
         written=text,
+        popular=popular,
     )
     # A form the option chose comes after ``exclude`` ran: it may not be an
     # excluded one. A bare ID it decided is dropped, an ``-only`` it moved to
@@ -395,6 +410,7 @@ def settle_text(
     variant: Variant,
     *,
     written: str = "",
+    popular: bool = False,
 ) -> list[RawMatch | InternalMatch]:
     """The results of a text or name match, settled for *variant*:
     never a deprecated ID unless ``as-written``; a ``-only``/``-or-later``
@@ -404,11 +420,14 @@ def settle_text(
     it); an ``-or-later`` answer no grant of the input chose, none written, is
     settled to its ``-only`` twin (not for ``or-later``); the ``or-later``
     option puts that form first where nothing is stated; the answer that is a
-    guess is said once, if it is an answer (:data:`ANSWER_SCORE`)."""
+    guess is said once, if it is an answer (:data:`ANSWER_SCORE`). A
+    result whose score changed is sorted again by ``ranking.ranking_key``
+    (popularity too when *popular*)."""
     signal, only, leave = signals
-    out = _replaced(list(results), variant, written)
+    order = _order(popular)
+    out = _replaced(list(results), variant, written, order)
     if variant == "as-written":  # a licence with nothing stated: the bare ID
-        out = _collapsed(out, lambda lid: signal(lid) or only(lid))
+        out = _collapsed(out, lambda lid: signal(lid) or only(lid), order)
     if variant != "or-later":
         _ungranted_to_only(out, signal, written, leave)
     scores = {fold_case(r["license_id"]): r["score"] for r in out}
@@ -486,7 +505,10 @@ def _chosen_by(r: RawMatch | InternalMatch, scores: dict[str, float]) -> bool:
 
 
 def _replaced(
-    results: list[RawMatch | InternalMatch], variant: Variant, written: str = ""
+    results: list[RawMatch | InternalMatch],
+    variant: Variant,
+    written: str,
+    order: _Order,
 ) -> list[RawMatch | InternalMatch]:
     """*results* without the deprecated IDs that a replacement is among
     (except for ``as-written``): the replacement takes the better score,
@@ -523,12 +545,12 @@ def _replaced(
             out.append(r)
         else:
             kept["score"] = max(kept["score"], r["score"])
-    out.sort(key=lambda r: -r["score"])
+    out.sort(key=order)
     return out
 
 
 def _collapsed(
-    results: list[RawMatch | InternalMatch], stated: GrantSignal
+    results: list[RawMatch | InternalMatch], stated: GrantSignal, order: _Order
 ) -> list[RawMatch | InternalMatch]:
     """*results*, the two twins of a licence beside its bare ID (a tie, as
     they share one text) left as the bare ID, which says no more than the
@@ -553,7 +575,7 @@ def _collapsed(
         )
         drop |= {fold_case(t["license_id"]) for t in twins if t}
     out = [r for r in results if fold_case(r["license_id"]) not in drop]
-    out.sort(key=lambda r: -r["score"])
+    out.sort(key=order)
     return out
 
 

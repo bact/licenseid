@@ -9,6 +9,7 @@
 
 import contextlib
 import sqlite3
+import threading
 from collections.abc import Callable, Generator
 from typing import Any
 from unittest import mock
@@ -16,6 +17,7 @@ from unittest import mock
 import pytest
 from db_variants import stamp_rebuild
 from matcher_db import Lic, seeded_db
+from seed_sql import fill_norm_columns
 
 from licenseid.database import LicenseDatabase, exception_words
 from licenseid.dbcache import TableCache
@@ -88,8 +90,7 @@ def test_search_text_by_exact_id(db: LicenseDatabase, asked: str, text: str) -> 
 
 
 def _selects(statements: list[str], table: str) -> list[str]:
-    """The SELECTs on *table*; FTS5's reads of its own shadow tables
-    ('main'.'license_index_config') are not ours."""
+    """The SELECTs on *table* (none of SQLite's own, on ``'main'``)."""
     return [
         s
         for s in statements
@@ -107,7 +108,7 @@ def test_lookups_scan_each_table_once(
             for license_id in [*ids, f"LicenseRef-{i}"]:
                 db.get_license_details(license_id)
                 db.get_search_text(license_id)
-    tables = [*_selects(statements, "licenses"), *_selects(statements, "license_index")]
+    tables = [*_selects(statements, "licenses"), *_selects(statements, "license_texts")]
     assert len([s for s in tables if "WHERE" not in s]) == 2  # once per table
     # Known IDs only: a LicenseRef or an unknown ID costs no query at all.
     # Details for MIT, mit, SK-1.0 and Apache-2.0; text for MIT and SK-1.0.
@@ -119,15 +120,16 @@ def test_lookups_scan_each_table_once(
 def _rebuild(db: LicenseDatabase, stamp: str | None) -> None:
     """Rewrite the index in another order, as another process's update."""
     with sqlite3.connect(db.db_path, uri=True) as conn:
-        conn.execute("DELETE FROM license_index")
+        conn.execute("DELETE FROM license_texts")
         conn.executemany(
-            "INSERT INTO license_index (rowid, license_id, search_text)"
+            "INSERT INTO license_texts (rowid, license_id, search_text)"
             " VALUES (?, ?, ?)",
             [(1, "SK-1.0", "new k"), (2, "MIT", "new mit"), (3, "Zlib", "zlib")],
         )
         conn.execute(
             "INSERT INTO licenses (license_id, name) VALUES ('Zlib', 'zlib License')"
         )
+        fill_norm_columns(conn)
         stamp_rebuild(conn, stamp)
 
 
@@ -185,8 +187,9 @@ def test_a_row_with_no_id_is_skipped() -> None:
             conn.execute("INSERT INTO licenses (license_id, name) VALUES (NULL, 'x')")
             conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Y', NULL)")
             conn.execute(
-                "INSERT INTO license_index (license_id, search_text) VALUES (NULL, 'x')"
+                "INSERT INTO license_texts (license_id, search_text) VALUES (NULL, 'x')"
             )
+            fill_norm_columns(conn)
         db = LicenseDatabase(path)
         assert db.get_license_details("mit")
         assert db.get_search_text("MIT") == "permission is hereby"
@@ -202,15 +205,26 @@ def test_a_row_with_no_id_is_skipped() -> None:
     ("read", "kept"),
     [
         (lambda t: t.license_id("MIT"), lambda t: t._license_ids),
-        (lambda t: t.index_row("MIT"), lambda t: t._index_rows),
+        (lambda t: t.index_rows(), lambda t: t._index_rows),
         (lambda t: t.names_and_ids(), lambda t: t._names_and_ids),
         (lambda t: t.deprecated(), lambda t: t._deprecated),
         (lambda t: t.names_by_key(str.lower), lambda t: t._keyed.names),
         (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.url_rows),
         (lambda t: t.ids_by_url(str.lower), lambda t: t._keyed.urls),
         (lambda t: t.active_ids_by_name(), lambda t: t._active_by_name),
+        (lambda t: t.name_index(), lambda t: t._keyed.name_index),
     ],
-    ids=["ids", "index", "names", "deprecated", "keyed", "url-rows", "urls", "by-name"],
+    ids=[
+        "ids",
+        "index",
+        "names",
+        "deprecated",
+        "keyed",
+        "url-rows",
+        "urls",
+        "by-name",
+        "name-index",
+    ],
 )
 def test_a_read_made_during_a_clear_is_not_kept(
     db: LicenseDatabase,
@@ -251,3 +265,81 @@ def test_the_words_of_the_exceptions_are_read_once_per_rebuild(
             frozenset({"qux", "ex"}),
             frozenset({"qux", "exception"}),
         ]
+
+
+def _renamed(db: LicenseDatabase, stamp: str | None) -> None:
+    """Rewrite the names of the rows, as another process's update."""
+    with sqlite3.connect(db.db_path, uri=True) as conn:
+        conn.execute("UPDATE licenses SET name = 'Zed License' WHERE license_id='MIT'")
+        conn.execute("UPDATE licenses SET norm_name = 'zed license'")
+        conn.execute("UPDATE licenses SET norm_license_id = 'zed'")
+        stamp_rebuild(conn, stamp)
+
+
+@pytest.mark.parametrize("in_block", [True, False], ids=["next-match", "api-call"])
+def test_the_name_index_is_dropped_by_a_rebuild(
+    db: LicenseDatabase, in_block: bool
+) -> None:
+    """Rows renamed by an update: the old names never serve the new rows."""
+    tables = db._tables
+    first = tables.name_index()
+    assert first is tables.name_index()  # built once
+    assert first.names[0] == "mit license"
+    _renamed(db, "2026-10-02T00:00:00")
+    with db.reading() if in_block else contextlib.nullcontext():
+        second = tables.name_index()
+        assert second is not first
+        assert second.rows is db.get_all_names_and_ids()
+        assert set(second.names) == {"zed license"}
+        assert set(second.upper_ids) == {"ZED"}
+        assert second.live_names == {"zed license"}
+        assert second is tables.name_index()
+
+
+def test_the_name_index_of_a_changed_stamp_is_built_for_the_new_rows(
+    db: LicenseDatabase,
+) -> None:
+    """The stamp changes between the read of the rows and the index."""
+    tables = db._tables
+    tables.name_index()
+    _renamed(db, "2026-10-03T00:00:00")
+    index = tables.name_index()
+    assert index.rows is tables.names_and_ids()
+    assert index.names == ("zed license",) * 3
+
+
+def test_eight_threads_using_the_name_index_first_get_one_answer(
+    db: LicenseDatabase,
+) -> None:
+    tables, found = db._tables, []
+    start = threading.Barrier(8)
+
+    def first_use() -> None:
+        start.wait()
+        found.append(tables.name_index())
+
+    threads = [threading.Thread(target=first_use) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(found) == 8
+    assert all(index == found[0] for index in found)
+    # Threads may each build one; one is kept, whole, and it equals them all.
+    assert tables.name_index() == found[0]
+    assert tables.name_index() is tables._keyed.name_index
+    assert tables.name_index().names == (
+        "mit license",
+        "apache license 2 0",
+        "made up k license",
+    )
+
+
+def test_a_database_seeded_by_sql_has_a_name_index() -> None:
+    for path in seeded_db("test_db_lookup_sql", ROWS):
+        with sqlite3.connect(path, uri=True) as conn:
+            conn.execute("INSERT INTO licenses (license_id, name) VALUES ('Q-1', 'Q')")
+            fill_norm_columns(conn)
+        index = LicenseDatabase(path)._tables.name_index()
+        assert index.ids[-1] == "q 1"
+        assert index.upper_ids["Q 1"] == (3,)

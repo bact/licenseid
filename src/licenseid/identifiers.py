@@ -9,9 +9,7 @@ SPDX Identifier and Expression normalization and validation.
 
 import re
 from itertools import dropwhile, pairwise
-from typing import cast
-
-import py_spdx_license
+from typing import TYPE_CHECKING, cast
 
 from licenseid import variants
 from licenseid.classify import (
@@ -53,6 +51,9 @@ from licenseid.plusoperator import (
     strip_plus_operator,
 )
 from licenseid.versionkey import named_row
+
+if TYPE_CHECKING:
+    import py_spdx_license
 
 # Defensive cap on the number of AND/OR/WITH operators an expression may
 # have before we attempt py_spdx_license's structural sort()/dedup pass.
@@ -117,7 +118,7 @@ MAX_PARSE_DEPTH = 150
 _RE_PARSER_PART = re.compile(r"[()]|[^ \t\n\r()]+")
 
 
-def parse_expression(expression: str) -> py_spdx_license.Node | None:
+def parse_expression(expression: str) -> "py_spdx_license.Node | None":
     """Parse an SPDX license expression into a ``py_spdx_license`` tree, with
     any operator casing and any (unknown) IDs allowed; None if it is not a
     well-formed expression, or would cost the parser more than
@@ -134,6 +135,8 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
     )
     if cost > _MAX_PARSE_COST or _too_large_to_parse(expression):
         return None
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     try:
         return py_spdx_license.parse(
             normalize_operator_casing(expression), allow_unknown=True
@@ -142,7 +145,7 @@ def parse_expression(expression: str) -> py_spdx_license.Node | None:
         return None
 
 
-def parse_declared(value: str) -> py_spdx_license.Node | None:
+def parse_declared(value: str) -> "py_spdx_license.Node | None":
     """Parse a declared *value*, its "+" operators read as the "or later" of
     the ID before them; None as parse_expression gives it, and for a "+"
     after a stated qualifier ("GPL-2.0-only+"), which no ID takes."""

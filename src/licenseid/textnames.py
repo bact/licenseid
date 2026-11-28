@@ -5,9 +5,10 @@
 
 """``TEXTS`` of a ``detect()`` result: the List texts the input holds whole.
 
-The search itself is :func:`licenseid.wholetexts.found_texts`, which gives
-one row ID for each text it finds (the smallest of the licences that share
-it). ``licenseid.firsttext`` asks it once, when the top result is a text match
+The search itself is :func:`licenseid.wholetexts.found_texts`, on the
+candidate set of the input (``licenseid.textcandidates``), which gives one
+row ID for each text it finds (the smallest of the licences that share it).
+``licenseid.firsttext`` asks it once, when the top result is a text match
 of an input of :data:`MIN_TOKENS` tokens or more, and hands the result here;
 :func:`held_texts` names each found text as ``detect()`` would name an
 unstated text of it under the ``variant`` in force:
@@ -29,13 +30,16 @@ import contextlib
 import contextvars
 import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from licenseid.database import LicenseDatabase, text_corpus, text_parts
+from licenseid.database import LicenseDatabase, text_parts
 from licenseid.textcorpus import input_tokens
 from licenseid.types import InternalMatch, RawMatch, Variant
 from licenseid.variants import replacement_of
-from licenseid.wholetexts import Found, found_texts
+from licenseid.wholetexts import Found
+
+if TYPE_CHECKING:  # it imports this module
+    from licenseid.textcandidates import TextCandidates
 
 __all__ = [
     "MIN_TOKENS",
@@ -168,15 +172,14 @@ def held_texts(
 
 
 def input_texts(
-    db: LicenseDatabase, norm_input: str, variant: Variant
+    db: LicenseDatabase, texts: "TextCandidates", variant: Variant
 ) -> list[str] | None:
-    """The List texts *norm_input* holds whole with no answer to name first:
-    each group as :func:`named_texts` names a group not the answer's under
-    *variant*. None as for :func:`held_texts`: under :data:`MIN_TOKENS`
-    tokens, nothing found, or too long to search."""
-    if not has_tokens(norm_input):
-        return None
-    found = found_texts(norm_input, text_corpus(db), "")
+    """The List texts the input of *texts* (its whole-text search) holds
+    whole with no answer to name first: each group as :func:`named_texts`
+    names a group not the answer's under *variant*. None as for
+    :func:`held_texts`: under :data:`MIN_TOKENS` tokens, nothing found, or
+    too long to search."""
+    found = texts.found("")
     if found is None:
         return None
     return named_texts(found.rows, "", variant, text_groups(db, found.rows))

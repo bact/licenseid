@@ -41,7 +41,8 @@ from licenseid import (
     detect,
     resolve,
 )
-from licenseid.dbcheck import check_database_ready, is_ready
+from licenseid.database import gram_scores
+from licenseid.dbcheck import check_database_ready, is_built
 from licenseid.errors import InvalidInputError
 
 # --- 1. LicenseDatabase(path): another program's file, and a missing one ---
@@ -157,7 +158,7 @@ def test_an_empty_or_licenseid_file_is_still_opened_and_completed(
     path = tmp_path / "licenses.db"
     make(path)
     LicenseDatabase(str(path))
-    assert {"licenses", "license_index", "db_metadata"} <= names_in(path)
+    assert {"licenses", "license_texts", "db_metadata"} <= names_in(path)
 
 
 def spellings(path: Path) -> dict[str, object]:
@@ -200,7 +201,7 @@ def test_reads_on_a_handle_on_a_missing_file_make_no_file(tmp_path: Path) -> Non
     with pytest.raises(DatabaseNotReadyError, match="^database: "):
         handle.get_license_details("MIT")
     with handle.reading(), pytest.raises(DatabaseNotReadyError):
-        handle.search_candidates("permission is hereby granted")
+        gram_scores(handle, "permission is hereby granted")
     assert not path.exists()
 
 
@@ -210,7 +211,7 @@ def test_the_first_write_makes_the_file_and_its_tables(tmp_path: Path) -> None:
     handle = LicenseDatabase(str(path))
     assert not path.exists()
     handle._write_db_records(NO_RECORDS, None)  # pylint: disable=protected-access
-    assert {"licenses", "license_index", "db_metadata"} <= names_in(path)
+    assert {"licenses", "license_texts", "db_metadata"} <= names_in(path)
     assert "release_date" in handle.get_metadata()
 
 
@@ -220,7 +221,7 @@ def test_update_creates_a_missing_database(
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "licenses.db"
     database = database_of(release_bundle(VERSION), path)
-    assert is_ready(str(path))
+    assert is_built(str(path))
     assert database.get_metadata()["license_list_version"] == VERSION
 
 

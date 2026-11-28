@@ -20,20 +20,20 @@ light. It reads bytes and files; it never touches the network
 or the database.
 """
 
-import gzip
 import io
 import json
 import re
-import tarfile
 import zlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from importlib import resources
 from pathlib import Path
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from licenseid.errors import typed
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
+
+if TYPE_CHECKING:
+    import tarfile  # imported where used: a bundle needs no tar reader (start-up)
 
 BUNDLE_FORMAT: Final = 1
 # Decompressed size cap: the bundle of 3.29.0 is about 10 MiB with its
@@ -105,6 +105,8 @@ class SpdxData:
         ``tarfile.TarError``, ``EOFError``, ``zlib.error`` and ``OSError``
         propagate to the caller.
         """
+        import tarfile  # start-up
+
         with tarfile.open(path, "r:gz") as tar:
             documents, files = _scan_tarball(tar)
         root = _tarball_root(documents)
@@ -131,6 +133,8 @@ class SpdxData:
 
 def _load_document(raw: bytes) -> dict[str, Any]:
     """Gunzip (capped), parse and check the envelope of a bundle."""
+    import gzip  # pylint: disable=import-outside-toplevel  # start-up
+
     try:
         with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
             # A short read proves EOF, so gzip has checked the CRC.
@@ -259,6 +263,8 @@ def to_bundle(data: SpdxData) -> bytes:
     payload = json.dumps(
         doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+    import gzip  # pylint: disable=import-outside-toplevel  # start-up
+
     buffer = io.BytesIO()
     with gzip.GzipFile(mode="wb", fileobj=buffer, mtime=0) as gz:
         gz.write(payload)
@@ -267,6 +273,8 @@ def to_bundle(data: SpdxData) -> bytes:
 
 def packaged_bundle() -> bytes | None:
     """The snapshot shipped in the wheel, or ``None`` when there is none."""
+    from importlib import resources  # start-up: 4 ms, read only for a bundle
+
     try:
         resource = resources.files("licenseid") / "data" / PACKAGED_NAME
         return resource.read_bytes()
@@ -281,7 +289,7 @@ _TEXT_SUFFIXES: Final = {"text": ".txt", "template": ".template.txt"}
 
 
 def _scan_tarball(
-    tar: tarfile.TarFile,
+    tar: "tarfile.TarFile",
 ) -> tuple[dict[str, str], dict[tuple[str, str], dict[str, str]]]:
     """The ``<root>/json`` files by member name, and the ``<root>/text`` and
     ``<root>/template`` files by ``(root, folder)`` and ID, read in one pass in
@@ -314,6 +322,8 @@ def _tarball_root(documents: Mapping[str, str]) -> str:
         name.split("/")[0] for name in documents if name.endswith("/json/licenses.json")
     )
     if not roots:
+        import tarfile  # start-up
+
         raise tarfile.ReadError("json/licenses.json is missing")
     return roots[0]
 
@@ -322,15 +332,19 @@ def _json_object(text: str, name: str) -> dict[str, Any]:
     """The JSON object in *text*; *name* is for the error."""
     doc = json.loads(text)
     if not isinstance(doc, dict):
+        import tarfile  # start-up
+
         raise tarfile.ReadError(f"{name} is not a JSON object")
     return doc
 
 
-def _tar_text(tar: tarfile.TarFile, member: tarfile.TarInfo) -> str:
+def _tar_text(tar: "tarfile.TarFile", member: "tarfile.TarInfo") -> str:
     """Text of *member* read as ``open(..., encoding="utf-8")`` reads a file:
     universal newlines, so CRLF becomes LF."""
     fileobj = tar.extractfile(member)
     if fileobj is None:  # pragma: no cover  # only a non-file; callers pass files
+        import tarfile  # start-up
+
         raise tarfile.ReadError(f"{member.name} is not a file")
     with io.TextIOWrapper(fileobj, encoding="utf-8") as wrapper:
         return wrapper.read()

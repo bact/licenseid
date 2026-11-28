@@ -301,7 +301,7 @@ _RE_NON_LICENSE_SECTION = re.compile(
 # Openers that appear at the START of a full license document (not inside
 # source files). Not "apache license" or "mozilla public license": notice
 # headers hold them too; such files are caught by filename (LICENSE, COPYING)
-# or by high FTS5 similarity.
+# or by high text similarity.
 _RE_LICENSE_OPENER = re.compile(
     r"(permission is hereby granted|permission to use, copy|"
     r"common development and distribution license|"

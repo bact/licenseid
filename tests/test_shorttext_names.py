@@ -15,11 +15,13 @@ from collections.abc import Generator
 import pytest
 from matcher_db import Lic, seeded_db
 
+from licenseid import plusoperator
 from licenseid.database import LicenseDatabase
 from licenseid.normalize import normalize_text
 from licenseid.plusoperator import grant_stem, states_qualifier, strip_plus_operator
-from licenseid.shorttext import decided_name, match_short_text
-from licenseid.types import RawMatch
+from licenseid.shorttext import decided_name, match_name_tier
+from licenseid.types import RawMatch, Variant
+from licenseid.variants import reading
 
 
 @pytest.fixture(scope="module")
@@ -162,7 +164,7 @@ def test_a_name_with_words_left_out(
 ) -> None:
     found = [
         (m["license_id"], round(m["score"], 6))
-        for m in match_short_text(names_db, text)
+        for m in match_name_tier(names_db, text).found
         if m["score"] > 1.0
     ]
     assert found == expected
@@ -229,7 +231,7 @@ def test_every_result_of_a_partial_name(
 ) -> None:
     found = [
         (m["license_id"], round(m["score"], 6))
-        for m in match_short_text(names_db, text)
+        for m in match_name_tier(names_db, text).found
     ]
     assert found == expected
 
@@ -248,7 +250,7 @@ def test_a_stated_grant_is_never_guessed_away(
 ) -> None:
     """normalize_text() drops the "+", and a text that holds both names
     ties them as a name without its grant does: no answer, not -only."""
-    found = match_short_text(names_db, normalize_text(text), text)
+    found = match_name_tier(names_db, normalize_text(text), text).found
     assert decided_name(found) is None
     assert all(m["score"] <= 1.0 for m in found)
 
@@ -268,3 +270,33 @@ def test_a_stated_grant_is_never_guessed_away(
 def test_grant_stem(license_id: str, stem: str) -> None:
     assert grant_stem(license_id) == stem
     assert states_qualifier(license_id) == (stem != strip_plus_operator(license_id))
+
+
+LONG_ID = "GPL-2.0-only" + "-x" * 80  # past the length the memo keeps
+
+
+@pytest.mark.parametrize("variant", ["auto", "as-written", "only", "or-later"])
+@pytest.mark.parametrize(
+    "license_id",
+    ["GPL-2.0-only", "GPL-2.0+", "gpl-2.0-OR-LATER", "MIT", "", LONG_ID, LONG_ID + "+"],
+    ids=lambda i: i[:20],
+)
+def test_a_remembered_stem_is_the_stem_worked_out(
+    license_id: str, variant: Variant
+) -> None:
+    """The memo changes no answer, asked twice or in any reading of the
+    variant (``grant_stem`` is pure)."""
+    expected = plusoperator._grant_stem(license_id)  # pylint: disable=W0212
+    with reading(variant):
+        assert [grant_stem(license_id), grant_stem(license_id)] == [expected] * 2
+
+
+def test_a_short_id_is_remembered_and_a_long_one_is_not() -> None:
+    """A huge token of an input must not stay in memory."""
+    remembered = plusoperator._remembered_stem  # pylint: disable=W0212
+    remembered.cache_clear()
+    for _ in range(3):
+        grant_stem("Memo-1.0-only")
+        grant_stem(LONG_ID)
+    info = remembered.cache_info()
+    assert (info.misses, info.hits, info.currsize) == (1, 2, 1)

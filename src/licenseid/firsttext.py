@@ -12,9 +12,10 @@ BSD-3-Clause text and then the bundled runtime texts, answered
 ``GPL-3.0-only``. By habit a licence file gives the project's own text first
 and the bundled ones after it. So when the top result is a text match of an
 input of :data:`licenseid.textnames.MIN_TOKENS` tokens or more, the
-whole-text search (``licenseid.wholetexts.found_texts``, the search of
-``TEXTS``) runs once, and where it finds the texts of two or more same-text
-groups, the results stand only when the first text found is the answer's
+whole-text search of the input (``licenseid.textcandidates``, the search of
+``TEXTS``) is asked for that answer, and where it finds the texts of two or
+more same-text groups, the results stand only when the first text found is
+the answer's
 (``licenseid.markerfloor.found_in``: its same-text group, a deprecated ID's
 replacement, an exception dropped). Otherwise there is no answer
 (``REASON=several texts`` on the CLI record).
@@ -33,11 +34,12 @@ second search. Measured in ``working-docs/implementation/whole-texts.md``.
 
 from collections.abc import Mapping, Sequence
 
-from licenseid.database import LicenseDatabase, text_corpus
+from licenseid.database import LicenseDatabase
 from licenseid.markerfloor import found_in
-from licenseid.textnames import has_tokens, search_id, text_groups
+from licenseid.textcandidates import TextCandidates
+from licenseid.textnames import search_id, text_groups
 from licenseid.types import InternalMatch, RawMatch
-from licenseid.wholetexts import Found, found_texts
+from licenseid.wholetexts import Found
 
 __all__ = ["first_stands", "settle_texts"]
 
@@ -55,19 +57,17 @@ def first_stands(
 
 
 def settle_texts(
-    settled: list[RawMatch | InternalMatch], norm_input: str, db: LicenseDatabase
+    settled: list[RawMatch | InternalMatch], texts: TextCandidates, db: LicenseDatabase
 ) -> tuple[list[RawMatch | InternalMatch], Found | None]:
     """*settled*, or no results where :func:`first_stands` refuses its top,
-    and the search made (None: none made, or nothing found). Only a top that
-    is a text match, not exact, of an input of *norm_input*'s tokens
-    (``MIN_TOKENS`` or more) is searched."""
+    and the search of *texts* made (None: none made, or nothing found). Only
+    a top that is a text match, not exact, of an input of ``MIN_TOKENS``
+    tokens or more is searched."""
     top = settled[0] if settled else None
     if top is None or top["method"] != "text" or top["exact"]:
         return settled, None
-    if not has_tokens(norm_input):
-        return settled, None
     answer = top["license_id"]
-    found = found_texts(norm_input, text_corpus(db), search_id(answer))
+    found = texts.found(search_id(answer))
     if found is None:
         return settled, None
     stands = first_stands(found, answer, text_groups(db, [found.first]))

@@ -16,10 +16,11 @@ from resolve_states import (
     EMPTY,
     INVALID,
     MISSING,
+    NEWER_BUILD,
+    NEWER_BUILD_WARNING,
     NO_HOME,
     NO_ROWS,
     OUTDATED,
-    OUTDATED_WARNING,
     UNREADABLE,
     USABLE,
     build,
@@ -27,17 +28,22 @@ from resolve_states import (
 
 from licenseid import resolve
 from licenseid.datadir import get_default_db_path
+from licenseid.dbschema import BUILD_VERSION
 from licenseid.errors import DatabaseNotReadyError
 
 # The database is List 3.30; a bundle of 9.99 is newer, one of 3.29 older.
 NEWER, OLDER = "9.99", "3.29"
+# A database of an older build is not read, whatever the bundle's version.
+OUTDATED_REFUSAL = f"database: build v1 outdated: current v{BUILD_VERSION}"
 # state, bundle: the source read, and the warning said by the first call
 # ({path} is the default path); a repeat says nothing and reads the same.
 CASES = [
     (USABLE, NEWER, "packaged", ""),
     (USABLE, OLDER, "database", ""),
-    (OUTDATED, NEWER, "packaged", OUTDATED_WARNING),
-    (OUTDATED, OLDER, "database", OUTDATED_WARNING),
+    (OUTDATED, NEWER, "packaged", OUTDATED_REFUSAL),
+    (OUTDATED, OLDER, "packaged", OUTDATED_REFUSAL),
+    (NEWER_BUILD, NEWER, "packaged", NEWER_BUILD_WARNING),
+    (NEWER_BUILD, OLDER, "database", NEWER_BUILD_WARNING),
     (MISSING, NEWER, "packaged", ""),
     (NO_HOME, NEWER, "packaged", ""),
     (INVALID, NEWER, "packaged", "database: invalid: {path}"),
@@ -90,6 +96,7 @@ def test_auto_reads_a_directory_and_says_once(
         (EMPTY, "empty"),
         (NO_ROWS, "empty"),
         (UNREADABLE, "unreadable"),
+        (OUTDATED, "build v1 outdated"),
         (NO_HOME, "not found"),
     ],
 )
@@ -104,7 +111,7 @@ def test_source_database_refuses_what_auto_calls_unusable(
         assert raised.value.condition == condition
 
 
-@pytest.mark.parametrize("state", [USABLE, OUTDATED])
+@pytest.mark.parametrize("state", [USABLE, NEWER_BUILD])
 def test_source_database_reads_a_usable_one(
     monkeypatch: pytest.MonkeyPatch, given: GivenWarnings, state: str
 ) -> None:
@@ -112,10 +119,12 @@ def test_source_database_reads_a_usable_one(
     build(state, monkeypatch)
     for _ in range(3):
         assert resolve("MIT", source="database")["lists"][0]["source"] == "database"
-    assert given.lines() == (OUTDATED_WARNING if state == OUTDATED else "")
+    assert given.lines() == (NEWER_BUILD_WARNING if state == NEWER_BUILD else "")
 
 
-@pytest.mark.parametrize("state", [MISSING, INVALID, EMPTY, UNREADABLE, NO_HOME])
+@pytest.mark.parametrize(
+    "state", [MISSING, INVALID, EMPTY, UNREADABLE, OUTDATED, NO_HOME]
+)
 def test_auto_without_a_bundle_raises_the_database_error(
     monkeypatch: pytest.MonkeyPatch, state: str
 ) -> None:

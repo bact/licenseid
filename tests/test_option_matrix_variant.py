@@ -245,7 +245,9 @@ def test_texts_names_the_answers_family_as_the_answer(
         "GPL-3.0-or-later" if variant == "or-later" else "GPL-3.0-only"
     )
     assert fields["TEXTS"] == fields["EXPRESSION"]
-    assert found_rows.calls[0][1] == fields["EXPRESSION"]
+    # One search, with no answer: it found the answer's text alone, so it
+    # stands for the answer's (licenseid.textcandidates).
+    assert [answer for _, answer in found_rows.calls] == [""]
 
 
 def test_texts_of_a_declared_value_is_empty_under_every_variant(

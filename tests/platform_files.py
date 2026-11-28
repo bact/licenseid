@@ -16,8 +16,8 @@ from typing import Final
 PLATFORM_FILES: Final[frozenset[str]] = frozenset(
     {
         "test_answer_paths.py",
+        "test_older_database.py",
         "test_build_bundle.py",
-        "test_build4_database.py",
         "test_bundle_source.py",
         "test_clear_cache.py",
         "test_cli_errors.py",
@@ -53,11 +53,13 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_detection_lists.py",
         "test_docs_examples.py",
         "test_fingerprint.py",
+        "test_gram_candidates.py",  # a child process per hash seed
+        "test_gramstore.py",  # byte order of the stored blobs
+        "test_gramstore_db.py",  # database files, threads
         "test_harness_golden_cli.py",
         "test_hatch_build.py",
         "test_housekeeping_home.py",
         "test_library_warnings.py",
-        "test_license_urls_build3.py",
         "test_license_urls_db.py",
         "test_listindex.py",
         "test_listlookup.py",
@@ -68,6 +70,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_markers.py",
         "test_matcher_coverage.py",
         "test_module_layout.py",
+        "test_newer_database.py",
         "test_option_matrix.py",
         "test_option_matrix_resolve.py",
         "test_option_matrix_variant.py",
@@ -91,16 +94,25 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_spdx_source_cache.py",
         "test_spdxdata.py",
         "test_spdxdata_templates.py",
+        "test_speedgate_child.py",
+        "test_speedgate_headers.py",
+        "test_speedgate_warmup.py",
+        "test_public_types.py",
+        "test_startup.py",
         "test_stray_plus_paths.py",
         "test_template_texts.py",
         "test_text_codes_db.py",
         "test_text_parts.py",
+        "test_text_table.py",  # database files edited as bytes, file times
         "test_textinput.py",
+        "test_texts_per_candidate.py",  # threads, a writer process, file locks
         "test_update_characterization.py",
         "test_update_fallbacks.py",
         "test_update_matrix.py",
         "test_update_sources.py",
         "test_warning_filters.py",
+        "test_whole_text_first.py",  # a database built by update in a home of its own
+        "test_word_region_detect.py",  # a database file with damaged codes
         "test_zero_width.py",
     }
 )

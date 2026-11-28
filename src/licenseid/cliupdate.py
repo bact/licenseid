@@ -195,3 +195,7 @@ def clear_cache_command(ctx: click.Context, json_output: bool) -> None:
         error(str(delete_failed_error(failed, exc, subject)))
         ctx.exit(1)
     echo_record(json_output, STATUS="cleared" if cleared else "nothing", PATH=db_path)
+
+
+# What `licenseid.clicommands` loads when one of these names is asked for.
+COMMANDS: tuple[click.Command, ...] = (update_command, clear_cache_command)

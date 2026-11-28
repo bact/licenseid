@@ -11,6 +11,7 @@ import uuid
 from unittest import mock
 
 import pytest
+from seed_sql import fill_norm_columns
 from timing import slack
 
 # pylint: disable=redefined-outer-name
@@ -89,6 +90,7 @@ def db() -> LicenseDatabase:
             # hardcoded-fallback branch GPL-2.0 exists to test.
             ("Old-License-1.0", "Old License 1.0", True, True, "New-License-1.0"),
         )
+        fill_norm_columns(conn)
     return db_manager
 
 

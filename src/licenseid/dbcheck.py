@@ -6,15 +6,16 @@
 """
 Check that a license database is ready to answer, before anything opens it.
 
-``LicenseDatabase`` creates the tables a file lacks (unless made with
-``create=False``), so an unready file opened through it could be written to,
-and a partly built database would answer that it knows no such licence as if
-it were complete. The check here opens the file read-only and never writes to
-it. Another program's file is refused by :func:`reject_foreign_database`,
-which the handle itself calls before it writes.
+Ready is the one shape of this build (``dbschema``): a partly built
+database would answer that it knows no such licence as if it were complete,
+and one of older rules or an older shape is not read at all (``build vN
+outdated``; ``update`` builds it again). The check here opens the file
+read-only and never writes to it. Another program's file is refused by
+:func:`reject_foreign_database`, which the handle itself calls before it
+writes.
 
-Standard library, ``dbschema`` and ``errors`` only, so importing it does
-not pull in ``requests``.
+Standard library, ``dbverdict`` (what the contents of an open file call
+for) and ``errors`` only, so importing it does not pull in ``requests``.
 """
 
 import contextlib
@@ -27,32 +28,24 @@ from pathlib import Path, PurePath, PureWindowsPath
 from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
-from licenseid.dbschema import SCHEMA_OBJECTS
+from licenseid.dbverdict import (
+    ACTION,
+    NEWER,
+    Refusal,
+    connection_refusal,
+    invalid_error,
+    refused,
+)
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, fold, shown
 
 _IS_WINDOWS = os.name == "nt"
 
-_ACTION = "; run 'licenseid update'"
-
-_REQUIRED_TABLES = {"licenses", "db_metadata", "license_index"}
-_REQUIRED_COLUMNS = ("license_id", "name", "is_spdx", "is_osi_approved", "is_fsf_libre")
-_META_COLUMNS = ("key", "value")
 _SQLITE_HEADER = b"SQLite format 3\x00"
 
 # Seconds to wait for a lock. This is a pre-flight probe, and the command
 # that follows opens the file with SQLite's own default wait, so waiting the
 # full five seconds here (twice per command) would only stall the answer.
 _BUSY_WAIT = 1.0
-
-# An object licenseid does not create: not one of its tables or indexes, the
-# shadow tables of the FTS5 index, or SQLite's own.
-_FOREIGN_OBJECT = f"""
-    SELECT 1 FROM sqlite_master
-    WHERE name NOT IN ({", ".join(repr(name) for name in SCHEMA_OBJECTS)})
-      AND name NOT LIKE 'license\\_index\\_%' ESCAPE '\\'
-      AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'
-    LIMIT 1
-"""
 
 
 def absolute_path(path: str) -> str:
@@ -252,19 +245,6 @@ def os_reason(exc: OSError) -> Exception:
     return OSError(exc.strerror or type(exc).__name__)
 
 
-Refusal = tuple[str, DatabaseNotReadyError]  # the condition, and how to say it
-
-
-def refused(condition: str, detail: str, action: str = "") -> DatabaseNotReadyError:
-    """The refusal ``database: <condition>: <detail>[<action>]``, which keeps
-    its *condition* and *detail* apart (``DatabaseNotReadyError.condition``)
-    for a caller that answers each condition its own way. *action* starts
-    with ``"; "``."""
-    return DatabaseNotReadyError(
-        f"database: {condition}: {detail}{action}", condition, detail
-    )
-
-
 def _stat_failure(db_path: str, exc: OSError | ValueError) -> Refusal:
     """The refusal for a name the file system would not describe.
 
@@ -333,19 +313,6 @@ def unreadable_error(db_path: str, exc: Exception) -> DatabaseNotReadyError:
     return refused("unreadable", _unreadable_detail(db_path, exc))
 
 
-def empty_error(db_path: str) -> DatabaseNotReadyError:
-    """The refusal for a file with none of licenseid's tables."""
-    return refused("empty", shown(db_path), _ACTION)
-
-
-def invalid_error(db_path: str) -> DatabaseNotReadyError:
-    """The refusal for a file licenseid did not build and must not write to.
-
-    No action: every one licenseid could offer would change the file.
-    """
-    return refused("invalid", shown(db_path))
-
-
 def delete_failed_error(
     path: str, exc: OSError, subject: str = "database"
 ) -> DatabaseNotReadyError:
@@ -356,74 +323,6 @@ def delete_failed_error(
     return DatabaseNotReadyError(
         f"{subject}: delete failed: {detail}", "delete failed", detail
     )
-
-
-def _has_columns(
-    conn: sqlite3.Connection, table: str, required: tuple[str, ...]
-) -> bool:
-    """Whether *table* has every column in *required*, spelt the same way:
-    SQLite matches column names case-insensitively, a set lookup does not."""
-    # table is one of the fixed names below, never user input.
-    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
-    return set(required) <= columns
-
-
-def _foreign_schema(conn: sqlite3.Connection, tables: dict[str, str]) -> bool:
-    """Whether a table carrying one of licenseid's names is not licenseid's.
-
-    Another program's ``licenses`` table is the dangerous case: the name is
-    one licenseid creates, so without this the file would be called ``empty``
-    and the user told to run ``update``, which writes licenseid's schema into
-    it.
-    """
-    if "licenses" in tables and not _has_columns(conn, "licenses", _REQUIRED_COLUMNS):
-        return True
-    if "db_metadata" in tables and not _has_columns(conn, "db_metadata", _META_COLUMNS):
-        return True
-    # A plain table of that name cannot be searched with MATCH.
-    return "license_index" in tables and "fts5" not in tables["license_index"].lower()
-
-
-def _has_content(conn: sqlite3.Connection) -> bool:
-    """Whether the version, the rows and the search index are all there."""
-    row = conn.execute(
-        "SELECT value FROM db_metadata WHERE key = 'license_list_version'"
-    ).fetchone()
-    if row is None or not isinstance(row[0], str) or not row[0].strip():
-        return False
-    # Rows must be there, and the id of each must be text: SQLite lets a TEXT
-    # key hold NULL or a blob, and normalising one raises. NOT INDEXED reads
-    # the table itself, not the key's index, which a damaged table page
-    # would not show.
-    if conn.execute("SELECT 1 FROM licenses LIMIT 1").fetchone() is None:
-        return False
-    if conn.execute(
-        "SELECT 1 FROM licenses NOT INDEXED WHERE typeof(license_id) != 'text' LIMIT 1"
-    ).fetchone():
-        return False
-    # The search index is what match reads: an empty one answers "no license".
-    return conn.execute("SELECT 1 FROM license_index LIMIT 1").fetchone() is not None
-
-
-def _not_ready(conn: sqlite3.Connection) -> str | None:
-    """The condition that keeps the database from answering, or None if it can.
-
-    ``invalid`` is a file licenseid did not build: one of its table names
-    carrying somebody else's schema, or objects licenseid does not create
-    beside an incomplete set of its own tables. ``licenseid update`` would
-    write into such a file, so no action is offered.
-    """
-    tables = dict(
-        conn.execute(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'table'"
-            " AND name IN ('licenses', 'db_metadata', 'license_index')"
-        )
-    )
-    if _foreign_schema(conn, tables):
-        return "invalid"
-    if tables.keys() != _REQUIRED_TABLES:
-        return "invalid" if conn.execute(_FOREIGN_OBJECT).fetchone() else "empty"
-    return None if _has_content(conn) else "empty"
 
 
 # What SQLite says when somebody else is holding the database, and what it
@@ -484,12 +383,12 @@ def lookup_error(db_path: str, exc: sqlite3.Error) -> DatabaseNotReadyError:
     detail = _unreadable_detail(db_path, exc)
     if _open_failure(exc) != "unreadable" or not _can_rebuild(db_path, exc):
         return refused("unreadable", detail)
-    return refused("unreadable", detail, _ACTION)
+    return refused("unreadable", detail, ACTION)
 
 
 def not_found_error(db_path: str) -> DatabaseNotReadyError:
     """The refusal for a database that is not there."""
-    return refused("not found", shown(db_path), _ACTION)
+    return refused("not found", shown(db_path), ACTION)
 
 
 def reject_blocking_file(db_path: str) -> None:
@@ -517,15 +416,10 @@ def _open_condition(db_path: str) -> Refusal | None:
         with contextlib.closing(
             sqlite3.connect(open_uri(db_path), uri=True, timeout=_BUSY_WAIT)
         ) as conn:
-            condition = _not_ready(conn)
+            return connection_refusal(conn, db_path)
     except (sqlite3.Error, UnicodeError, ValueError) as exc:
         failure = _open_failure(exc)
         return (failure, unreadable_error(db_path, exc)) if failure else None
-    if condition is None:
-        return None
-    if condition == "invalid":
-        return condition, invalid_error(db_path)
-    return condition, refused(condition, shown(db_path), _ACTION)
 
 
 def _refusal(db_path: str) -> Refusal | None:
@@ -659,24 +553,29 @@ def reject_blank_path(
         raise InvalidInputError(f"database: missing: {name}; {action}")
 
 
-def is_ready(db_path: str) -> bool:
-    """Whether *db_path* is a ready database, judged fail-closed: a file the
-    check could not read (``unknown``) is not, where
+def is_built(db_path: str) -> bool:
+    """Whether *db_path* is a database licenseid built: ready, of older
+    rules (``outdated``), or of a newer licenseid (``newer``). Judged
+    fail-closed: a file the check could not read (``unknown``) is not, where
     :func:`check_database_ready` lets a read go ahead."""
-    return _refusal(db_path) is None
+    refusal = _refusal(db_path)
+    return refusal is None or refusal[0] in ("outdated", NEWER)
 
 
 def check_database_ready(db_path: str | os.PathLike[str]) -> None:
     """Raise :class:`DatabaseNotReadyError` unless *db_path* is a ready database.
 
-    Ready means the ``licenses``, ``db_metadata`` and ``license_index``
-    (FTS5) tables exist with the columns licenseid reads, the metadata holds
-    a non-blank ``license_list_version``, ``licenses`` and ``license_index``
-    each have a row, and every ``license_id`` is text (a NULL or blob key
-    counts as not ready, because normalising one raises). ``update`` clears
-    the version with the old rows and stamps it after the fingerprints, so a
-    version marks a finished update, and the fingerprints themselves are
-    not checked.
+    Ready means the ``licenses`` and ``db_metadata`` tables exist with the
+    columns licenseid reads, the metadata holds a non-blank
+    ``license_list_version``, ``licenses`` has a row, and every
+    ``license_id`` is text (a NULL or blob key counts as not ready, because
+    normalising one raises). ``update`` clears the version with the old rows
+    and stamps it after the fingerprints, so a version marks a finished
+    update, and the fingerprints themselves are not checked. The build and
+    normalisation stamps are not older than this licenseid's, every table,
+    index and column of this build is there, and ``license_texts`` has a
+    row (:func:`connection_refusal`); a file without them whose stamp is
+    newer is ``build vN newer``.
 
     The file is opened read-only and is never created or written. A
     write-ahead-log file may get -shm and -wal files beside it, which stay

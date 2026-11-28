@@ -39,6 +39,7 @@ from seed_sql import (
     INSERT_LICENSE,
     INSERT_URL,
     SET_METADATA,
+    fill_norm_columns,
 )
 
 from licenseid import LicenseDatabase, resolve
@@ -224,6 +225,7 @@ def corpus_db_path(
         )
         conn.executemany(INSERT_URL, list_rows(SEE_ALSO_LIST, "urls"))
         conn.executemany(INSERT_INDEX, [(lid, _search_text(lid)) for lid in NEIGHBOURS])
+        fill_norm_columns(conn)
         conn.executemany(
             SET_METADATA,
             [

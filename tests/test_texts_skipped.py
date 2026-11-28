@@ -24,6 +24,7 @@ from licenseid import firsttext, textnames
 from licenseid.cli import cli
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
+from licenseid.retrieval import text_candidates
 from licenseid.types import Variant
 
 MORE = A + " extra words here"  # A-1.0 by text, not exactly
@@ -78,7 +79,8 @@ def test_a_predicate_searches_once_and_follows_the_rule(
     found_rows.rows = ["A-1.0", "B-1.0"]
     detector = LicenseDetector(db_path)
     assert getattr(detector, predicate)(text=MORE) is not None
-    assert len(found_rows.calls) == 1
+    # Tier 2's search, then the answer's: two texts found.
+    assert [answer for _, answer in found_rows.calls] == ["", "A-1.0"]
     found_rows.first = "B-1.0"  # A-1.0's text is not first: no answer
     assert getattr(detector, predicate)(text=MORE) is None
 
@@ -108,9 +110,13 @@ def test_an_exact_short_text_is_its_own_text(
     result: Any = {"exact": True, "method": "text", "license_id": "A-1.0"}
     variant: Variant = "auto"
     with db.reading():
-        settled, found = firsttext.settle_texts([result], short, db)
+        settled, found = firsttext.settle_texts(
+            [result], text_candidates(db, short, short), db
+        )
         assert textnames.held_texts(db, settled, variant, found) == ["A-1.0"]
         result["exact"] = False  # not exact: still the gate
-        settled, found = firsttext.settle_texts([result], short, db)
+        settled, found = firsttext.settle_texts(
+            [result], text_candidates(db, short, short), db
+        )
         assert textnames.held_texts(db, settled, variant, found) is None
     assert not found_rows.calls

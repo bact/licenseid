@@ -19,10 +19,11 @@ import pytest
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from list_entries import lic_entry
 from packaged_list import database_of
+from stored_texts import all_texts, no_stored_codes
 from template_texts import Case, template_cases, template_texts_db
 
-from licenseid import textmask, textstore
-from licenseid.database import LicenseDatabase, text_corpus
+from licenseid import textmask
+from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.textcorpus import RunChars, TextCorpus, VarRegion
@@ -53,7 +54,7 @@ def _answer(path: Path, text: str) -> str | None:
 
 
 def _corpus(path: Path) -> TextCorpus:
-    return text_corpus(LicenseDatabase(str(path), create=False))
+    return all_texts(LicenseDatabase(str(path), create=False))
 
 
 def test_the_recipes_are_the_27_cases() -> None:
@@ -72,7 +73,7 @@ def test_without_regions_the_texts_are_those_of_before(
 ) -> None:
     """The corpus coded in memory (no stored rows, so no regions) gives what
     the search gave before the regions: the recipes test the regions."""
-    monkeypatch.setattr(textstore, "restore", lambda *_: None)
+    no_stored_codes(monkeypatch)
     assert tuple(_texts(db_path, case.text) or ()) == case.before
 
 
@@ -117,7 +118,7 @@ def test_no_answer_at_085_moves(
     case: Case, db_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     answer = _answer(db_path, case.text)
-    monkeypatch.setattr(textstore, "restore", lambda *_: None)
+    no_stored_codes(monkeypatch)
     assert _answer(db_path, case.text) == answer
 
 
@@ -207,5 +208,5 @@ def test_twins_whose_templates_differ_share_their_common_regions(
             MappingProxyType({"X-only": only, "X-or-later": later}),
         )
     )
-    (entry,) = text_corpus(database_of(raw, tmp_path / "twins.db")).entries
+    (entry,) = all_texts(database_of(raw, tmp_path / "twins.db")).entries
     assert entry.text.regions == (VarRegion(54, 56, ".+"),)

@@ -35,16 +35,16 @@ from db_variants import (
     make_ready_file_db,
 )
 
-from licenseid import clidetect
+from licenseid import detector
 from licenseid.cli import cli
 from licenseid.dbcheck import (
-    _REQUIRED_COLUMNS,
     _open_condition,
     _open_failure,
     check_database_ready,
     open_uri,
     reject_foreign_database,
 )
+from licenseid.dbverdict import _REQUIRED_COLUMNS
 from licenseid.errors import DatabaseNotReadyError
 
 
@@ -223,9 +223,9 @@ def test_symlink_to_a_wal_database_reads_the_wal(tmp_path: Path) -> None:
 def test_second_check_failing_still_exits_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:
-    """The file changes between the command's check and the matcher's: the
+    """The file changes between the check and the handle that reads it: the
     refusal is an exit 2 with one line, not a traceback and exit 1."""
-    monkeypatch.setattr(clidetect, "check_database_ready", lambda _path: None)
+    monkeypatch.setattr(detector, "check_database_ready", lambda _path: None)
     missing = tmp_path / "gone.db"
     result = run_cli(str(missing), args)
     assert_refused(result, NOT_FOUND, str(missing))

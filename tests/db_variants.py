@@ -27,8 +27,9 @@ from typing import Any
 import pytest
 from conftest import insert_mit_license, make_ready_db_path
 
-from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
-from licenseid.records import BUILD_VERSION, Records
+from licenseid.database import LicenseDatabase
+from licenseid.dbschema import BUILD_VERSION, NORMALIZATION_VERSION
+from licenseid.records import Records
 
 # The rows of a release with nothing in it, for a test that writes them
 # (``LicenseDatabase._write_db_records``) to reach a write path.
@@ -425,7 +426,7 @@ BUILDERS: dict[str, Builder] = {
                 "is_osi_approved, is_fsf_libre FROM backing"
             ),
             "CREATE VIEW db_metadata AS SELECT key, value FROM backing",
-            "CREATE VIEW license_index AS SELECT license_id, search_text FROM backing",
+            "CREATE VIEW license_texts AS SELECT license_id, search_text FROM backing",
         ),
         INVALID,
     ),
@@ -452,8 +453,8 @@ BUILDERS: dict[str, Builder] = {
         (
             "CREATE TABLE licenses (spdx_id TEXT, title TEXT)",
             "INSERT INTO licenses VALUES ('MIT', 'MIT License')",
-            "CREATE VIRTUAL TABLE license_index USING fts5(license_id, search_text)",
-            "INSERT INTO license_index VALUES ('MIT', 'x')",
+            "CREATE TABLE license_texts (license_id TEXT, search_text TEXT)",
+            "INSERT INTO license_texts VALUES ('MIT', 'x')",
             _META_TABLE,
             _VER_ROW,
         ),
@@ -464,20 +465,20 @@ BUILDERS: dict[str, Builder] = {
         (
             _LIC_TABLE.replace("is_fsf_libre", "is_fsf_librE"),
             _MIT_ROW,
-            "CREATE VIRTUAL TABLE license_index USING fts5(license_id, search_text)",
-            "INSERT INTO license_index VALUES ('MIT', 'x')",
+            "CREATE TABLE license_texts (license_id TEXT, search_text TEXT)",
+            "INSERT INTO license_texts VALUES ('MIT', 'x')",
             _META_TABLE,
             _VER_ROW,
         ),
         INVALID,
     ),
     "wal_copy_without_wal": build_wal_copy_without_wal,
-    # The search index is what match reads: without rows it answers "no".
     # SQLite lets a TEXT key hold NULL or a blob; normalising one raises.
     "null_license_id": ready_file_then("UPDATE licenses SET license_id = NULL"),
     "blob_license_id": ready_file_then("UPDATE licenses SET license_id = X'4D4954'"),
-    "index_dropped": ready_file_then("DROP TABLE license_index"),
-    "index_emptied": ready_file_then("DELETE FROM license_index"),
+    # The texts are what a text match reads: without rows it answers "no".
+    "texts_dropped": ready_file_then("DROP TABLE license_texts"),
+    "texts_emptied": ready_file_then("DELETE FROM license_texts"),
     # Real paths that must never be parsed as URIs or as options.
     "path_with_spaces": odd_path("a licence db.db", EMPTY),
     "path_leading_dash": odd_path("-licenses.db", EMPTY),

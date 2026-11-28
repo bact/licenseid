@@ -18,7 +18,7 @@ from timing import slack
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
-from licenseid.shorttext import match_short_text, match_version_key
+from licenseid.shorttext import match_name_tier, match_version_key
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
 # Real IDs that are hard for the key: a zero version beside a longer one
@@ -332,24 +332,11 @@ def test_a_plus_without_a_key_is_no_exact_answer(
         ("apache 2 0", None, "Apache-2.0"),  # the exact ID match after it
     ],
 )
-def test_match_short_text_reads_the_key_of_the_raw_text(
+def test_match_name_tier_reads_the_key_of_the_raw_text(
     db: LicenseDatabase, norm_input: str, text: str | None, expected: str
 ) -> None:
-    [match] = match_short_text(db, norm_input, text)
+    [match] = match_name_tier(db, norm_input, text).found
     assert (match["license_id"], match["exact"]) == (expected, True)
-
-
-def test_mixed_content_gives_its_sections_raw_to_tier_0(
-    matcher: LicenseDetector,
-) -> None:
-    """Every Tier 0 caller hands over the raw text the key reads. A section
-    holds its "licens" word, so it is never a loose ID itself."""
-    # pylint: disable=protected-access
-    with mock.patch.object(
-        matcher, "_match_short_text", wraps=matcher._match_short_text
-    ) as tier0:
-        matcher._match_mixed_content({}, "Licensed Apache.2.0")
-    tier0.assert_called_once_with("licensed apache 2 0", "Licensed Apache.2.0")
 
 
 @pytest.mark.parametrize(

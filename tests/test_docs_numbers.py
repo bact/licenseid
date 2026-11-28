@@ -13,18 +13,13 @@ from docs_blocks import DOCS, folded, text_of
 from licenseid import candidates as candidates_module
 from licenseid import spdx_source
 from licenseid.cli import cli
-from licenseid.ftsquery import MAX_TERM_CHARS, MAX_TERMS
+from licenseid.gramselect import GRAM_LIMIT, MARGIN, MOST, NONE_BAR, TOP
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS
 from licenseid.markerfloor import MAX_WHOLE_COVERAGE
 from licenseid.resolvefirst import MIN_TEXT_WORDS
 from licenseid.resolver import MAX_EXPRESSION_CHARS
 from licenseid.resolveslash import MAX_JOINED, MAX_OPERANDS
-from licenseid.retrieval import (
-    MAX_HINTS_WITH_TEXT,
-    NOTICE_NEW_TOP,
-    NOTICE_QUERY_LIMIT,
-    TAIL_ONLY_CAP,
-)
+from licenseid.retrieval import MAX_HINTS_WITH_TEXT
 from licenseid.textlocate import (
     MAX_GAP_CHARS,
     MIN_SIMILARITY,
@@ -42,11 +37,11 @@ def _default(command: str, option: str) -> object:
 #: A number the prose states, and where the code keeps it: ``(page, phrase
 #: with {} for the number, the number)``. A phrase that moves fails here.
 NUMBERS = [
-    ("how-it-works.md", "queried with the input's first {} words", MAX_TERMS),
-    ("how-it-works.md", "(at most {} more candidates)", TAIL_ONLY_CAP),
-    ("how-it-works.md", "When its first {} results", NOTICE_NEW_TOP),
-    ("how-it-works.md", "adds all of its {} results", NOTICE_QUERY_LIMIT),
-    ("how-it-works.md", "cut to its first {} characters", MAX_TERM_CHARS),
+    ("how-it-works.md", "A best score under {} gives", NONE_BAR),
+    ("how-it-works.md", "scores the first {} texts by score", TOP),
+    ("how-it-works.md", "every text within {} of the", MARGIN),
+    ("how-it-works.md", "best, at most {} (equal scores", MOST),
+    ("how-it-works.md", "Only the first {:,} distinct grams", GRAM_LIMIT),
     (
         "how-it-works.md",
         "similarity of the text and its trimmed span must be {} or more",

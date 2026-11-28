@@ -14,7 +14,7 @@ taken as written: a backslash is a backslash.
 import os
 import sys
 from datetime import datetime, timezone
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 
@@ -26,7 +26,6 @@ from licenseid.clicommon import (
     reject_unencodable,
 )
 from licenseid.console import warn
-from licenseid.database import LicenseDatabase
 from licenseid.errors import InvalidInputError, invalid_id_error, one_line, shown
 from licenseid.exprtokens import WHITE_SPACE, is_license_ref
 from licenseid.identifiers import is_simple_expression
@@ -36,6 +35,9 @@ from licenseid.textinput import (
     normalize_newlines,
     read_text_file,
 )
+
+if TYPE_CHECKING:
+    from licenseid.database import LicenseDatabase
 
 #: The argument that names standard input, as ``cat -`` reads it.
 STDIN_ARGUMENT = "-"
@@ -61,7 +63,7 @@ def reject_two_inputs(
         )
 
 
-def check_db_staleness(database: LicenseDatabase) -> None:
+def check_db_staleness(database: "LicenseDatabase") -> None:
     """Warn ``database: N days old`` when the database was last checked more
     than 182 days (about 6 months) ago."""
     metadata = database.get_metadata()
@@ -136,7 +138,7 @@ def read_text_option(ctx: click.Context, text: str) -> str:
     return content
 
 
-def names_licences(db: LicenseDatabase, value: str) -> bool:
+def names_licences(db: "LicenseDatabase", value: str) -> bool:
     """Whether every part of a "/"-joined *value* is a licence ID or a
     ``LicenseRef-*`` ("MIT/Apache-2.0", Cargo's old way to write OR): a
     declared value, not a path, whatever its shape."""
@@ -147,7 +149,7 @@ def names_licences(db: LicenseDatabase, value: str) -> bool:
 
 
 def get_input_content(
-    ctx: click.Context, input_val: str | None, text: str | None, db: LicenseDatabase
+    ctx: click.Context, input_val: str | None, text: str | None, db: "LicenseDatabase"
 ) -> str:
     """The input to match: --text, else the argument (``-`` for standard
     input; a file if one exists by that name; a usage error if it is shaped

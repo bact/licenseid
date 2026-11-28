@@ -9,6 +9,62 @@ The format is based on
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Behaviour change:** `detect()` with `exclude`, `only_common` or
+  `only_spdx` no longer answers a text that fits the input less than a text
+  the filter removed: `exclude=["MIT"]` on the MIT text answers nothing, not
+  `JSON`; nor, with `exclude`, a name in short prose that scores under the
+  name excluded (`Apache-1.0` for "Apache License, Version 2.0") ([#249])
+- **Breaking:** licenseid reads only a database of its own build (build 10);
+  an older one exits 2 with `database: build vN outdated`, and 0.9.x calls a
+  build 10 database `invalid`. Migration: run `licenseid update` once after
+  upgrading; before going back to 0.9.x, run `licenseid clear-cache` with
+  0.10.0 (0.9.x cannot read or delete a build 10 database), which also deletes
+  the downloaded data, so the 0.9.x `update` needs the network ([#249])
+- `update` no longer rebuilds a database a newer licenseid built: `unchanged`
+  at its release, else `database: build vN newer` (exit 1); `--force` rebuilds
+  ([#249])
+- A lookup refuses a newer licenseid's database it cannot read as `database:
+  build vN newer`, no longer as `empty` ([#249])
+- Type checkers flag a misspelt public name again (`from licenseid import
+  LicenseDetecter`), and `typing.get_type_hints(licenseid.resolve)` works
+  ([#249])
+- `resolve` no longer loads RapidFuzz when a database exists ([#249])
+- `detect()` on a declared value is about two fifths faster (462 PyPI values:
+  1.39 s to 0.84 s); every answer, score and warning is unchanged ([#249])
+- Database build 10 is 18 MB, 7 MB smaller than 0.9.4's: it stores the word
+  3-gram postings of every licence text and a check of each stored text, and
+  drops the full-text index, which nothing read ([#249])
+- `import licenseid` and `licenseid --version` start in about a third of the
+  time (87 to 29 ms); `resolve MIT` saves 30 ms; a call on a licence text
+  file saves 5 ms (MIT 101 to 96 ms, BSD-3-Clause 117 to 111 ms) by loading
+  the SPDX expression parser, `gzip` and `fractions` only where used; every
+  output is unchanged ([#249])
+- `detect()` on free text finds its candidates by the word 3-grams it shares
+  with each licence text, and aligns a fragment where its words place it in
+  a text: 17 times faster on 868 licence texts and files (340 s to 20 s of
+  CPU), from 7 to 24 times by kind of input ([#249])
+- A text near several GNU licences is about twice as fast (`GPL-CC-1.0` with
+  8 % of its words changed: 0.91 s to 0.36 s of CPU), and a 300,000 character
+  Han text peaks at 90 MB, not 130 MB: `detect()` scores a shared text once
+  ([#249])
+- `detect()` looks for whole licence texts first: an MIT file with a few more
+  lines answers `MIT`, not `JSON`; the rows under it are three near texts, each
+  scoring under it ([#249])
+- `detect()` on free text no longer lists a far, low-scoring row; an input that
+  shares too few runs of three words with any text has `REASON` `no match`, no
+  longer `below threshold`, and lists nothing ([#249])
+- Mixed content (a licence text inside code or prose) is no longer cut into
+  sections searched one by one; the word grams find its texts whole ([#249])
+- `detect --diff` shows the part of the licence text from a whole word to a
+  whole word, no longer from inside one ([#249])
+- `detect()` on free text reads only the stored licence texts it compares,
+  each checked on its own: one `licenseid detect` of an MIT file takes 93 ms
+  (770 ms in 0.9.4) ([#249])
+
 ## [0.9.4] - 2026-11-27
 
 ### Added
@@ -238,6 +294,7 @@ and this project adheres to
 [#243]: https://github.com/bact/licenseid/pull/243
 [#246]: https://github.com/bact/licenseid/pull/246
 [#247]: https://github.com/bact/licenseid/pull/247
+[#249]: https://github.com/bact/licenseid/pull/249
 
 ## [0.8.4] - 2026-11-09
 
@@ -1152,6 +1209,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.9.4...HEAD
 [0.9.4]: https://github.com/bact/licenseid/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/bact/licenseid/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/bact/licenseid/compare/v0.9.1...v0.9.2

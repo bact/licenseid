@@ -25,7 +25,7 @@ from licenseid.deprecatedids import DEPRECATED_WITH_IDS
 from licenseid.detector import LicenseDetector
 from licenseid.identifiers import normalize_identifier
 from licenseid.looseid import decide_ids, decided_forms, loose_id, loose_with
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 from licenseid.versionkey import MAX_KEY_INPUT, version_key
 
 # The "+" row first: the exact-ID match must not depend on row order.
@@ -119,7 +119,7 @@ def test_every_path_decides_alike(
 ) -> None:
     """The key and the exact-ID match treat a family alone the same way,
     whatever the row order: -only, not exact, said."""
-    [match] = match_short_text(db, "gpl 2 0", raw)
+    [match] = match_name_tier(db, "gpl 2 0", raw).found
     assert (match["license_id"], match["exact"]) == (license_id, not warned)
     expected = NARROWED.format("GPL-2.0", license_id) if warned else ""
     assert given.lines() == expected
@@ -127,7 +127,7 @@ def test_every_path_decides_alike(
 
 def test_the_exact_id_match_keeps_a_plus_operator(db: LicenseDatabase) -> None:
     """With the operator, the normalised ID of GPL-2.0+ answers or-later."""
-    [match] = match_short_text(db, "gpl 2 0", "GPL-2-0+")
+    [match] = match_name_tier(db, "gpl 2 0", "GPL-2-0+").found
     assert match["license_id"] == "GPL-2.0-or-later"
 
 

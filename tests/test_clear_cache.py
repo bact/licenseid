@@ -32,7 +32,7 @@ from db_variants import make_ready_file_db
 
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import is_ready
+from licenseid.dbcheck import is_built
 from licenseid.errors import DatabaseNotReadyError
 
 CACHE_NAMES = (
@@ -237,18 +237,18 @@ def test_clear_cache_knows_the_default_directory_through_a_link(
 
 
 def test_a_locked_database_is_not_ready_to_delete_beside(tmp_path: Path) -> None:
-    """``dbcheck.is_ready`` is fail-closed: a database another process
+    """``dbcheck.is_built`` is fail-closed: a database another process
     holds locked (``unknown`` to the readiness check) does not show that the
     cache beside it is licenseid's. ``clear-cache`` refuses such a database
     before it asks (``reject_foreign_database``), so this is the judge alone."""
     db_path = make_ready_file_db(tmp_path / "licenses.db")
-    assert is_ready(str(db_path))
+    assert is_built(str(db_path))
     conn = sqlite3.connect(str(db_path))
     try:
         conn.execute("PRAGMA locking_mode=EXCLUSIVE")
         conn.execute("BEGIN EXCLUSIVE")
         conn.execute("UPDATE db_metadata SET value = value")
-        assert not is_ready(str(db_path))
+        assert not is_built(str(db_path))
     finally:
         conn.rollback()
         conn.close()

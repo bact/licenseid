@@ -150,23 +150,23 @@ def template_cases() -> list[Case]:
     ]
 
 
-def _raw() -> bytes:
-    templates = {i: t for i in IDS if (t := template(i)) is not None}
+def _raw(ids: tuple[str, ...]) -> bytes:
+    templates = {i: t for i in ids if (t := template(i)) is not None}
     return to_bundle(
         SpdxData(
             "3.29.0",
             None,
-            tuple(lic_entry(i, f"Name {i}") for i in IDS),
+            tuple(lic_entry(i, f"Name {i}") for i in ids),
             (),
-            MappingProxyType({i: long_text(i) for i in IDS}),
+            MappingProxyType({i: long_text(i) for i in ids}),
             MappingProxyType(templates),
         )
     )
 
 
-def template_texts_db(directory: Path) -> Path:
-    """A database of :data:`IDS` built by ``update`` in *directory*, under a
-    home of its own there (never the real cache)."""
+def template_texts_db(directory: Path, ids: tuple[str, ...] = IDS) -> Path:
+    """A database of the licences *ids* (:data:`IDS`) built by ``update`` in
+    *directory*, under a home of its own there (never the real cache)."""
     home = directory / "home"
     home.mkdir()
     path = directory / "licenses.db"
@@ -174,5 +174,5 @@ def template_texts_db(directory: Path) -> Path:
         patch.setenv("HOME", str(home))
         patch.setenv("USERPROFILE", str(home))
         patch.setattr(Path, "home", staticmethod(lambda: home))
-        database_of(_raw(), path)
+        database_of(_raw(ids), path)
     return path

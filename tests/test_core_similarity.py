@@ -146,10 +146,7 @@ WHOLE = " ".join(
 
 
 def _scored(norm_input: str, cand: CandidateMatch) -> tuple[float, float, str]:
-    words = norm_input.split()
-    return similarity.calculate_base_similarity(
-        norm_input, len(words), set(words), cand, similarity.build_probe(words)
-    )
+    return similarity.calculate_base_similarity(similarity.query_of(norm_input), cand)
 
 
 def _with_core(search_text: str = WHOLE, core: str = CORE) -> CandidateMatch:
@@ -259,7 +256,8 @@ def test_the_diff_shows_the_core_it_was_compared_with(
 
 
 def test_matching_the_core_is_not_exact() -> None:
-    ranked = similarity.score_candidates([_with_core()], CORE, {}, True, False)
+    query = similarity.query_of(CORE)
+    ranked = similarity.score_candidates([_with_core()], query, {}, True, False)
     assert (ranked[0]["similarity"], ranked[0]["exact"]) == (1.0, False)
 
 
@@ -278,3 +276,34 @@ def test_a_candidate_without_its_text_gets_no_core() -> None:
     nothing, not against its core."""
     cand = CandidateMatch(license_id="X-1.0", search_text="")
     assert similarity.with_core(cand, TextParts(CORE, 10, ())) is cand
+
+
+def test_a_text_is_scored_once_for_the_licences_that_hold_it() -> None:
+    """One query, five candidates: a text X that holds the input, a twin of
+    it and an unrelated text Y with the same core. Each is scored as it is
+    alone, on a query of its own: what a text's score is kept by (the text,
+    where it is aligned, the whole text's score for its core) never lets one
+    candidate's score stand for another's."""
+    # The input is two words from the core; X holds it a word nearer.
+    norm_input = CORE.replace("kappa", "omega").replace("alpha", "psi")
+    near = f"{WHOLE} {CORE.replace('kappa', 'omega')} {WHOLE}"
+    other = " ".join(f"u{i}" for i in range(60))
+    candidates: list[CandidateMatch] = [
+        _with_core(near),
+        CandidateMatch(**{**_with_core(near), "license_id": "Z-1.0"}),
+        CandidateMatch(**{**_with_core(other), "license_id": "Y-1.0"}),
+        # As long as the input: sorted words, no alignment.
+        CandidateMatch(license_id="V-1.0", search_text=CORE.replace("kappa", "sigma")),
+        CandidateMatch(license_id="W-1.0", search_text=CORE.replace("alpha", "rho")),
+    ]
+    together = similarity.score_candidates(
+        candidates, similarity.query_of(norm_input), {}, True, False
+    )
+    for cand, scored in zip(candidates, together):
+        alone = _scored(norm_input, cand)
+        assert (
+            scored["similarity"],
+            scored["coverage"],
+            scored["best_window"],
+        ) == alone
+    assert len({r["similarity"] for r in together}) == 3

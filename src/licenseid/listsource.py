@@ -10,16 +10,17 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 
 - a usable database at the default path and a bundle: the newer list
   version wins (:func:`licenseid.spdxdata.is_older`; a version that is not
-  all numbers is never older). A tie goes to the database only if its rows
-  were built by this licenseid's rules (``build vN outdated`` still warns
-  when it opens, once per process), else to the bundle: the two then give
-  the same answer;
+  all numbers is never older). A tie goes to the database unless a later
+  licenseid built it (``build vN newer`` warns when it opens, once per
+  process), else to the bundle: the two then give the same answer;
 - no database file (``not found``, an account with no home directory
   included): the bundle, silently;
-- a database that is there but cannot answer: the bundle, after
-  the warning ``database: <condition>: <detail>; using packaged data
-  v<ver>`` (a :class:`licenseid.LicenseIdWarning`), given once per process
-  (not once per value);
+- a database that is there but cannot answer (``empty``, ``invalid``,
+  ``unreadable``, or built by older rules or in an older shape: ``build vN
+  outdated``): the bundle, after the warning ``database: <condition>:
+  <detail>; using packaged data v<ver>`` (a
+  :class:`licenseid.LicenseIdWarning`), given once per process (not once per
+  value);
 - no bundle either: the database's own error.
 
 ``source="database"`` reads the database at the default path, and raises
@@ -37,9 +38,10 @@ directory changed) or another packaged index chooses again, and so does a
 ``stat`` that fails for any reason but "not found". A choice that raised
 is not kept, nor is a fallback to the packaged list for a condition that
 can pass by itself (``unreadable``: a lock held elsewhere, an I/O error,
-permissions); ``not found``, ``empty`` and ``invalid`` change only with the
-file, so they are kept. The stamp is read before the choice is made, so a
-file that changes meanwhile is chosen again.
+permissions); ``not found``, ``empty``, ``invalid`` and ``build vN
+outdated`` change only with the file, so they are kept. The stamp is read
+before the choice is made, so a file that changes meanwhile is chosen
+again.
 
 The stamp is as fine as the file system's clock: on a coarse one (FAT, 2 s;
 HFS+ and ext3, 1 s) an in-place update that keeps the size can pass for
@@ -55,17 +57,22 @@ fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 import os
 import threading
 import weakref
-from typing import NamedTuple, get_args
+from typing import TYPE_CHECKING, NamedTuple, get_args
 
 from licenseid import listindex
-from licenseid.database import LicenseDatabase, is_current_build
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
+from licenseid.dbhandle import DatabaseHandle
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, one_line
 from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import ListSource, Source
 from licenseid.spdxdata import PACKAGED_NAME, is_older
 from licenseid.warning import once, parts, warn
+
+if TYPE_CHECKING:
+    # Imported where used: the module loads RapidFuzz and the rest of the
+    # detector, which a run that reads the packaged list never needs (start-up).
+    from licenseid.database import LicenseDatabase
 
 SOURCES: tuple[Source, ...] = get_args(Source)
 
@@ -83,7 +90,7 @@ class _Kept(NamedTuple):
 # The last choice of each mode ("auto", "database"), under its own lock, held
 # to look it up and to store it, never while choosing: a choice can wait on
 # SQLite, and the choice itself warns (``licenseid.warning.once``: a
-# fallback's warning or an opened database's, ``build vN outdated``, is
+# fallback's warning or an opened database's, ``build vN newer``, is
 # given once per process, not once per value resolved), which takes a lock
 # of its own.
 _CHOICE_LOCK = threading.Lock()
@@ -95,11 +102,11 @@ _checked: "weakref.WeakKeyDictionary[LicenseDatabase, tuple[int, ...] | None]" =
     weakref.WeakKeyDictionary()
 )
 _KEPT_PATHS = 8
-_paths: dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]] = {}
+_paths: "dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]]" = {}
 
 
 #: What ``resolve(db=...)`` takes: a database, or the path of one.
-GivenDatabase = str | os.PathLike[str] | LicenseDatabase
+GivenDatabase = str | os.PathLike[str] | DatabaseHandle
 
 
 def choose_list(
@@ -127,7 +134,7 @@ def choose_list(
     return _kept_choice(source)
 
 
-def given_database(db: GivenDatabase) -> LicenseDatabase:
+def given_database(db: GivenDatabase) -> "LicenseDatabase":
     """The database *db* is or names, ready to read. A path opens without
     ``create``, after the check, so a missing file is ``not found`` and none
     is made; every database, given or opened, passes
@@ -136,6 +143,8 @@ def given_database(db: GivenDatabase) -> LicenseDatabase:
     The check costs more than a lookup, so a verdict is kept while the file
     keeps its stamp (:func:`file_stamp`), per handle and per path, as the
     choice of ``auto`` is: a value resolved in a loop is checked once."""
+    from licenseid.database import LicenseDatabase  # start-up
+
     if isinstance(db, LicenseDatabase):
         stamp = file_stamp(str(db.db_path))
         with _CHOICE_LOCK:
@@ -156,7 +165,7 @@ def given_database(db: GivenDatabase) -> LicenseDatabase:
     return _opened(path)
 
 
-def _opened(path: str) -> LicenseDatabase:
+def _opened(path: str) -> "LicenseDatabase":
     """The database at *path*, checked and opened, kept while its file keeps
     its stamp (the last few paths only)."""
     stamp = file_stamp(path)
@@ -165,8 +174,10 @@ def _opened(path: str) -> LicenseDatabase:
     if kept is not None and kept[0] == stamp:
         return kept[1]
     check_database_ready(path)
+    from licenseid.database import judged_database  # start-up
+
     with once():
-        database = LicenseDatabase(path, create=False)
+        database = judged_database(path)
     if not isinstance(stamp, Exception):
         with _CHOICE_LOCK:
             _paths[path] = (stamp, database)
@@ -246,8 +257,10 @@ def _choose(mode: Source, path: str | None) -> tuple[ListLookup, ListSource, boo
     if mode == "database":
         path = get_default_db_path() if path is None else path
         check_database_ready(path)  # what auto calls unusable, this refuses
+        from licenseid.database import judged_database  # start-up
+
         with once():
-            database = LicenseDatabase(path, create=False)
+            database = judged_database(path)
         return database, "database", True
     return _auto(path)
 
@@ -258,8 +271,10 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     try:
         path = get_default_db_path() if path is None else path
         check_database_ready(path)
+        from licenseid.database import is_current_build, judged_database  # start-up
+
         with once():
-            database = LicenseDatabase(path, create=False)
+            database = judged_database(path)
         metadata = database.get_metadata()
     except DatabaseNotReadyError as exc:
         index = listindex.packaged_index()

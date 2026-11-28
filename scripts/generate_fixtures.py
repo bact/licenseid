@@ -336,7 +336,7 @@ def _parse_args() -> argparse.Namespace:
         help=(
             "Generate fixtures for all canonical SPDX licenses instead of "
             "the default stratified sample (~60 licenses across 20+ families). "
-            "Required for the FTS5 dual-query recall benchmark."
+            "Needed by a benchmark of the recall of every licence."
         ),
     )
     return parser.parse_args()

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-27
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -80,7 +80,9 @@ Each of these cost at least one review round.
   somebody's database. A table of ours whose columns are not ours is
   `invalid`, with no hint (`_foreign_schema`). The check also verifies that
   `license_index` is FTS5, since a plain table of that name passes a naive
-  existence test.
+  existence test. Build 10 (0.10.0, task T7) keeps that last check only to
+  tell a file of 0.9.x from another program's: the texts are in the plain
+  table `license_texts` ([plain-text-table.md](plain-text-table.md)).
 
 ## Test traps
 
@@ -148,17 +150,19 @@ empty one, so the next matcher said `empty` instead of `not found`.
   rebuild (`dbcheck._can_rebuild`: `no such table`, or `unable to open` a
   file that is gone). `update` refuses a file that is not a database, fails
   on a malformed one, and cannot open one that is there but unreadable.
-- **The constructor** (`LicenseDatabase(path, create=True)`): `_init_db` asks
-  `dbschema.schema_state` through a read-only connection and writes only for
-  an older schema (`older`, migrated in place, only if
-  `reject_foreign_database` finds the file licenseid's own) or, with
-  `create`, for a missing file or tables (`none`). The matcher passes
-  `create=False`, so a file deleted between the readiness check and the
-  constructor raises `not found`, where it used to be re-created empty and
-  answer `false`. A hot journal, or a WAL without its `-shm`, makes the
-  read-only open fail with `readonly`; the constructor opens once for writing
-  and reads (`Connections.recover`) to heal it. A journal that appears after
-  the constructor is not healed: the lookup says so.
+- **The constructor**: without `create` (the matcher) `_check_ready` reads
+  `dbverdict.connection_refusal` through its own read-only connection and
+  raises what it says, writing nothing, so a file deleted between the
+  readiness check and the constructor raises `not found`, where it used to
+  be re-created empty and answer `false`. With `create` (`update`),
+  `_init_schema` makes the tables of a file that has none (only if
+  `reject_foreign_database` finds it licenseid's own) and leaves every other
+  file to `update`. Until 0.10.0 an older schema was migrated in place
+  (`schema_state`'s `older`, `ALTER TABLE`); see "One shape" below. A hot
+  journal, or a WAL without its `-shm`, makes the read-only open fail with
+  `readonly`; the constructor opens once for writing and reads
+  (`Connections.recover`) to heal it. A journal that appears after the
+  constructor is not healed: the lookup says so.
 - **No WAL.** `update` wrote in WAL mode (`journal_mode=WAL`, `synchronous=
   NORMAL`) for no recorded reason: the same write took 430 ms in rollback
   mode and 473 ms in WAL on this machine. A read-only connection cannot
@@ -166,9 +170,10 @@ empty one, so the next matcher said `empty` instead of `not found`.
   cannot create them, and switching a database to WAL needs a lock a reader
   holds. `update` now leaves WAL (`Connections.leave_wal`, never waiting for
   a lock) at its start, also when there is nothing to download.
-- **Rows without norm columns** are normalised in memory
-  (`TableCache.names_and_ids`), not written back, so a lookup works on a
-  read-only install. The columns are only added to an older schema.
+- **Rows without norm columns** were normalised in memory until 0.10.0
+  (`TableCache.names_and_ids`). A row whose norm columns are not text is
+  now `empty`: `update` always writes them, and a test that seeds rows by
+  its own SQL fills them (`tests/seed_sql.fill_norm_columns`).
 - **Searches forgive nothing.** `search_candidates` quotes each word, so an
   FTS5 operator in the text is a phrase and no query fails for its own text;
   every `sqlite3.Error` is the database's. `find_fingerprint_hits` forgives
@@ -181,8 +186,8 @@ empty one, so the next matcher said `empty` instead of `not found`.
   fingerprints. With the rollback journal a reader can fail the fingerprint
   commit with `database is locked`; stamped first, the version would make the
   next plain `update` skip the missing fingerprints for ever. `create_schema`
-  is one `BEGIN IMMEDIATE` transaction, so two processes opening an older
-  database do not both run `ALTER TABLE`.
+  is one `BEGIN IMMEDIATE` transaction, so two processes making the tables
+  of a new file do not interleave.
 - **One path, for reads and writes.** `Connections` makes a plain relative
   path absolute (and pins a relative `file:` URI) once, and
   `LicenseDatabase.db_path` is absolute, so the cache follows the database
@@ -194,6 +199,62 @@ empty one, so the next matcher said `empty` instead of `not found`.
   or the fingerprint table is refused, as it was before; a lookup on a
   database an earlier version left in WAL mode creates `-shm` and `-wal`
   (the read-only connection cannot remove them) until `update` converts it.
+
+## One shape (0.10.0)
+
+Decision D6 of the 0.10.0 speed plan
+(`working-docs/design/speed-0-10-plan.md`): licenseid reads only a database
+of its own build, and keeps no code that reads or migrates an older one.
+
+- **The rule.** `dbschema` holds the one shape (`TABLES` with every column,
+  `INDEXES`) and the stamps (`BUILD_VERSION`, `NORMALIZATION_VERSION`,
+  moved there from `records` and `database` so that `dbcheck` can judge a
+  file without importing the builder). `dbverdict.connection_refusal` is the
+  one verdict: after `invalid` and `empty` as before, an older stamp is
+  `build vN outdated` (normalisation first; a missing or non-numeric stamp
+  is older), then a missing table, index or column, or a row whose norm
+  columns are not text, is `empty`. Its tag is `outdated`; read and write
+  policies: a read refuses it, `update` and `clear-cache` accept it.
+- **One rule for every caller.** `check_database_ready` and
+  `LicenseDatabase(path, create=False)` use the same verdict, so `detect`,
+  `resolve`, `is-*`, `LicenseDetector`, `licenseid.detect()` and
+  `resolve()`'s choice of list treat an outdated file exactly as an empty
+  one: exit 2 in the CLI; with no database given, `resolve()` reads the
+  packaged list after the warning `database: build vN outdated: current vM;
+  using packaged data v<ver>`, whatever List the database holds (until then
+  an older build still won when its List was newer). A newer stamp still
+  warns (`build vN newer`) and is read. A newer stamp on a file this build
+  cannot read (a missing table, index or column, or no text) is not
+  `empty` but its own tag, `newer` (0.10.0): a read refuses it as
+  `build vN newer: current vM` with no action, `clear-cache` deletes it
+  with its cache. One rule for `update`: without `--force` it never writes
+  a file with a newer stamp, readable or not (`dbverdict.rebuild_refusal`
+  calls a readable one `newer` before it judges a retired table or a norm
+  row): `unchanged` at the release it holds, the `newer` refusal (exit 1)
+  at another, where it used to build a readable one again as this build.
+  Else a 0.10 and a later version sharing a data directory would build each
+  other's file in turn. A newer file that fails `_not_ready` (no list
+  version, no licence rows: an interrupted update) is still `empty` and
+  rebuilt. A stamp is shown through `errors.one_line`: the file may hold
+  any text there.
+- **Rebuilt from nothing.** `update` drops licenseid's tables and makes the
+  shape inside the transaction that fills it (`dbschema.replace_schema`), so
+  a failed rebuild leaves the old file as it was. It rebuilds any file the
+  verdict refuses even at the release it holds (it used to rebuild only an
+  older stamp). `clear-cache` deletes the cache beside a file of older rules
+  too (`dbcheck.is_built`), as beside a ready one.
+- **What went.** `schema_state` and its `older` migration,
+  `_ADDED_COLUMNS`, `_BUILD_COLUMNS`, `add_build_columns`,
+  `OPTIONAL_OBJECTS`, `create_url_table` and `create_text_table`; the
+  outdated warning of `LicenseDatabase.__init__`; in `dbcache` the norm
+  columns filled in memory, the "no core, no twin" reading of a file without
+  the build-5 columns and the `license_urls` and `text_codes` tables read as
+  missing; `dbcheck.empty_error`. Damage is not age and stays as it was: a
+  stored value that fails its check (`textstore.restore`) is rebuilt in
+  memory, never written back.
+- **Left.** `Connections.recover` still opens for writing to roll back a hot
+  journal (a journal, not a shape), and `leave_wal` stays for a file an
+  earlier version left in WAL mode.
 
 ## Input never builds a SQL pattern
 

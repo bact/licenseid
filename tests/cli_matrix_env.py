@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import Any
 
 from db_variants import create_database
+from seed_sql import fill_norm_columns
 
-from licenseid.database import NORMALIZATION_VERSION
+from licenseid.dbschema import BUILD_VERSION, NORMALIZATION_VERSION
 from licenseid.normalize import normalize_text
-from licenseid.records import BUILD_VERSION
 from tools.cli_matrix.config import RunConfig, build_parser, configure_args
 from tools.cli_matrix.fixtures import MIT
 from tools.cli_matrix.model import Cell
@@ -31,7 +31,7 @@ _INSERT_LICENSE = (
     "INSERT INTO licenses (license_id, name, is_spdx, is_osi_approved,"
     " is_fsf_libre) VALUES (?, ?, ?, ?, ?)"
 )
-_INSERT_INDEX = "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)"
+_INSERT_INDEX = "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)"
 _INSERT_METADATA = "INSERT INTO db_metadata (key, value) VALUES (?, ?)"
 
 
@@ -49,6 +49,7 @@ def make_file_db(path: Path) -> Path:
     with sqlite3.connect(path) as conn:
         conn.execute(_INSERT_LICENSE, ("MIT", "MIT License", True, True, True))
         conn.execute(_INSERT_INDEX, ("MIT", normalize_text(MIT)))
+        fill_norm_columns(conn)
         conn.executemany(
             _INSERT_METADATA,
             [

@@ -28,7 +28,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.grantsubject import Signals, constant
 from licenseid.listlookup import fold_case
 from licenseid.normalize import normalize_text
-from licenseid.shorttext import match_short_text
+from licenseid.shorttext import match_name_tier
 from licenseid.types import Method, RawMatch, Variant
 from licenseid.variants import family_of, reading, settle_text
 from licenseid.warning import LicenseIdWarning
@@ -95,14 +95,15 @@ def test_an_excluded_twin_takes_the_bare_id_with_it(
 def test_an_excluded_stated_twin_is_not_answered_as_the_bare_id(
     variant: Variant,
 ) -> None:
+    """No name scores as much as the one excluded: no name answers, and the
+    words of the sentence answer nothing at 0.85 (GPL-1.0-only answered by
+    name before ``idoptions.free_text_hits`` cut near names)."""
     text = f"licensed under the {GPL2} only"
-    with pytest.warns(LicenseIdWarning, match="variant not stated"):
-        found = value_detector().detect(
-            text=text, variant=variant, exclude=["GPL-2.0-only"]
-        )
-    assert found
+    found = value_detector().detect(
+        text=text, variant=variant, exclude=["GPL-2.0-only"]
+    )
+    assert not [r for r in found if r["method"] == "name" or r["score"] >= 0.85]
     assert not [r for r in found if fold_case(r["expression"]) in DEPRECATED]
-    assert "GPL-2.0-only" not in [r["expression"] for r in found]
 
 
 @pytest.mark.parametrize("method", ["id", "tag"])
@@ -121,14 +122,16 @@ def test_a_declared_deprecated_id_stays_without_its_twin(method: Method) -> None
     assert kept["license_id"] == "GPL-2.0"
 
 
-def test_as_written_still_keeps_the_bare_id() -> None:
-    """``as-written`` never drops a deprecated ID of a text."""
+def test_as_written_cuts_the_bare_id_under_the_excluded_twin() -> None:
+    """``as-written`` never drops a deprecated ID of a text, but a name hit
+    that scores under the one excluded is cut first (decided 2026-11-27):
+    the bare ID scores 0.98 to the excluded twin's 1.0."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", LicenseIdWarning)
         found = value_detector().detect(
             text=GPL2, variant="as-written", exclude=["GPL-2.0-only"]
         )
-    assert "GPL-2.0" in [r["expression"] for r in found]
+    assert [r["expression"] for r in found] == ["GPL-2.0-or-later"]
 
 
 # --- The warning names the licence, not an ID or an expression ---
@@ -217,8 +220,8 @@ def test_a_kept_deprecated_hit_of_the_name_tier_is_judged_by_its_twin(
 ) -> None:
     """The name tier as a section of a mixed text reads it."""
     with reading("as-written"):
-        found = match_short_text(
+        found = match_name_tier(
             LicenseDatabase(flags_db, create=False), normalize_text(text), text
-        )
+        ).found
     flags = {r["license_id"]: (r["is_osi_approved"], r["is_fsf_libre"]) for r in found}
     assert flags[lic_id] == (judged, judged)

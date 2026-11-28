@@ -35,7 +35,7 @@ from release_fakes import (
     tarball_url,
     without,
 )
-from resolve_states import EMPTY, OUTDATED_WARNING, VERSION, build
+from resolve_states import EMPTY, NEWER_BUILD_WARNING, VERSION, build
 from test_looseid import ROWS as LOOSE_ROWS
 
 import licenseid
@@ -44,8 +44,8 @@ from licenseid.cli import cli
 from licenseid.clicommon import printed_warnings
 from licenseid.database import LicenseDatabase
 from licenseid.datadir import get_default_db_path
+from licenseid.dbschema import BUILD_VERSION
 from licenseid.detector import LicenseDetector
-from licenseid.records import BUILD_VERSION
 from licenseid.textinput import decode_input
 from licenseid.warning import LicenseIdWarning, once, parts
 
@@ -58,12 +58,7 @@ NARROWED = "WARNING: input: variant not stated: {}; using {}\n"
 
 
 Parts = tuple[str, str, str | None, str | None]
-OUTDATED: Parts = (
-    "database",
-    "build v1 outdated",
-    f"current v{BUILD_VERSION}",
-    "run 'licenseid update'",
-)
+NEWER: Parts = ("database", "build v99 newer", f"current v{BUILD_VERSION}", None)
 
 
 def ours(given: list[warnings.WarningMessage]) -> list[warnings.WarningMessage]:
@@ -102,11 +97,12 @@ def memory_db() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def outdated_db(tmp_path: Path) -> Path:
-    """A ready file database stamped with an older build."""
-    path = make_ready_file_db(tmp_path / "old.db")
+def newer_db(tmp_path: Path) -> Path:
+    """A ready file database stamped with a newer build: read, with a
+    warning (one of an older build is not ready)."""
+    path = make_ready_file_db(tmp_path / "new.db")
     with writer(path) as conn:
-        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = 'build_version'")
+        conn.execute("UPDATE db_metadata SET value = '99' WHERE key = 'build_version'")
     return path
 
 
@@ -127,11 +123,11 @@ def test_cli_prints_two_tag_warnings_in_one_run(memory_db: str, tmp_path: Path) 
     )
 
 
-def test_cli_prints_the_outdated_database(outdated_db: Path) -> None:
+def test_cli_prints_the_newer_database(newer_db: Path) -> None:
     for command in (["detect", "--id", "MIT"], ["resolve", "MIT"]):
-        result = CliRunner().invoke(cli, ["--db", str(outdated_db), *command])
+        result = CliRunner().invoke(cli, ["--db", str(newer_db), *command])
         assert result.exit_code == 0, result.output
-        assert result.stderr == OUTDATED_WARNING
+        assert result.stderr == NEWER_BUILD_WARNING
 
 
 # Ten words or more: a shorter one would also say it is too short to match.
@@ -236,26 +232,12 @@ def test_a_tag_kept_as_written_is_no_warning(memory_db: str) -> None:
         LicenseDetector(memory_db).detect(text=TWO_TAGS)
 
 
-@pytest.mark.parametrize(
-    ("stamp", "expected"),
-    [
-        ("1", OUTDATED),
-        ("99", ("database", "build v99 newer", f"current v{BUILD_VERSION}", None)),
-    ],
-)
-def test_a_database_stamp_is_a_warning(
-    outdated_db: Path,
-    capsys: pytest.CaptureFixture[str],
-    stamp: str,
-    expected: Parts,
+def test_a_newer_database_stamp_is_a_warning(
+    newer_db: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    with writer(outdated_db) as conn:
-        conn.execute(
-            "UPDATE db_metadata SET value = ? WHERE key = 'build_version'", (stamp,)
-        )
     with pytest.warns(LicenseIdWarning) as given:
-        LicenseDetector(str(outdated_db))
-    assert parts_of(given.list) == [expected]
+        LicenseDetector(str(newer_db))
+    assert parts_of(given.list) == [NEWER]
     assert given.list[0].filename == __file__
     assert capsys.readouterr() == ("", "")
 
@@ -336,11 +318,11 @@ def test_an_unusable_packaged_list_is_a_warning(
     assert detail is not None and detail.startswith("BadGzipFile: ")
 
 
-def test_an_error_filter_makes_the_api_raise(memory_db: str, outdated_db: Path) -> None:
+def test_an_error_filter_makes_the_api_raise(memory_db: str, newer_db: Path) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", LicenseIdWarning)
-        with pytest.raises(LicenseIdWarning, match="^database: build v1 outdated"):
-            LicenseDetector(str(outdated_db))
+        with pytest.raises(LicenseIdWarning, match="^database: build v99 newer"):
+            LicenseDetector(str(newer_db))
         with pytest.raises(LicenseIdWarning) as raised:
             LicenseDetector(memory_db).detect(text=TWO_TAGS, variant="only")
     assert raised.value.condition == "variant not stated"
@@ -372,21 +354,21 @@ def test_once_gives_a_text_once_per_process() -> None:
     assert len(parts_of(given)) == 3
 
 
-def _outdated_at_default_path() -> Path:
+def _newer_at_default_path() -> Path:
     path = Path(get_default_db_path())
     path.parent.mkdir(parents=True, exist_ok=True)
     make_ready_file_db(path)
     with writer(path) as conn:
-        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = 'build_version'")
+        conn.execute("UPDATE db_metadata SET value = '99' WHERE key = 'build_version'")
     return path
 
 
-def _by_path(outdated_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
-    return lambda: licenseid.resolve("MIT", db=str(outdated_db))
+def _by_path(newer_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
+    return lambda: licenseid.resolve("MIT", db=str(newer_db))
 
 
 def _by_detect(_db: Path, _: pytest.MonkeyPatch) -> Callable[[], object]:
-    _outdated_at_default_path()
+    _newer_at_default_path()
     return lambda: licenseid.detect(license_id="MIT")
 
 
@@ -404,14 +386,14 @@ def _reopen() -> None:
 
 @pytest.mark.parametrize("path", [_by_path, _by_detect, _by_fallback])
 def test_a_raised_or_ignored_warning_is_not_counted_as_given(
-    outdated_db: Path,
+    newer_db: Path,
     monkeypatch: pytest.MonkeyPatch,
     path: Callable[[Path, pytest.MonkeyPatch], Callable[[], object]],
 ) -> None:
     """Within once(), only a warning given counts. One a filter raised
     raises again at the next call; one a filter ignored is given at the next
     call that is not ignored, and then no more."""
-    call = path(outdated_db, monkeypatch)
+    call = path(newer_db, monkeypatch)
     with warnings.catch_warnings():
         warnings.simplefilter("error", LicenseIdWarning)
         for _ in range(3):
@@ -440,21 +422,21 @@ def test_an_ignore_filter_for_something_else_still_counts_as_given() -> None:
     assert len(parts_of(given)) == 1
 
 
-def test_resolve_with_a_path_warns_once_when_it_opens_again(outdated_db: Path) -> None:
+def test_resolve_with_a_path_warns_once_when_it_opens_again(newer_db: Path) -> None:
     """resolve(db=path) opens the file again when it changes; its stamp warning
     is still given once per process (listsource._opened, within once())."""
     with pytest.warns(LicenseIdWarning) as first:
-        licenseid.resolve("MIT", db=str(outdated_db))
+        licenseid.resolve("MIT", db=str(newer_db))
     # pylint: disable-next=protected-access
-    opened = listsource._paths[str(outdated_db)][1]
-    with writer(outdated_db) as conn:
+    opened = listsource._paths[str(newer_db)][1]
+    with writer(newer_db) as conn:
         conn.execute("INSERT OR REPLACE INTO db_metadata VALUES ('k', 'v')")
     with warnings.catch_warnings(record=True) as again:
         warnings.simplefilter("always")
-        assert licenseid.resolve("MIT", db=str(outdated_db))["expression"] == "MIT"
+        assert licenseid.resolve("MIT", db=str(newer_db))["expression"] == "MIT"
     # pylint: disable-next=protected-access
-    assert listsource._paths[str(outdated_db)][1] is not opened  # opened again
-    assert (parts_of(first.list), parts_of(again)) == ([OUTDATED], [])
+    assert listsource._paths[str(newer_db)][1] is not opened  # opened again
+    assert (parts_of(first.list), parts_of(again)) == ([NEWER], [])
 
 
 def test_a_warning_behind_a_cached_property_names_the_caller(

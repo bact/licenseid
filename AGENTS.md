@@ -8,7 +8,7 @@ to this file: edit `AGENTS.md`.
 ## Project
 
 - `licenseid` detects licence IDs by hybrid search: Tier 0 short text (IDs,
-  names), Tier 1 recall (SQLite FTS5 trigram), Tier 2 precision (RapidFuzz).
+  names), Tier 1 recall (stored word 3-grams), Tier 2 precision (RapidFuzz).
   `resolve()` reads a declared licence value as an SPDX expression.
 - Private alpha, one developer. No backward compatibility needed yet.
 - Build: `hatchling`, PEP 621 `pyproject.toml`.
@@ -74,21 +74,38 @@ in another module.
 - Detection: `detector` (the pipeline), `keptdetector` (`licenseid.detect()`,
   one detector per default database), `detectrequest` (checks of a call needing
   no database), `resolvefirst` (input `resolve()` reads whole; the cut of a
-  short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
-  0 stand: tied names) and `namerules` (what beside one name doubts it),
-  `retrieval` (Tier 1), `textcorpus` (word codes) and `textstore` (stored),
+  short refused one), `shorttext` (Tier 0) and `nameindex` (what it reads from
+  the names, once per database: `TableCache.name_index`), `namehits` (which
+  name hits of Tier 0 stand: tied names) and `namerules` (what beside one name
+  doubts it),
+  `retrieval` (Tier 1: one gram lookup a call, filters, markers and hints)
+  with `gramselect` (which texts Tier 2 scores: filters first, none under
+  0.1, the first 3 and those within 0.05, at most 20; the bound on grams
+  read; whole text first: the texts searched, the guard, one text found
+  narrows to its group and three runner-ups, `ranking.under_found` leaves
+  out one that scores as high), `textcandidates` (one candidate set an input
+  for every reader of `wholetexts.found_texts`, unfiltered; a search an
+  answer group; the texts it searches and scores), `textcorpus` (word codes),
+  `textstore` (the stored form and its checks: pure) and `textentries` (the
+  entries read per candidate: `TextStore`, one per `TableCache` generation),
+  `textgrams` (the tokens, the word 3-grams and their hashes, the critical
+  words, the gram score) and
+  `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
   overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
-  without template vars), `firsttext` (1st text), `textnames`, `ftsquery` (its
-  `MATCH` string: 20 words), `idoptions` (`exclude`, `hint`: API only, free text
-  only, case-folded, a bare deprecated ID stands for both twins, kept under
-  `as-written`), `variants` and `variantstated` (the `variant` option: what a
-  bare ID and a text answer, `variant_stated`, a trailing "only"), `similarity`
+  without template vars), `firsttext` (1st text), `textnames`, `idoptions`
+  (`exclude`, `hint`: API only, free text only, case-folded, a bare deprecated
+  ID stands for both twins, kept under `as-written`), `variants` and
+  `variantstated` (the `variant` option: what a bare ID and a text answer,
+  `variant_stated`, a trailing "only"), `similarity`
   (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
   a licence's core too, the higher kept, coverage over the text that won) with
+  `wordregion` (where a fragment sits in a text, by its words) and
+  `regionalign` (its characters aligned there, walls at the cut ends),
   `coretext` (a template without its optional parts), `fingerprint` (maths) and
   `fingerprintstore` (its table), `ranking` (sort order, `-only`/`-or-later`
-  tie-breaker), `markers` and `candidates` (its helpers), `classify` (prose "or
+  tie-breaker), `markers` and `candidates` (its helpers), `markerfloor` (when a
+  marker's floor speaks for a whole input), `classify` (prose "or
   later"), `grantsubject` (whose grant), `identifiers`, `normalize`, `result`
   (public result, JSON and text lines), `types`.
 - Reading an ID: `looseid` ("Apache2", "GPLv3"; `disambiguate_whole`),
@@ -113,12 +130,17 @@ in another module.
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
-- Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`, `datadir`,
+- Data: `database`, `dbconnection`, `dbhandle` (the type `resolve(db=...)`
+  names, base of `LicenseDatabase`; no database import), `dbcache`,
+  `dbschema` (the one shape, its stamps, the retired tables), `dbverdict`
+  (whether a file is ready: the `Refusal` of a connection), `dbcheck`
+  (paths, files, both policies), `dbclear` (`clear-cache`), `datadir`,
   `records` (rows), `spdxdata` (a release as data; no `requests`, `click` or
   `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
   `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
   setup.cfg; a TOML basic string decoded, a literal one not).
-- CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`, `--id`,
+- CLI: `cli` (group, `main`), `clicommands` (the command table, loaded at use),
+  `cliinput` (one of file, value, `--text`, `--id`,
   `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`, `clear-cache`),
   `cliresolve`, `clicommon`, `output`, `console`, `usage`, `errors`, `warning`.
 
@@ -221,7 +243,8 @@ and `--json`) against these rules and checks the default output against the
   - `CONDITION`: short lower-case fragment, reused across subjects. The full set
     (add new ones here): `not found`, `invalid`, `missing`, `empty`,
     `unreadable`, `binary file`, `not UTF-8, read as Latin-1`, `N days old`,
-    `normalization vN outdated`, `build vN outdated`, `build vN newer`,
+    `normalization vN outdated`, `normalization vN newer`, `build vN outdated`,
+    `build vN newer`,
     `download failed`, `cache read failed`, `cache write failed`,
     `cache unusable`, `download unusable`, `stale cache unusable`,
     `parse failed`, `variant not stated`, `deprecated ID`,
@@ -230,7 +253,8 @@ and `--json`) against these rules and checks the default output against the
     `older than the database`, `too few words for text`, `overridden by input`.
   - `DETAIL`: one line. A path through `errors.shown` (control characters
     escaped, `;` as `,`), a value through `errors.one_line` (folded, cut to
-    60), an exception through `errors.typed`. Not result escaping: a
+    60; so is a stamp read from the database file), an exception through
+    `errors.typed`. Not result escaping: a
     backslash stays, so a Windows path reads as typed.
   - `ACTION`: the fallback taken (`using stale cache`, `using stale <file>`,
     `downloading`, `downloading <file>`, `using cached <file>`,
@@ -240,10 +264,11 @@ and `--json`) against these rules and checks the default output against the
 - Raise a failure as `licenseid.errors.LicenseIdError` (`SUBJECT: CONDITION…`,
   no prefix): the CLI prints it after `ERROR:` and exits 1, or 2 for
   `InvalidInputError`. `DatabaseNotReadyError` (missing, empty, invalid,
-  unreadable) exits 2 in `detect`, `resolve`, `is-*`. `update` and `clear-cache`
-  refuse only an `invalid` database (not built by licenseid) or an `unreadable`
-  symlink loop: they exist to fix the rest. Any other exception in `update`,
-  RuntimeError subclasses such as RecursionError included, becomes
+  unreadable, outdated) exits 2 in `detect`, `resolve`, `is-*`. `update` and
+  `clear-cache` refuse only an `invalid` database (not built by licenseid) or
+  an `unreadable` symlink loop: they exist to fix the rest. Any other
+  exception in `update`, RuntimeError subclasses such as RecursionError
+  included, becomes
   `SUBJECT: update failed: <Type>: <text>`. A default directory `update` cannot
   make is `directory: write failed: <dir>: <reason>; pass --db`.
 - A step printing partial progress (`status(..., end="")`) that can fail
@@ -303,7 +328,12 @@ and `--json`) against these rules and checks the default output against the
   `resolve()` has neither) and act on free text only: a declaration (tag,
   field, `license_id`, a whole input `resolve()` reads) is never filtered or
   hinted. Upgrade their bare deprecated IDs once per call
-  (`idoptions.upgraded_options`, warning `deprecated ID`).
+  (`idoptions.upgraded_options`, warning `deprecated ID`). A filter
+  (`exclude`, `only_common`, `only_spdx`) never makes a nearer miss the
+  answer: `gramselect.beyond_bar` cuts a text that a removed one beats on
+  both shared grams and score, `idoptions.free_text_hits` a name hit under
+  the best one excluded; a tie stays. `only_common` does not filter name
+  hits, and markers are not cut (roadmap item 74).
 - `variant` (`--variant auto|as-written|only|or-later`, API `variant=`,
   `licenseid.variants`): under `auto` a declared value stays as written
   (bare `GPL-2.0`, `-with-` IDs); under `auto`, `only` and `or-later` a text
@@ -418,7 +448,7 @@ and `--json`) against these rules and checks the default output against the
   (`namehits._without_grant`). Generic words
   (`namerules.GENERIC`) are no evidence. A dropped hit that scored above 1 is
   final from 10 words on (no Tier 1; under 10 words `too_short` warns); below 1,
-  Tier 1 runs. Mixed-content sections (`match_short_text`) only lose the hit.
+  Tier 1 runs.
   Add a rule there, with a made-up row in `tests/test_namehits.py`.
 - "/" is OR only in a whole value (`resolveslash.slash_parts`): each piece an
   exact-case List ID (a "+" read by `plusoperator`) or `LicenseRef-*`, at least
@@ -427,7 +457,7 @@ and `--json`) against these rules and checks the default output against the
 - Licence URL: one key, `urlkey.url_key` (ASCII only; scheme, `www.`, fragment,
   trailing `/`, one page suffix dropped; query kept; decodes nothing); key both
   a declared URL and the List's with it. The List's pages (`seeAlso`) are the
-  `license_urls` table (`records.BUILD_VERSION` 4), indexed by
+  `license_urls` table (`dbschema.BUILD_VERSION` 4), indexed by
   `resolveurl.list_url_key` (skips a URL with a fragment). A page naming several
   unrelated licences or only an exception is refused. `URL_ALIASES` and
   `SCANCODE_NOT_SPDX` grow only with a measured package count
@@ -441,14 +471,33 @@ and `--json`) against these rules and checks the default output against the
 
 ## Database
 
+- One shape: licenseid reads only a database of its own build
+  (`dbschema`: `TABLES`, `INDEXES`, the stamps). An older stamp (build or
+  normalisation; missing or no number counts as older) is not ready,
+  `build vN outdated`; a missing table, index or column, or no text row, is
+  `empty` (`dbverdict.connection_refusal`, the one verdict, made once per
+  handle: `check_database_ready`, then `database.judged_database` skips it).
+  A row whose norm columns are not text is `empty` where the names are first
+  read (`dbcache`), and `update` rebuilds it (`dbverdict.rebuild_refusal`).
+  Every caller treats both as it treats `empty`: no caller gets a rule of its
+  own. Never write a reader of an older shape: a new table or column joins
+  `dbschema.TABLES` and bumps `BUILD_VERSION`. A view, a table without the
+  rowid it should have (`WITHOUT_ROWID`), or a key that is not its one
+  `INTEGER PRIMARY KEY` (`ROWID_KEYS`), of one of these names is a missing
+  one.
+- The texts are in the plain table `license_texts` (build 10), keyed by
+  `text_id` in List order. The FTS5 table of builds 7 to 9, `license_index`
+  and its shadow tables (`dbschema.RETIRED_TABLES`, `RETIRED_SHADOWS`), is
+  known only so that a file of 0.9.x is `outdated`, not `invalid`, and so
+  that `replace_schema` drops it; a plain table of that name is `invalid`.
+  Nothing reads it.
 - A lookup never creates or writes. `Connections.connect` opens read-only
-  (`dbcheck.open_uri`); the detector uses `LicenseDatabase(path,
-  create=False)`, whose writes open `mode=rw` and happen only for an older
-  schema of licenseid's own file (`dbschema.schema_state`).
-  `LicenseDatabase(path)` makes the file at the first write
-  (`_ensure_schema`) and refuses a file licenseid did not build, whatever
-  `create` is. A missing norm column is filled in memory
-  (`dbcache.TableCache.names_and_ids`), never written back.
+  (`dbcheck.open_uri`); `LicenseDatabase(path, create=False)` only reads
+  (but `Connections.recover` for a hot journal). `LicenseDatabase(path)`
+  makes the tables of a file with none, makes a missing file at the first
+  write (`_ensure_schema`), and refuses a file licenseid did not build,
+  whatever `create` is. `update` drops licenseid's tables and builds this
+  shape in the transaction that fills it (`dbschema.replace_schema`).
   No WAL mode: `update` leaves it (`Connections.leave_wal`).
 - Every `sqlite3.Error` of a read becomes `DatabaseNotReadyError` in
   `Connections.connection` (`dbcheck.lookup_error`): never wrap per method or
@@ -463,22 +512,39 @@ and `--json`) against these rules and checks the default output against the
   (folded by `listlookup.fold_case`; an unknown ID costs no query), drops
   them when `last_update_datetime` changes (checked once per `reading()`
   block and at every lookup outside one), and keeps no read made during a
-  clear (`_generation`). A new write to `licenses` or `license_index` calls
+  clear (`_generation`). A new write to `licenses` or `license_texts` calls
   `self._tables.clear()`, as `_write_db_records` does.
-- `text_codes` (optional): the coded texts and a `check` (SHA-256, with
-  `textstore.CODING_VERSION`). `textstore.restore` gives the corpus `build`
-  gives or None, then built in memory, never written back (a BLOB body too); a
-  row SQLite cannot decode is `unreadable`. A coding change bumps both.
+- `text_codes` and `text_code_checks`: the coded texts, read per candidate
+  (`textentries`), and their checks, which `update` writes in the same
+  transaction: one SHA-256 of the head (coding, `last_update_datetime`,
+  vocabulary, patterns, core gram counts) and one per entry (the head's, the
+  text, its core, its codes and regions). An entry is used only after its
+  check: a check that differs, a missing row, a row that does not read or a
+  blob body and the stored codes of that database are dropped, the corpus
+  built in memory (`TextCorpus.build`), never written back; the call that
+  found it goes on with that corpus. A row SQLite cannot decode is
+  `unreadable`. A call reads in one transaction (`TableCache.snapshot`), so
+  no `update` lands between its postings and its entries. A text edited
+  without a new `last_update_datetime` is seen only when its entry is read.
+  A coding change bumps `CODING_VERSION` and `BUILD_VERSION`.
+- `text_postings` and `text_posting_ids`: the word 3-gram postings of the
+  texts, with a stamp `update` writes in the same transaction (gram spec,
+  width, counts, a copy of `last_update_datetime`). Used only when they are
+  those of the rows: a stamp that differs, a count that is not the table's
+  or a blob that does not read (`gramstore.Damaged`) and `gramstore` builds
+  the index in memory from the texts, never written back. A change to the
+  gram spec (`textgrams`) bumps `BUILD_VERSION`.
 - Never set `PRAGMA mmap_size`: a file cut by another program (`cp`,
   `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
   refuses, read as a broken database); compare in memory.
-  `search_candidates` quotes its words.
-- A change to the rows `records` builds bumps `records.BUILD_VERSION`; to
-  `normalize_text`, `database.NORMALIZATION_VERSION`. Stamps compare as
-  numbers; older warns (`build vN outdated`) and `update` rebuilds; newer
-  warns `build vN newer`, never rebuilt; a non-number is older. Only a
-  database opened without `create` warns.
+- A change to the rows `records` builds or to the shape bumps
+  `dbschema.BUILD_VERSION`; to `normalize_text`,
+  `dbschema.NORMALIZATION_VERSION`. Stamps compare as numbers; older is not
+  ready (`build vN outdated`, exit 2) and `update` rebuilds it; a newer one
+  this build can read warns `build vN newer` and is read; one it cannot read
+  is refused with it; never rebuilt without `--force`. Only a database
+  opened without `create` warns.
 - `--db` can block or lie: check `stat.S_ISREG`/`S_ISDIR` before opening (a
   FIFO hangs a read-only open; test it in a child with a timeout,
   `db_asserts.probe_check_does_not_hang`). `file::memory:NAME` is a file on
@@ -491,7 +557,11 @@ and `--json`) against these rules and checks the default output against the
   ELOOP.
 - `dbcheck`: read is fail-open (`check_database_ready` ignores `unknown`),
   write and delete fail-closed (`reject_foreign_database`). Keep the
-  `Refusal` tag on a new condition and decide both policies.
+  `Refusal` tag on a new condition and decide both policies. `newer`: a newer
+  stamp on a file this build cannot read (shape, no text) refuses a read as
+  `build vN newer: current vM`, no action. `update` without `--force` never
+  writes a file with a newer stamp, readable or not: `unchanged` at its
+  release, else that refusal (exit 1). `clear-cache` deletes it.
 - `Path.unlink(missing_ok=True)` swallows only `FileNotFoundError`: a parent
   that is a file still raises `NotADirectoryError`.
 - `database.py` imports `spdx_source` lazily; `spdx_source.py` never
@@ -532,10 +602,20 @@ and `--json`) against these rules and checks the default output against the
   and lengths, on the branch and on `main`, and compare the top answers
   (item 16 in `working-docs/implementation/tech-debt-resolved.md`). Tier 0
   scorers take `score_cutoff=threshold`.
-- Tier 1 cost is in trigrams, not words: `ftsquery` cuts a query word to
-  `MAX_TERM_CHARS`, above the longest word of any indexed text (70 in List
-  3.29.0; `tests/test_ftsquery.py` holds the long-text fixtures to it), before
-  `"` is doubled. Time a long word against the real-sized fixture database
+- Tier 2 aligns a fragment's characters on a region of the text that its
+  words locate (`wordregion`: the stored codes, alignment 60 or more, 4
+  words of padding), never on the region alone: `regionalign` walls its cut
+  ends (RapidFuzz scores windows trimmed at a haystack's ends, a cost in the
+  cube of the characters) and grows it where a window runs into a wall. No
+  codes (an ID or text the corpus lacks) or a weak alignment: the whole
+  text, as before. A word alignment its shared codes cannot lift to 60 is
+  not made (`best_possible`; a Japanese input has a code a character). A
+  region never scores above the whole text; its window may differ, so a
+  change here moves near ties: run `tools.golden`.
+- Tier 1 cost is in distinct word 3-grams: `gramselect.GRAM_LIMIT` (50,000,
+  `textlocate.MAX_INPUT_TOKENS`) bounds those looked up; past it `TEXTS` is
+  None. No List text comes near it (`tests/test_gram_candidates.py`). Time an
+  input of many distinct words against the real-sized fixture database
   (`tests/long_text_db.py`); a 5-row one cannot fail.
 - `\s+` followed by a class that also matches white space (`\s+[\s/*#]*`)
   is quadratic: write `\s[\s/*#]*`. Time every prose regex on
@@ -545,6 +625,14 @@ and `--json`) against these rules and checks the default output against the
   candidate costs a Tier 1/2 score) against `main`, with distinct values and
   balanced payloads; report a case over 2x `main`, do not judge it fine. Keep
   deep nesting away from the parser.
+- Start-up: `import licenseid`, `--version` and `--help` load no detector,
+  RapidFuzz, SQLite or `requests`; `resolve` of a value loads no detector or
+  RapidFuzz.
+  A public name goes in the `_HOME` table of `__init__` (with `__all__` and its
+  `TYPE_CHECKING` import), a command in `clicommands.COMMANDS` with the first
+  paragraph of its help. An import moved into a function, or under
+  `TYPE_CHECKING`, for start-up carries a comment saying so.
+  `tests/test_startup.py` lists what must stay unloaded.
 - Timing tests: 10x headroom; a bound is `slack(seconds)`
   (`tests/timing.py`, scales for `coverage` and `-n`), never for a ratio of
   sizes. A large input or tight bound is `@pytest.mark.benchmark`
@@ -657,7 +745,10 @@ A `working-docs/` file carries these tags in its YAML front matter, with
 - A negative test on a seeded database passes trivially if its rows have no
   `search_text`. Seed the real near neighbours with text
   (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`), mutate
-  the fix to see it fail, and probe a full database too.
+  the fix to see it fail, and probe a full database too. A test database
+  has every table of this build (`make_memory_db_path`, `create_database` or
+  `packaged_list.database_of`); rows a test inserts by its own SQL get their
+  norm columns from `seed_sql.fill_norm_columns`, else the file is `empty`.
 - Mutation-check new tests: break a line, rerun; clear `__pycache__`
   between mutants; run a mutated copy (`src`, `tests`, `tools`,
   `pyproject.toml`) or a git worktree with `PYTHONPATH` set as in
@@ -673,10 +764,9 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   review of the finished diff: green tests pin the author's reading. A change
   to a signal several readers share (`ranking`, `grantsubject`): grep every
   caller, rerun the full golden.
-- Eight tests fail on a clean `main` on the developer's machine (SQLite
-  3.51.0): six `wal_copy_without_wal` cases of `test_db_ready.py`, two
-  damaged-FTS cases of `test_db_ready_adversarial.py`. Compare with `main`
-  before blaming a change.
+- Six tests fail on a clean `main` on the developer's machine (SQLite
+  3.51.0): the `wal_copy_without_wal` cases of `test_db_ready.py`. Compare
+  with `main` before blaming a change.
 - Give a huge parameter a short `id` (Windows caps an environment variable,
   and `PYTEST_CURRENT_TEST` holds the ID; `conftest.MAX_TEST_ID` is 300).
   Keep long single words short: Tier 1 cost grows with length.

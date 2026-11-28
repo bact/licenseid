@@ -13,7 +13,9 @@ format of what they print is in [output.md](output.md). The
 
 ## Update the licence database
 
-Before matching, you need to build the local licence index:
+Before matching, you need to build the local licence index, and to build
+it again after each upgrade of licenseid: a lookup reads only a database
+its own version built.
 
 ```bash
 licenseid update
@@ -30,7 +32,11 @@ LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/
 
 `LIST` is the list, by the ID `resolve()` gives it in `lists[*].id`;
 `VERSION` is the release the database now holds; `STATUS` is `updated`, or
-`unchanged` when the database already had that release.
+`unchanged` when the database already had that release. A database an
+older licenseid built is built again from nothing, even at the release it
+holds; one a newer licenseid built is left as it is: `unchanged` at the
+release it holds, else `ERROR: database: build v11 newer: current v10`
+(exit 1). `--force` builds it again.
 
 Advanced update options:
 
@@ -152,8 +158,10 @@ Common options:
   not the expression alone. It changes nothing with `--json`, which always
   prints the full record.
 - `--diff`: Show a word-by-word diff between the input and the top
-  result, when it was matched as text and is not exact, on standard error.
-  An exact result has no diff, so `--diff --exact` prints none.
+  result, when it was matched as text and is not exact, on standard error:
+  the input against the part of the licence text it was aligned with,
+  widened to whole words. An exact result has no diff, so `--diff --exact`
+  prints none.
 - `--json`: Output results as JSON Lines ([output.md](output.md#json)). It
   does not take `--diff`: both exit 2.
 - `--threshold <score>`: Keep results that score at least this, from 0 to
@@ -163,6 +171,10 @@ Common options:
   the licence texts the input holds ([output.md](output.md)). Under
   `REASON=several texts` there is no result to show at any threshold.
 - `--top <n>`: Keep at most this many results (default 3); below 1 exits 2.
+  Where the input holds one licence text whole, the results after the
+  licences of that text are at most three others, those that share the most
+  runs of three words with the input, each scoring under the answer: one
+  that scores as high is left out ([how-it-works.md](how-it-works.md)).
 - `--exact`: Keep only exact results (`EXACT=true`, see [output.md](output.md)).
 - `--pop/--no-pop`: Weigh results by popularity, or not (default off).
 - `--variant auto|as-written|only|or-later`: What to answer for a licence
@@ -381,10 +393,17 @@ A `WARNING` about the input or the database can still come with it, as with
 an answer: `detect "Not a licence at all"` says `too few words for text`
 and finds no match.
 
-A database is not ready when it is missing, empty (no licences), invalid
-(another program's file) or unreadable (a symlink loop included). `detect` and
-the `is-*` commands refuse to answer from one, rather than exiting 1 for no
-licence or `false`; `resolve` reads the list shipped with licenseid instead,
-unless `--db` or `--source database` asks for the database.
+A database is not ready when it is missing, empty (no licences, or a table
+of this version's database missing), invalid (another program's file),
+unreadable (a symlink loop included), or built by an older licenseid
+(`database: build v7 outdated: current v10; run 'licenseid update'`, or
+`normalization vN outdated`). `detect` and the `is-*` commands refuse to
+answer from one, rather than exiting 1 for no licence or `false`; `resolve`
+reads the list shipped with licenseid instead, unless `--db` or `--source
+database` asks for the database. After an upgrade of licenseid, run
+`licenseid update` once. A database a newer licenseid built is read, with
+the warning `database: build vN newer: current vM`; one in a shape this
+version cannot read is not ready, with that line as an `ERROR` (or
+`normalization vN newer`), and no `update` to run: use the newer licenseid.
 
 `licenseid --version` prints `licenseid <version>`.

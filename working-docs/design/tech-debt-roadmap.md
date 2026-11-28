@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -25,7 +25,9 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
 PR #247): the new detection engine of release 0.10.0, then item 68, then
-items 69 and 70 (decided 2026-11-27). The open items
+items 69 and 70 (decided 2026-11-27). Items 71 to 75 were found while
+that engine was built; 72 waits on 71. Items 76 to 78 (2026-11-28) are
+for after 0.10.0. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
@@ -87,8 +89,17 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
 - **Status (2026-11-18)**: the pull request was merged upstream on
   2026-11-10, and only 0.0.1 is on PyPI, so the floor stays and the README
   workaround stays (`docs/installation.md`).
-- The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
-  `tools/cli_matrix/baseline.txt`.
+- **Status (2026-11-28)**: 0.10.0 loads `py_spdx_license` where an
+  expression is parsed (start-up time), so the crash moved, as the
+  workaround note above said it would. Under `ja_JP.eucJP` (Python 3.10 and
+  3.14) `--version`, a licence text, one ID, a name, a `WITH` expression, a
+  tag with one ID and a predicate on one ID answer; `MIT OR Apache-2.0`,
+  `MIT AND ISC` and a tag with `OR` die with the same traceback, exit 1.
+  `docs/installation.md` says so.
+- The CLI matrix flag of this item is `E2-109` (bash) in
+  `tools/cli_matrix/baseline.txt`: `resolve 'MIT OR Apache-2.0'` under the
+  eucJP locale, a cell added for 0.10.0. `E2-082` to `E2-090`, its flags up
+  to 0.9.4, parse no `AND` or `OR` and pass now.
 - Impact 2, Risk 3, Effort 2.
 
 ## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10
@@ -213,7 +224,12 @@ quality check).
   of item 22, 2026-10-02). Snap the window to word boundaries here too.
 - Impact 3, Risk 2, Effort 3.
 - Full plan:
-  [`probe-anchored-windowing-plan.md`](probe-anchored-windowing-plan.md).
+After the engine of 0.10.0 (2026-11-28): the two inputs of the CPU table
+(`roadmap:11`) take 17.79 s to 0.05 s in the final gate run
+(`L27-vs-0.9.4-final.txt`, against 0.9.4). Tier 2 aligns a region the word codes
+locate (`../implementation/word-region.md`), and `--diff` widens its
+window to whole tokens. Open: the by-hand read of `--diff` output on
+fragments, which the final run did not measure.
 
 ## 7. GPL/LGPL/AGPL family disambiguation (tail recall floor) — Priority 12
 
@@ -360,6 +376,13 @@ From the review of PR #239 (2026-11-24); none answers worse than `main`.
 Details: `../implementation/accuracy-optimizations.md` sections 12 and 13.
 Impact 2, Risk 2, Effort 3.
 
+After the engine of 0.10.0 (2026-11-28): the nine inputs of
+`roadmap:61` take 3.76 s to 0.11 s (`L27-vs-0.9.4-final.txt`). The notice-free
+query is removed with the FTS5 query, so the cost part goes; where the
+report shows a first row (MIT, ISC, 0BSD, HPND, RHeCos-1.1 and others
+under copyright lines) it is the same on both sides. Open: cores alike
+(OLDAP) is untouched; the recall cases are not read apart from this run.
+
 ## 62. 100,000 `License:` lines on the test database take 25 min — Priority 12
 
 Found by `--run-benchmark` before 0.9.2 (2026-11-24); it fails on v0.9.0 and
@@ -384,6 +407,13 @@ lock around the first load if a measurement shows a cost.
 
 Impact 1, Risk 1, Effort 2.
 
+After the engine of 0.10.0 (2026-11-28): the store of loaded entries is
+filled under a lock, a call reads its texts one by one (2 to 4 ms, not
+the whole corpus), and the corpus a search reads stays immutable
+(`../implementation/texts-per-candidate.md`). The final Threads gate: 4
+threads, 150 items, 0 differing, errors 0. Open: no count of duplicate
+loads under concurrent first calls was taken.
+
 ## 66. A misshaped optional table breaks `-v` and `update` — Priority 8
 
 A `text_codes` (or `license_urls`) table that licenseid did not make, with
@@ -401,6 +431,13 @@ is a text match of 40 tokens or more (`firsttext`), so a misshaped table fails
 them on such an input as it fails `-v`.
 
 Impact 1, Risk 1, Effort 2.
+
+After the engine of 0.10.0 (2026-11-28): `text_codes` is a required
+table of one shape. A misshaped table of the new ones, `text_codes`
+included, reads as missing: the file is not ready and `update` drops it
+and rebuilds (`dbschema.has_shape`; `../implementation/gram-postings.md`
+section 3). Open: `license_urls` and the original `detect -v` case are
+not shown in the notes of this work.
 
 ## 68. `TEXTS` as ranking evidence — Priority 18
 
@@ -431,6 +468,15 @@ cost nothing (item 64's fixture numbers) must not become answers.
 
 Impact 3, Risk 3, Effort 3.
 
+After the engine of 0.10.0 (2026-11-28): a text found whole ranks first
+(task T5). `roadmap:68`, 27 inputs, takes 14.59 s to 0.44 s; the HPND
+family gate shows no new answer; labels agree 182 to 193
+(`L27-vs-0.9.4-final.txt`).
+Of the 14 real files with one text in `TEXTS` (measured on the T5 tree,
+`../implementation/whole-text-first.md` section 6): 8 answer, 4 name it
+in the top row under 0.85, 2 stay as they were (guard). Open: those 2,
+and `real:f3b34c66` at 211 ms (item 78); the 25 files were not read again.
+
 ## 69. A Mozilla Public License header as a notice — Priority 16
 
 Next: after item 68.
@@ -455,6 +501,278 @@ whole GCC Runtime Library Exception 3.1 after the GPL-3.0 text; `TEXTS` names
 whether exception texts can be found and named, or at least flagged. Design
 first: `TEXTS` holds licences only, and a `WITH` expression would be a
 conclusion, not a finding.
+
+Impact 2, Risk 2, Effort 3.
+
+## 71. Store the List's standard licence headers — Priority 14
+
+Next: after release 0.10.0 (decided 2026-11-27); measure first.
+
+The List gives a `standardLicenseHeader` for 79 licences in use (3.29.0): the
+notice a source file carries. The database holds none (only each licence's
+text and its core), and hand-written rules in `markers` read the GNU ones
+alone (12 of the 79). Measured while 0.10.0 was built (the 79 headers as
+given; right, wrong, no answer at 0.85, same-text twins counted as one):
+0.9.4 56, 11, 12; the 0.10.0 engine 54, 10, 15. With the placeholder lines
+taken out: 52, 13, 14 and 49, 15, 15. Wrong on both: the GFDL-1.2 and 1.3
+`-only` headers answer the GFDL-1.1 forms, `LGPL-2.0` and `LGPL-2.1` swap,
+`Pixar` answers `Apache-2.0` (item 13). No answer on both: the AFL headers,
+`UCL-1.0`, `SSPL-1.0`, `W3C`. The 0.10.0 engine also answers GFDL-1.1 for
+the GFDL-1.2 `-or-later` headers (and the cut 1.3 ones), which 0.9.4 had
+right by 0.014: their wording is the GFDL-1.1 text's own notice, only the
+number differs, and such near ties move with the window Tier 2 aligns (it
+gains `GPL-2.0-only` cut the same way). A header known as a text ends that.
+
+Idea: a header is a second text of its licence, in the gram postings and the
+whole-text search of 0.10.0; an input that holds it whole names that ID, and
+the `-only` or `-or-later` form comes stated, not guessed. It could replace
+the hand-written GNU patterns. Open before a design:
+
+- Measure on real source-file headers first (wrapped, in comment marks,
+  edited): the 79 clean headers are not what files hold.
+- A header inside a licence's own text (the GPL's appendix) is not a second
+  text; a header beside another licence's text (an Apache-2.0 header above a
+  BSD-3-Clause text, item 68's file) is.
+- Whether a header is in `TEXTS`, and under which `method`.
+- The header's own template marks (`<alt>`, `<optional>`) go through the
+  template reader.
+- The data changes in all three sources (`compact`, `upstream`, `packaged`)
+  and in the bundle format.
+
+The benchmark harness of 0.10.0 keeps the 79 headers as a set, in both
+forms. Release 0.10.0 ships two to three right answers short of 0.9.4 on it
+(accepted 2026-11-27); this item is done when both forms beat 0.9.4's 56
+and 52 right with no more wrong.
+
+Impact 4, Risk 3, Effort 4.
+
+## 72. A fragment that several List texts hold names one of them — Priority 18
+
+Next: after item 71 (decided 2026-11-27: not in 0.10.0).
+
+A fragment that two licences' texts hold word for word scores the same
+against both; the sort decides which ID is printed. Measured on 12,136
+slices of List texts (8 to 120 words; truth: the texts that hold the slice
+whole), 2,557 of them held by several licences: 0.9.4 names one holder in
+1,953 and another licence in 30; the 0.10.0 engine 1,989 and 3. The MIT grant
+sentence answers `Clips`; a BSD disclaimer paragraph `BSD-2-Clause`.
+
+Rule measured, not built: no answer when another licence's text scores the
+same, or both hold the input whole (same-text twins and the `-only` and
+`-or-later` forms are one licence; an exact text is exempt). It takes 1,963
+of the 1,989 away and no real file of 300 moves, but it also refuses the
+standard `GPL-3.0-or-later` header (`LGPL-3.0-or-later` holds the GPL's
+text), the `BitTorrent-1.0` header and the Apache-2.0 header without its
+copyright line (`FSL-1.1-ALv2` holds it). No reader of today settles those:
+the name tier reads a bag of words, and `grantsubject.grants` loses the family
+at "either version". Hence item 71 first. Also measured:
+
+- "Holds the input" must ask the stored word codes (the input's codes as one
+  run of the text's), not a similarity of 1: `token_sort_ratio` ignores word
+  order and a window can end inside a word, which cost 4 right answers.
+- The fingerprint bonus goes to the one text that lists a phrase several
+  hold; giving it to all, or to none, loses real files (labels agree 187 to
+  182 to 185): leave it.
+- The cap of 20 candidates can cut inside a group of equal gram scores (81
+  texts hold one BSD disclaimer); the rule above refuses every such input.
+- What a tie prints is open: a new `REASON`, or the rows without an answer.
+
+Impact 3, Risk 3, Effort 3.
+
+## 73. A GNU header that `markers` reads right gets another answer — Priority 20
+
+Found 2026-11-27 with item 71's headers. `markers` reads all 12 GNU standard
+headers as their own ID, yet `detect()` answers `LGPL-2.0-only` (0.88) for
+the `LGPL-2.1-only` header and `LGPL-2.1-only` (0.89) for the `LGPL-2.0-only`
+one, and gives no answer for the `GPL-3.0-only` and `AGPL-3.0-only` headers
+(their own ID at 0.84): the text match outranks the marker's reading. Same in
+0.9.4. Find where the marker candidate loses (the floor, the merge, the
+ranking) before a fix; it belongs with item 7.
+
+Impact 3, Risk 2, Effort 2.
+
+## 74. Filters of `detect()`: names under `only_common`, markers — Priority 12
+
+Left by the filter rule of 0.10.0 (2026-11-27; `gramselect.beyond_bar`,
+`idoptions.free_text_hits`; `../implementation/gram-candidates.md`, section
+8). `only_common` does not act on name hits: of 1,416 sentences naming a
+List licence, 828 that name a rare one still answer it. A marker candidate
+is not cut with its text: the `GPL-3.0-only` text with both GPL-3.0 IDs
+excluded answers `AGPL-3.0-only` (0.99), because the text names it; cutting
+every marker whose text was cut removes 7 wrong answers and 5 right ones on
+the whole-text sets, so it needs a better rule. `exclude` with a `hint` of
+the near text answers it: the caller's own choice, left.
+
+Impact 2, Risk 2, Effort 3.
+
+## 75. Database leftovers of the 0.10.0 review — Priority 10
+
+Found 2026-11-28 in the review of the 0.10.0 database. None changes an answer
+of a normal call; "old" means 0.9.4 does the same.
+
+- During `update`, for 0.5 to 1 s between the commit of the rows and the
+  commit of the fingerprints and list version, a fresh open is refused as
+  `empty; run 'licenseid update'`. An interrupted update leaves the file so
+  until the next update (old layout of transactions). A kept detector is not
+  affected.
+- `database: update failed: database is locked` lacks the `<Type>:` the
+  grammar asks for (two updates at once, a read-only file). Old wording.
+- A non-numeric `idf_norm` in `license_fingerprints` gives a traceback on
+  `detect`. Old.
+- A flag stored as the text `'false'` reads as true (`bool('false')`):
+  `is-osi` answers true. Old.
+- "One transaction a call" covers Tier 1 and the loading of entries only: the
+  fingerprint hits and the `lists` metadata are read after the snapshot ends,
+  so a rebuild to another release in that gap could mix them into one call
+  (not observed to change an answer).
+- A kept detector whose file is replaced in place by a 0.9.x file still
+  answers names from it; texts fail with `unreadable: no such table:
+  license_texts`.
+- An outdated file in an install without the packaged bundle (editable,
+  `LICENSEID_BUNDLE=skip`) makes `resolve` exit 2; 0.9.4 warned and answered.
+  With the wheel it falls back to the packaged list.
+- A text edited by hand without a new `last_update_datetime` is caught only
+  when read; the answer can show `COVERAGE` above 1 (stale core text, word
+  count and fingerprints beside the new text).
+- The postings blobs carry no content check: swapped blobs keep the answer
+  but `TEXTS` becomes none and the runner-ups change (the limit stated in
+  the gram postings note).
+- A refused `update` on a newer build's file still runs `leave_wal` first: a
+  newer file in WAL mode is switched out of it.
+- `errors.one_line` folds white space but leaves other control characters as
+  they are: an ESC in a stamp or a value reaches the terminal
+  (`errors.shown` escapes them).
+- `tools/cli_matrix/baseline.txt` was recorded without a packaged bundle:
+  against a wheel, cells D4-001, D4-002 and D8-003 flag (`update` falls back
+  to `packaged` and exits 0); 0.9.4 flags the same.
+
+Done when: each is fixed or decided not to be, with a test.
+
+Impact 2, Risk 3, Effort 4.
+
+## 76. Repeated inputs: measure them, then keep their answers — Priority 15
+
+Asked 2026-11-28, for after 0.10.0. A process that keeps licenseid loaded and
+calls it on many packages meets the same input again and again: a declared
+value (`MIT`, `Apache-2.0`), or a licence file that is the same byte for byte
+(the Apache-2.0 or a GNU text). Each call pays in full. The speed gates of
+0.10.0 measure distinct inputs only (`benchmarks/speedgate`), so they show
+nothing of this.
+
+First measure, do not guess: how often an input repeats, among the declared
+values of `tools/pypi_licence_sample` (`fetch` keeps each package's value,
+`analyze` the counts) and among the licence files of real manifests, and
+what one repeated call costs now (`resolve()`, `detect(license_id=...)`,
+`detect()` on a text).
+
+Then, only if the share is high, keep answers by input. What a kept answer
+must not change:
+
+- Warnings. A call gives its `LicenseIdWarning`s each time (`variant not
+  stated`, `deprecated ID`): a kept answer gives them again.
+- The result. It is a mutable dict: a caller gets its own copy.
+- The key: the input (its hash for a text), every option, `variant`, and
+  the database's stamp, so `update` ends what was kept
+  (`listsource.file_stamp` keys the choice of list so already).
+- A bound by count and by size, and one behaviour under threads.
+
+Not a `functools.cache` on the scorers: the memo of Tier 2
+(`similarity._scored_once`) lives for one call on purpose. A cache of the
+process keyed by the input and a licence text keeps every input it saw, and
+two files that differ by a copyright line never meet in it. One CLI call
+starts with nothing kept: this item is for the library.
+
+Done when: the share of repeated inputs is in
+`working-docs/paper-notes/`, and a cache is built with those four points
+tested, or the item is closed with the numbers that say it does not pay.
+
+Impact 3, Risk 2, Effort 3.
+
+## 77. A text that holds another List text, its own part edited — Priority 15
+
+Found 2026-11-28 by the review of 0.10.0; left to after it (decided the same
+day). Thirteen pairs of List texts hold one another whole: `MPL-1.1` in
+`NPL-1.1`, `Caldera-no-preamble` in `Caldera`, `SSLeay-standalone` in
+`OpenSSL`, `ANTLR-PD` in `ANTLR-PD-fallback`, `SSH-short` in `SSH-OpenSSH`,
+`Linux-man-pages-copyleft-2-para` in four texts, the `GPL-3.0` text in the
+`LGPL-3.0` one. The gram score is the share of the smaller side, so the
+inner text scores 1.0 and the outer one, which shares more grams, can fall
+out of the selection. With every fifth word of the outer text's own part
+replaced, `NPL-1.1` answers `MPL-1.1` (0.96), `Caldera` answers
+`Caldera-no-preamble` (0.86) and `ANTLR-PD-fallback` answers `ANTLR-PD`
+(0.92); 0.9.4 answers them right. Edits a file would have (a fork renamed,
+the amendments edited: 10 inputs) move nothing.
+
+A fix was built and taken out again. Its rules: Tier 2 also scores the one
+text that shares strictly the most grams, and a runner-up whose text holds
+the text found whole is not left out (decision Q1). They brought back 8
+answers. An independent review then found 17 right answers turned wrong and
+7 wrong answers where there was none, at 0.85:
+
+- The inner text with the first words that follow it in an outer text, or
+  without its first five to seven words, answers an outer text at 1.0
+  (`Linux-man-pages-copyleft-2-para` as `Latex2e-translated-notice`,
+  `SSH-short` as `SSH-OpenSSH`): Tier 2 aligns a short input with the best
+  window of a long text, and the inner text, compared whole, gets 0.99.
+- A whole short licence with a fragment of a long one answers the long one
+  (`ISC` with a tenth of `CC-BY-SA-4.0`: 0.91), while `TEXTS` names the
+  short one.
+- The added text costs up to 24 times the call on such inputs (5 ms to
+  0.12 s).
+
+A narrower form was measured on the review's sets only (not the speed gates,
+not the golden): add the text that shares the most grams only where its text
+holds a selected text, and keep a runner-up that holds the text found only
+where it shares strictly more grams than every member of the group and every
+other such runner-up. It gives back all 24 and keeps `NPL-1.1`, `Caldera`
+and `OpenSSL`; `ANTLR-PD-fallback` and a `Sleepycat` fragment stay lost. It
+is two rules for thirteen pairs: weigh that against closing the item.
+
+The inputs, both reviews' scripts, the answers of each tree and the rules as
+built are kept outside the repository (`.claude/speed-0-10/reviews/`). The
+`HPND-sell-variant-MIT-disclaimer-rev` fragment that 0.10.0 answers as
+`HPND-sell-variant` (0.97) is a neighbour, not this: no text there holds
+the other.
+
+Done when: the nested inputs answer the outer text with no answer lost on
+the review's sets, the speed gates and the golden, or the item is closed as
+inputs no file has.
+
+Impact 2, Risk 3, Effort 3.
+
+## 78. Engine leftovers of the 0.10.0 review — Priority 12
+
+Found 2026-11-28 in the review of the 0.10.0 engine; left to after it. The
+figures are CPU time of one call, measured on 0.10.0 and 0.9.4.
+
+- A short text that quotes a long licence costs whole alignments:
+  `freertos-exception-2.0` with 3 % of its words changed takes 0.18 s, 2.6
+  times 0.9.4 (0.07 s). The gram score selects three GNU texts of 19,000 to
+  25,000 characters, the words do not place the input in them (word
+  alignment under 60), and each gets a character alignment of about 70 ms;
+  0.9.4 only probed them. A cure moves scores.
+- The real file of item 68 (`real:f3b34c66`) spends its time in one alignment
+  of the whole Apache-2.0 text, the same call 0.9.4 makes: no bound by counts
+  keeps the score (under 0.6 the alignment score is the similarity). It takes
+  211 ms against the plan's limit of 200 (2,059 ms in 0.9.4): accepted for
+  0.10.0 by the maintainer on 2026-11-28.
+- Memory on a very long input stays above 0.9.4: 300,000 Han characters peak
+  at 90 MB against 69 MB; 1 MB of two-letter words at 121 to 138 MB against
+  118 MB.
+- Old, same in 0.9.4: a 3.6 MB minified blob with no white space answers
+  `MIT` (0.9025) through the name tier (1.8 s now, 49.7 s in 0.9.4); a Han or
+  kana text wrapped again every 17 characters scores 0.49 to 0.85; fragments
+  of `EUPL-1.2` answer `EUPL-1.1` (0.89).
+- `popular=` passed to `variants.settle_free_text` at the Tier 0 call in
+  `detector` decides nothing (short-text rows carry no popularity); at Tier 2
+  it settles only an exact tie of scores between popularity 0 and 1 (marker
+  candidates). A candidate for removal.
+- Under the answer bar, on 12 many-text files distorted by 5 %, no text is
+  found whole and the rows are what the selection gives; lower thresholds
+  (0.8, 0.75) answer 17 and 18 files right and 8 and 9 wrong, about as 0.9.4
+  (20 and 22 right, 8 and 10 wrong).
+
+Done when: each is fixed or decided not to be, with its number measured again.
 
 Impact 2, Risk 2, Effort 3.
 

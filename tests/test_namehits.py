@@ -22,7 +22,7 @@ from licenseid.detector import LicenseDetector
 from licenseid.namehits import _without_grant, refusal_answer
 from licenseid.normalize import normalize_text
 from licenseid.resolvefirst import MIN_TEXT_WORDS
-from licenseid.shorttext import match_name_tier, match_short_text
+from licenseid.shorttext import match_name_tier
 
 ROWS = [
     # A nested pair: the longer name holds the shorter one's words.
@@ -125,7 +125,7 @@ def db() -> Generator[LicenseDatabase, None, None]:
 
 def hits(db: LicenseDatabase, text: str) -> list[str]:
     """The IDs of the hits above 1 that stand for *text*."""
-    found = match_short_text(db, normalize_text(text), text)
+    found = match_name_tier(db, normalize_text(text), text).found
     return [m["license_id"] for m in found if m["score"] > 1.0]
 
 
@@ -575,9 +575,9 @@ def test_a_refusal_is_no_answer_from_ten_words_exactly() -> None:
 
 
 def test_a_stray_plus_in_a_section_is_no_guess() -> None:
-    """The sections of a mixed text reach ``match_short_text`` without
-    ``refuses_text_match``: a "＋" that normalize_text drops must not leave
-    the narrower grant of a name that states none."""
+    """The name tier read without ``refuses_text_match``: a "＋" that
+    normalize_text drops must not leave the narrower grant of a name that
+    states none."""
     rows = [
         Lic("Pair-1.0-only", "Pair Name v1 only"),
         Lic("Pair-1.0-or-later", "Pair Name v1 or later"),
@@ -586,7 +586,7 @@ def test_a_stray_plus_in_a_section_is_no_guess() -> None:
         pair = LicenseDatabase(path)
         for plus, stands in (("", ["Pair-1.0-only", "Pair-1.0-or-later"]), (" ＋", [])):
             text = f"Pair Name v1{plus}"
-            found = match_short_text(pair, normalize_text(text), text)
+            found = match_name_tier(pair, normalize_text(text), text).found
             assert [m["license_id"] for m in found if m["score"] > 1.0] == stands
 
 

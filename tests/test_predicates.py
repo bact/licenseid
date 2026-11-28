@@ -12,6 +12,7 @@ from collections.abc import Generator
 
 import pytest
 from conftest import seed_ready_metadata
+from seed_sql import fill_norm_columns
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
@@ -47,7 +48,7 @@ def test_db() -> Generator[str, None, None]:
             ("0BSD", "BSD Zero Clause License", True, True, False),
         )
         conn.execute(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
             (
                 "MIT",
                 (
@@ -60,6 +61,7 @@ def test_db() -> Generator[str, None, None]:
             "INSERT INTO db_metadata (key, value) VALUES (?, ?)",
             ("last_check_datetime", "2026-01-01T00:00:00"),
         )
+        fill_norm_columns(conn)
     seed_ready_metadata(db_path)
     yield db_path
     keep_alive.close()

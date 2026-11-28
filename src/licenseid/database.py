@@ -10,42 +10,50 @@ SQLite database management for SPDX licenses.
 import contextlib
 import os
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from licenseid.console import end_line, status
-from licenseid.datadir import get_default_db_path
 from licenseid.dbcache import TableCache, cast_license_details
 from licenseid.dbcheck import (
     absolute_path,
-    empty_error,
     is_absent,
     is_memory_database,
-    is_ready,
     named_file,
     needs_writing,
     not_found_error,
     reject_blank_path,
     reject_foreign_database,
-    require_path,
 )
+from licenseid.dbclear import clear_database
 from licenseid.dbconnection import Connections, QueryConnection
+from licenseid.dbhandle import DatabaseHandle
 from licenseid.dbschema import (
-    add_build_columns,
+    BUILD_VERSION,
+    NORMALIZATION_VERSION,
     create_schema,
-    create_text_table,
-    create_url_table,
-    schema_state,
+    has_shape,
+    replace_schema,
+    stamp,
+    stamped_rules,
+)
+from licenseid.dbverdict import (
+    NEWER,
+    Refusal,
+    connection_refusal,
+    rebuild_refusal,
 )
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
-from licenseid.ftsquery import match_query
+from licenseid.gramselect import ListFlags
+from licenseid.gramstore import write_postings
 from licenseid.listlookup import ListedUrl
-from licenseid.normalize import normalize_text
-from licenseid.records import BUILD_VERSION, Records, build_records
+from licenseid.records import Records, build_records
 from licenseid.spdxdata import SpdxData
+from licenseid.textentries import write_checks
+from licenseid.textgrams import GramTable
 from licenseid.types import (
     CandidateMatch,
     DatabaseMetadata,
@@ -58,79 +66,50 @@ from licenseid.types import (
 from licenseid.warning import warn
 
 if TYPE_CHECKING:
+    from licenseid.nameindex import NameIndex
     from licenseid.releasesource import UpdateRequest
-    from licenseid.textcorpus import TextCorpus
-
-# Version of the normalize_text() rule set used to build the stored
-# search_text and fingerprints.  Bump whenever normalization rules change so
-# that databases built with the old rules can be detected and rebuilt (see
-# also records.BUILD_VERSION).
-# Version 2: SPDX Matching Guidelines rules (varietal words, bullets,
-# copyright notices, comment prefixes, separators).
-NORMALIZATION_VERSION = "2"
-
-
-def _stamp(value: str) -> int:
-    """A build stamp as a number to compare: -1 for one that is no short
-    ASCII number, which no licenseid wrote, so it is older than any."""
-    return (
-        int(value)
-        if isinstance(value, str)
-        and value.isascii()
-        and value.isdecimal()
-        and len(value) < 10
-        else -1
-    )
+    from licenseid.textentries import StoredTexts
 
 
 def is_current_build(metadata: DatabaseMetadata) -> bool:
     """Whether a database's rows were built by this licenseid's rules
-    (``records.BUILD_VERSION``): not older, as ``build vN outdated`` warns,
-    nor newer, as ``build vN newer`` does."""
-    return _stamp(metadata.get("build_version", "1")) == _stamp(BUILD_VERSION)
+    (``dbschema.BUILD_VERSION``): not newer, as ``build vN newer`` warns (an
+    older one is not ready)."""
+    return stamp(metadata.get("build_version", "1")) == stamp(BUILD_VERSION)
 
 
-def _holds_own_cache(db_path: Path) -> bool:
-    """Whether the directory of *db_path* holds licenseid's download cache,
-    so ``clear-cache`` may delete the cache files in it: the default data
-    directory, or the directory of a ready database (``update`` writes its
-    cache beside the database it builds). Fail-closed, as a delete is
-    (``reject_foreign_database``): a mistyped ``--db`` names a database that
-    is not there, and the ``licenses.json`` beside it is somebody else's."""
-    if is_ready(str(db_path)):
-        return True
-    try:
-        default = Path(get_default_db_path()).parent
-        return os.path.samefile(db_path.parent, default)
-    except (DatabaseNotReadyError, OSError):
-        return False  # no home, or no such directory: none of licenseid's
-
-
-class LicenseDatabase:
+class LicenseDatabase(DatabaseHandle):
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
     """
+
+    # Whether opening without *create* judges the file (``dbverdict``); not
+    # when check_database_ready has just judged it (judged_database).
+    _judge = True
 
     def __init__(
         self,
         db_path: str | os.PathLike[str],
         create: bool = True,
     ):
-        """Open the database at *db_path*. With *create* (the default) the
-        tables a file lacks are created, and a file that is not there is
-        made by the first write (``update_from_remote``), never by opening
-        the handle or by a read, so a mistyped name leaves nothing behind;
-        without it the file must be there, and only a schema of an older
-        version is written to, so a detector never makes a database out of
-        one that went missing.
+        """Open the database at *db_path*. With *create* (the default) a
+        file with none of licenseid's tables gets them, a file that is not
+        there is made by the first write (``update_from_remote``), never by
+        opening the handle or by a read, so a mistyped name leaves nothing
+        behind, and any other is left to ``update``, which builds its tables
+        again from nothing.
+
+        Without *create* the handle only reads: the file must be ready to
+        answer, as :func:`licenseid.dbcheck.check_database_ready` says (of
+        this build's shape, its rules not older than this licenseid's), or it
+        is :class:`licenseid.DatabaseNotReadyError` (``not found``, ``empty``,
+        ``invalid``, ``build vN outdated``), and nothing is written. Rules
+        newer than this licenseid's are warned (``database: build vN newer:
+        ...``, a :class:`licenseid.LicenseIdWarning`).
 
         Either way a file that licenseid did not build, and that is not
         empty, is :class:`licenseid.DatabaseNotReadyError` (``invalid``):
-        another program's tables are never written to.
-
-        Without *create*, rules older or newer than this licenseid's are
-        warned (``database: build vN outdated: ...``, a
-        :class:`licenseid.LicenseIdWarning`). A blank *db_path* is
+        another program's tables are never written to. A blank *db_path* is
         :class:`licenseid.InvalidInputError`, as for ``LicenseDetector``."""
         db_path = os.fspath(db_path)
         reject_blank_path(db_path, "db_path", optional=False)
@@ -152,55 +131,13 @@ class LicenseDatabase:
             # An in-memory database goes when its last connection closes.
             self._keep_alive = self._connections.connect(write=True)
 
-        self._init_db()
+        if create:
+            self._init_schema()
+        metadata = None if create else self._check_ready()
         self._tables = TableCache(self._connections)
-        if not create:  # update, which creates, is about to fix it
-            for condition, detail in self._outdated_rules():
-                warn("database", condition, detail, "run 'licenseid update'")
-            for condition, detail in self._stamped_rules(newer=True):
+        if metadata is not None:
+            for condition, detail in stamped_rules(metadata, newer=True):
                 warn("database", condition, detail)
-
-    def _outdated_rules(self) -> list[tuple[str, str]]:
-        """The rules this database was built with that are older than this
-        licenseid's, each as a condition and its detail ("normalization v1
-        outdated", "current v2"). ``update`` rebuilds such a database."""
-        return self._stamped_rules(newer=False)
-
-    def _stamped_rules(self, newer: bool) -> list[tuple[str, str]]:
-        """The rules this database was built with that are older than this
-        licenseid's (a stamp that is no number counts as older), or with
-        *newer*, the newer ones ("build v3 newer", "current v2"): a later
-        licenseid built it, and rebuilding would downgrade it.
-
-        Stored search_text and fingerprints are normalised at build time; if
-        the normalize_text() rules changed since, query-side normalisation no
-        longer matches the index and recall degrades silently. Rows built by
-        older records rules miss what those rules now record.
-        """
-        if self._schema_pending:
-            return []  # no file yet
-        metadata = self.get_metadata()
-        # Empty/new databases have no version yet — nothing to warn about.
-        if not metadata.get("license_list_version"):
-            return []
-        built = (
-            (
-                "normalization",
-                metadata.get("normalization_version", "1"),
-                NORMALIZATION_VERSION,
-            ),
-            ("build", metadata.get("build_version", "1"), BUILD_VERSION),
-        )
-        ahead = [
-            (rules, stored, current, _stamp(stored) - _stamp(current))
-            for rules, stored, current in built
-        ]
-        condition = "newer" if newer else "outdated"
-        return [
-            (f"{rules} v{stored} {condition}", f"current v{current}")
-            for rules, stored, current, diff in ahead
-            if (diff > 0 if newer else diff < 0)
-        ]
 
     def _connection(self, write: bool = False) -> QueryConnection:
         """A connection for one query, read-only unless *write*."""
@@ -210,32 +147,62 @@ class LicenseDatabase:
         """One connection and one rebuild check for a block's queries (one match)."""
         return self._connections.reading()
 
-    def _init_db(self) -> None:
-        """Create the tables with FTS5 (and add what an older version lacked).
-        A database opened without *create* is only checked: it is written to
-        for an older schema, and only if it is licenseid's own file."""
+    def _check_ready(self) -> DatabaseMetadata:
+        """Without *create*: raise the refusal of a file that cannot answer
+        (``dbverdict.connection_refusal``, unless :func:`judged_database`
+        opened it), else read its metadata, through this handle's own connection.
+        Its tables are never written: a lookup never writes."""
         try:
-            state = schema_state(self._connections)
+            judged = self._judged()
         except DatabaseNotReadyError as exc:
-            if self._create and self._is_missing():
-                self._schema_pending = True  # made by the first write
-                return
-            if self._create:
-                state = "none"  # no tables: made below
-            elif needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
+            if needs_writing(exc.__cause__):  # a hot journal, or a WAL's -shm
                 self._connections.recover()
-                state = schema_state(self._connections)
+                judged = self._judged()
             elif is_absent(str(self.db_path)):
                 raise not_found_error(str(self.db_path)) from exc
             else:
                 raise
-        if state == "current":
-            return  # nothing to write: a read-only open needs no more
+        if isinstance(judged, tuple):
+            raise judged[1]
+        return judged
+
+    def _judged(self) -> Refusal | DatabaseMetadata:
+        """The refusal of the file, or its metadata, in one read."""
+        with self._connection() as conn:
+            if self._judge:
+                refusal = connection_refusal(conn, str(self.db_path))
+                if refusal is not None:
+                    return refusal
+            return _metadata(conn)
+
+    def _refusal(self) -> Refusal | None:
+        """The verdict on this file for ``update``
+        (``dbverdict.rebuild_refusal``), through a read."""
+        with self._connection() as conn:
+            return rebuild_refusal(conn, str(self.db_path))
+
+    def _init_schema(self) -> None:
+        """With *create*: leave a missing file to the first write, and refuse
+        another program's file. A file with none of licenseid's tables gets
+        them now; one with some of them, of an older build or not, is left as
+        it is: ``update`` replaces them whole (``dbschema.replace_schema``)."""
+        try:
+            with self._connection() as conn:
+                shaped = has_shape(conn)
+                bare = not conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name = 'licenses'"
+                ).fetchone()
+        except DatabaseNotReadyError:
+            if self._is_missing():
+                self._schema_pending = True  # made by the first write
+                return
+            shaped, bare = False, True  # no tables that can be read: made below
+        if shaped:
+            return  # nothing to judge or write
         reject_foreign_database(self._source)  # never write to another's file
-        if not self._create and state == "none":
-            raise empty_error(str(self.db_path))
-        with self._connection(write=True) as conn:
-            create_schema(conn)
+        if bare:
+            with self._connection(write=True) as conn:
+                create_schema(conn)
 
     def _reject_foreign(self) -> None:
         """Refuse a file that is not licenseid's to write to (an in-memory
@@ -270,40 +237,11 @@ class LicenseDatabase:
     @staticmethod
     def clear_cache(db_path: str | os.PathLike[str]) -> bool:
         """Delete the database (unopened) at *db_path* and, where they are
-        licenseid's (:func:`_holds_own_cache`), the cache files beside it;
+        licenseid's, the cache files beside it (``dbclear.clear_database``);
         True if there was any of them to delete. Raises
         :class:`licenseid.DatabaseNotReadyError` for a path licenseid did not
         build a database at, as the CLI does."""
-        # Local import: spdx_source pulls in `requests` (~60ms at import),
-        # unused on the match path; update_from_remote() defers it too.
-        from licenseid import spdx_source
-
-        require_path(db_path, "db_path")
-        db_path = os.fspath(db_path)
-        reject_foreign_database(db_path)
-        status("Clearing cache...")
-        named = named_file(db_path)
-        if named is None:
-            return False  # in-memory: no directory to clear
-        db_path = Path(named)
-        # Asked before the database goes: then nothing would show it.
-        own_cache = _holds_own_cache(db_path)
-        deleted = False
-        # The database goes first, so a refused delete leaves the cache
-        # intact. Its sidecars follow, best effort: once it is gone a stale
-        # -wal cannot be replayed, and reporting one would claim the delete
-        # failed when it succeeded.
-        if db_path.is_symlink() or db_path.exists():
-            status(f"Deleting database at {db_path}...")
-            db_path.unlink(missing_ok=True)
-            deleted = True
-        for suffix in ("-wal", "-shm", "-journal"):
-            with contextlib.suppress(OSError):
-                db_path.with_name(db_path.name + suffix).unlink()
-                deleted = True
-        if own_cache and spdx_source.clear_cache_files(db_path.parent):
-            return True
-        return deleted
+        return clear_database(db_path)
 
     def update_from_remote(
         self,
@@ -339,13 +277,14 @@ class LicenseDatabase:
 
         A file made since opening (another process's update) is judged as at
         opening: refused, completed, or found current, with the rules it was
-        built by (never rebuilt over a newer build). A file that is not
-        licenseid's is refused before ``leave_wal`` writes its journal mode.
-        A name in a directory that is not there fails now, as it does when
+        built by (a newer licenseid's file is never written but with
+        *force*: ``_update_from_remote``). A file that is not licenseid's is
+        refused before ``leave_wal`` writes its journal mode. A name in a
+        directory that is not there fails now, as it does when
         the file is made, not after a download."""
         if self._schema_pending and not self._is_missing():
             self._schema_pending = False
-            self._init_db()
+            self._init_schema()
         self._reject_foreign()
         if self._schema_pending and not (
             Path(os.path.realpath(self.db_path)).parent.is_dir()
@@ -364,8 +303,16 @@ class LicenseDatabase:
         chain = releasesource.ReleaseChain(self.db_path.parent, request, current)
         target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")
-        # Older build rules need the same release built again.
-        force = request.force or bool(self._outdated_rules())
+        # A file of older rules, or of another shape, needs the same release
+        # built again. One a newer licenseid built (``newer``, readable or
+        # not) is never written but with --force: left as it is at its
+        # release, else refused.
+        refusal = None if pending else self._refusal()
+        if refusal is not None and refusal[0] == NEWER and not request.force:
+            if current == target_version:
+                return _skip(target_version)
+            raise refusal[1]
+        force = request.force or refusal is not None
         if current == target_version and not force:
             return _skip(target_version)
 
@@ -418,8 +365,8 @@ class LicenseDatabase:
         and compact the file."""
         self._write_db_records(build_records(data, popularity_map), release_date)
 
-        # Compute fingerprints in a separate transaction so that the FTS5
-        # virtual table is fully committed and readable before we scan it.
+        # Fingerprints in a transaction of their own, read from the texts
+        # the one before committed.
         store_fingerprints(self._connections)
         with self._connection(write=True) as conn:
             conn.execute(
@@ -439,8 +386,8 @@ class LicenseDatabase:
             warn("database", "compact failed", typed(exc))
 
     def _write_db_records(self, records: Records, release_date: str | None) -> None:
-        """Replace all licence, exception, URL and metadata rows in a single
-        transaction.
+        """Replace every table, and all licence, exception, URL, metadata
+        and postings rows, in a single transaction.
 
         ``update`` stamps ``license_list_version`` after the fingerprints: a
         run that fails before leaves a database it does not skip."""
@@ -449,16 +396,7 @@ class LicenseDatabase:
         with self._connection(write=True) as conn:
             conn.execute("BEGIN TRANSACTION")
             try:
-                create_url_table(conn)  # a database of build 3 lacks it
-                create_text_table(conn)  # a database of build 5 lacks it
-                add_build_columns(conn)  # a database of build 4 lacks them
-                conn.execute("DELETE FROM license_index")
-                conn.execute("DELETE FROM licenses")
-                conn.execute("DELETE FROM exceptions")
-                conn.execute("DELETE FROM db_metadata")
-                conn.execute("DELETE FROM license_fingerprints")
-                conn.execute("DELETE FROM license_urls")
-                conn.execute("DELETE FROM text_codes")
+                replace_schema(conn)  # whatever build made the file
 
                 now = datetime.now(timezone.utc).isoformat()
                 metadata_items: list[tuple[str, str]] = [
@@ -486,8 +424,8 @@ class LicenseDatabase:
                 """,
                     records.licenses,
                 )
-                conn.executemany(
-                    "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                conn.executemany(  # text_id: 1, 2, ... in List order
+                    "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
                     records.index_entries,
                 )
                 conn.executemany(
@@ -505,6 +443,11 @@ class LicenseDatabase:
                     "INSERT INTO text_codes (kind, owner_id, body) VALUES (?, ?, ?)",
                     records.texts,
                 )
+                # Read back as a lookup reads them, with the rows' time.
+                write_checks(conn, now)
+                # Read back from the rows just written: the postings are
+                # those of the texts a lookup reads, stamped with them.
+                write_postings(conn, now)
                 conn.execute("COMMIT")
             except Exception:
                 conn.execute("ROLLBACK")
@@ -516,50 +459,6 @@ class LicenseDatabase:
         """Map each licence ID to the best idf_norm of the fingerprint n-grams it
         shares with *norm_input* (see ``fingerprintstore.fingerprint_hits``)."""
         return fingerprint_hits(self._connections, norm_input)
-
-    def search_candidates(
-        self,
-        text: str,
-        limit: int = 50,
-        already_normalized: bool = False,
-    ) -> list[CandidateMatch]:
-        """Tier 1: Search for candidates using trigram FTS5.
-
-        Set already_normalized=True when the caller has already run
-        normalize_text() on the full original text and is passing a slice of
-        the result (e.g. a head/tail word-count window): re-normalizing a
-        slice can behave differently from normalizing the full text once
-        (line-anchored rules like copyright-notice removal need real line
-        breaks, which a slice reconstructed by joining words with spaces no
-        longer has).
-        """
-        norm_text = text if already_normalized else normalize_text(text)
-        search_terms = match_query(norm_text)
-        if not search_terms:
-            return []
-
-        with self._connection() as conn:
-            conn.row_factory = sqlite3.Row
-            query = """
-                SELECT
-                    li.license_id,
-                    li.search_text,
-                    l.word_count,
-                    l.is_spdx,
-                    l.is_high_usage,
-                    l.is_osi_approved,
-                    l.is_fsf_libre,
-                    l.pop_score,
-                    l.is_deprecated,
-                    l.superseded_by
-                FROM license_index li
-                JOIN licenses l ON li.license_id = l.license_id
-                WHERE li.search_text MATCH ?
-                ORDER BY li.rank
-                LIMIT ?
-            """
-            cursor = conn.execute(query, (search_terms, limit))
-            return [cast(CandidateMatch, dict(row)) for row in cursor.fetchall()]
 
     def get_license_details(self, license_id: str) -> LicenseDetails | None:
         """Get full metadata for a license (ASCII case-insensitive lookup)."""
@@ -611,14 +510,14 @@ class LicenseDatabase:
         return cast(ExceptionDetails, d)
 
     def get_search_text(self, license_id: str) -> str:
-        """Return the normalized search text for a license from the FTS index."""
-        rowid = self._tables.index_row(license_id)
+        """The normalised text of a licence (exact case), or ``""``."""
+        rowid = self._tables.index_rows().get(license_id)
         if rowid is None:
             return ""
         with self._connection() as conn:
             # The ID too: a rebuild during this match may move the rows.
             row = conn.execute(
-                "SELECT search_text FROM license_index"
+                "SELECT search_text FROM license_texts"
                 " WHERE rowid = ? AND license_id = ?",
                 (rowid, license_id),
             ).fetchone()
@@ -659,8 +558,29 @@ class LicenseDatabase:
     def get_metadata(self) -> DatabaseMetadata:
         """Get database metadata."""
         with self._connection() as conn:
-            cursor = conn.execute("SELECT key, value FROM db_metadata")
-            return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
+            return _metadata(conn)
+
+
+def _metadata(conn: sqlite3.Connection) -> DatabaseMetadata:
+    """The rows of ``db_metadata``, by key."""
+    cursor = conn.execute("SELECT key, value FROM db_metadata")
+    return cast(DatabaseMetadata, {row[0]: row[1] for row in cursor.fetchall()})
+
+
+class _JudgedDatabase(LicenseDatabase):
+    """A handle opened right after ``check_database_ready`` judged its file
+    (:func:`judged_database`): opening reads the metadata, never the verdict
+    again. A file gone since is ``not found``, a hot journal is rolled back,
+    as for a handle that judges."""
+
+    _judge = False
+
+
+def judged_database(db_path: str | os.PathLike[str]) -> LicenseDatabase:
+    """The handle a lookup reads *db_path* through, right after
+    :func:`licenseid.dbcheck.check_database_ready` passed it: the verdict is
+    made once (``LicenseDatabase(db_path, create=False)`` makes it again)."""
+    return _JudgedDatabase(db_path, create=False)
 
 
 def _skip(version: str) -> bool:
@@ -683,8 +603,80 @@ def text_parts(db: LicenseDatabase) -> dict[str, TextParts]:
     return db._tables.text_parts()  # pylint: disable=protected-access
 
 
-def text_corpus(db: LicenseDatabase) -> "TextCorpus":
-    """The texts of the List, coded for the search of the texts an input
-    holds whole (see ``dbcache.TableCache.text_corpus``): built at its first
-    use, once per rebuild of the tables."""
-    return db._tables.text_corpus()  # pylint: disable=protected-access
+def gram_scores(
+    db: LicenseDatabase, norm_text: str, limit: int | None = None
+) -> GramTable:
+    """The List texts that share a word 3-gram with *norm_text* (normalised),
+    each with its shared grams, size and score, in row order (see
+    ``licenseid.gramstore``): from the stored postings when they are those of
+    the rows, else from an index built in memory. Only the first *limit* of
+    its distinct grams are looked up when given; the table says so
+    (``bounded``)."""
+    texts = db._tables.texts()  # pylint: disable=protected-access
+    return texts.gram_scores(norm_text, limit)
+
+
+def list_flags(db: LicenseDatabase) -> dict[str, ListFlags]:
+    """What the filters of ``detect()`` read of each licence, by ID (see
+    ``dbcache.TableCache.list_flags``)."""
+    return db._tables.list_flags()  # pylint: disable=protected-access
+
+
+# The columns of a candidate: its text, the rest from its licence row.
+_CANDIDATE_ROWS = """
+    SELECT
+        t.license_id,
+        t.search_text,
+        l.word_count,
+        l.is_spdx,
+        l.is_high_usage,
+        l.is_osi_approved,
+        l.is_fsf_libre,
+        l.pop_score,
+        l.is_deprecated,
+        l.superseded_by
+    FROM license_texts t
+    JOIN licenses l ON t.license_id = l.license_id
+    WHERE t.rowid IN ({})
+"""
+
+
+def candidate_rows(db: LicenseDatabase, ids: Sequence[str]) -> list[CandidateMatch]:
+    """The candidates of Tier 2 for the licences *ids* (exact case), in that
+    order, each with its text: one query, by the rowid of each text (the
+    first row of an ID, as ``text_posting_ids`` numbers them). An ID with no
+    text or no row is left out. At most ``gramselect.MOST`` IDs are asked,
+    well under SQLite's limit of bound values."""
+    tables = db._tables  # pylint: disable=protected-access
+    index = tables.index_rows()
+    rowids = [index[license_id] for license_id in ids if license_id in index]
+    if not rowids:
+        return []
+    with db._connection() as conn:  # pylint: disable=protected-access
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            _CANDIDATE_ROWS.format(", ".join("?" * len(rowids))), rowids
+        ).fetchall()
+    found = {row["license_id"]: cast(CandidateMatch, dict(row)) for row in rows}
+    return [found[i] for i in dict.fromkeys(ids) if i in found]
+
+
+def text_source(db: LicenseDatabase) -> "StoredTexts":
+    """The coded texts of the List one call reads for the search of the
+    texts an input holds whole and for Tier 2, entry by entry (see
+    ``licenseid.textentries``)."""
+    return db._tables.texts().source()  # pylint: disable=protected-access
+
+
+def snapshot(db: LicenseDatabase) -> contextlib.AbstractContextManager[None]:
+    """One read transaction for the queries of a block (see
+    ``dbcache.TableCache.snapshot``): the postings, ids and coded texts of
+    one call are read in it."""
+    return db._tables.snapshot()  # pylint: disable=protected-access
+
+
+def name_index(db: LicenseDatabase) -> "NameIndex":
+    """What the name tier reads from the names of *db*, worked out once per
+    rebuild of its tables (see ``dbcache.TableCache.name_index``); its
+    ``rows`` are ``db.get_all_names_and_ids()``."""
+    return db._tables.name_index()  # pylint: disable=protected-access

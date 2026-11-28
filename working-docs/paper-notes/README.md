@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -44,6 +44,7 @@ and 2026-11-18. The sessions between 2026-11-06 and 2026-11-16 (0.8.0 to
 | [ai-sessions-0-8-start.md](ai-sessions-0-8-start.md) | Human–AI work, start of 0.8 (5 to 6 November): `detect()` asks `resolve()` first, the sampler, side sessions, review yield, a failure recorded as an absence, a lost push |
 | [results-0-9.md](results-0-9.md) | Release 0.9.0 gates: accuracy against v0.8.4 (no right answer turned wrong), speed with an A/A twin (slower overall, accepted), review yield |
 | [results-0-9-3.md](results-0-9-3.md) | Release 0.9.3 gates against v0.9.2 (real files, speed, packaged bundle); files of several licence texts: options measured, SPDX semantics, decision (item 59); template variables in a whole-text fit (item 64) |
+| [results-0-10.md](results-0-10.md) | Release 0.10.0 (new detection engine) against v0.9.4: speed by kind, one call, memory, database size; labels, fixtures, standard headers; negative results (a rule that failed an independent review, a tie rule deferred, a byte-code cache that skewed the timing); threats |
 | [ai-sessions-0-9.md](ai-sessions-0-9.md) | Human–AI work, release 0.9.0 (17 to 18 November): layers, decisions, mistakes |
 | [dataset-licence-values.md](dataset-licence-values.md) | A dataset of declared licence values (PyPI top 10,000, parity corpus): content, uses, what publication needs; plan for a question, answer and reason corpus across package managers (MSR 2027 Data and Tool Showcase) |
 | [licence-aliases.md](licence-aliases.md) | The other names of licences `resolve()` reads, from its three tables: BSD aliases (#170), titles of a licence text, trove classifier names; the source of each, the PyPI projects that declare it (by name), what is refused and why; references |

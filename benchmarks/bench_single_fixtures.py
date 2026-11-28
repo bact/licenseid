@@ -152,9 +152,8 @@ class FixtureRunner:
     def run_type3(self) -> None:
         """Type 3: head-only slices.
 
-        The pipeline feeds at most ~800 characters to FTS5 (head only), so the
-        original full head×tail matrix is no longer needed for iteration.
-        --fast reduces to head_800 only.
+        Heads of 300 to 800 characters (the full head×tail matrix is not
+        needed for iteration). --fast reduces to head_800 only.
         """
         _log("Running Type 3...")
         directory = self.base_dir / "license-text-short"

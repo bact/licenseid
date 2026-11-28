@@ -15,6 +15,7 @@ successor is an expression) and is taken as written.
 """
 
 from collections.abc import Iterable
+from math import isclose
 
 from licenseid.deprecatedids import BARE_TO_OR_LATER, DEPRECATED_BARE_LICENSE_IDS
 from licenseid.listlookup import fold_case
@@ -53,12 +54,29 @@ def excluded_ids(ids: Iterable[str]) -> frozenset[str]:
 
 def free_text_hits(matches: list[RawMatch], excluded: Iterable[str]) -> list[RawMatch]:
     """The *matches* of a short text that its name tier found, without an
-    excluded ID. A match with no similarity is a declaration resolve() read:
-    never dropped."""
+    excluded ID, nor a hit that scores under the best one excluded (up to
+    float rounding): a near name, not the name the input holds, as
+    ``gramselect.beyond_bar`` reads the word search. A match with no
+    similarity is a declaration resolve() read: never dropped."""
+    excluded = frozenset(excluded)
+
+    def named(match: RawMatch) -> bool:
+        return match.get("similarity") is not None
+
+    gone = [
+        m["score"]
+        for m in matches
+        if named(m) and fold_case(m["license_id"]) in excluded
+    ]
+    least = max(gone, default=0.0)
     return [
         m
         for m in matches
-        if m.get("similarity") is None or fold_case(m["license_id"]) not in excluded
+        if not named(m)
+        or (
+            fold_case(m["license_id"]) not in excluded
+            and (m["score"] >= least or isclose(m["score"], least))
+        )
     ]
 
 

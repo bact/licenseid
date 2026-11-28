@@ -52,7 +52,7 @@ def detector() -> Generator[LicenseDetector, None, None]:
     for path in corpus_db_path("name_tier_leftovers", make_memory_db_path):
         with sqlite3.connect(path, uri=True) as conn:
             conn.execute(
-                "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+                "INSERT INTO license_texts (license_id, search_text) VALUES (?, ?)",
                 ("HIDAPI", _search_text("HIDAPI")),
             )
         yield LicenseDetector(path)
@@ -103,6 +103,10 @@ DECIDED = [
         None,
     ),
     ("zlib/libpng License", None),
+    # A name hit under 1.0 for 10 words falls through to Tier 1. A text of
+    # another licence answered there (MPL-2.0-no-copyleft-exception, 0.86,
+    # item 47); the word grams of 0.10.0 give rows under 0.85 only.
+    ("Licensed under the GNU Affero General Public License v3.0", None),
     # Review of 0.9.0: a tied name written apart from the winner's is a
     # second licence, a one-word one where it is joined to the name.
     ("Apache License 2.0 or Zlib", None),
@@ -207,13 +211,6 @@ def test_decided_answers(
 
 # Wrong answers that no rule of the item touches: leftovers.
 BUGS = [
-    # A name hit under 1.0 for 10 words falls through to Tier 1, where a
-    # text of another licence answers (MPL-2.0 on the real database).
-    # BUG: (item 47)
-    (
-        "Licensed under the GNU Affero General Public License v3.0",
-        Top("MPL-2.0-no-copyleft-exception", "text", False),
-    ),
     # A one-word ID that is an ordinary word is no second licence.
     # BUG: (item 47)
     ("Unlicense, ISC License", Top("ISC", NAME, False)),
@@ -504,14 +501,28 @@ def test_a_short_licence_text_keeps_its_answer(
 
 
 def test_exclude_of_the_winner_leaves_no_tied_name(
-    detector: LicenseDetector,
+    detector: LicenseDetector, given: GivenWarnings
 ) -> None:
-    """The names tied below the winner are not the answer either: with the
-    winner excluded the answer is the fuzzy neighbour, not the less specific
-    tied name (APSL-1.1)."""
+    """The names tied below the winner are not the answer either, nor the
+    fuzzy neighbour, which scores under the name excluded (``idoptions.
+    free_text_hits``; APSL-1.0 answered before)."""
     text = "Licensed under the Apple Public Source License 1.2"
-    assert top(detector, text, exclude=["APSL-1.2"]) == Top("APSL-1.0", NAME, False)
+    assert top(detector, text, exclude=["APSL-1.2"]) is None
+    assert given.lines() == (
+        "WARNING: input: too few words for text: not found:"
+        " Licensed under the Apple Public Source License 1.2\n"
+    )
     assert top(detector, text, exclude=["APSL-1.1"]) == Top("APSL-1.2", NAME, False)
+
+
+def test_an_excluded_name_leaves_no_near_name(detector: LicenseDetector) -> None:
+    text = (
+        "This project is released under the Apache License, Version 2.0 and"
+        " everything in this repository follows it, see the file COPYING"
+    )
+    assert top(detector, text) == Top("Apache-2.0", NAME, False)
+    # Apache-1.0 answered by name before ``idoptions.free_text_hits``.
+    assert top(detector, text, exclude=["Apache-2.0"]) is None
 
 
 def test_hint_does_not_undo_a_refusal(

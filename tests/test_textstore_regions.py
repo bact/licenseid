@@ -7,12 +7,14 @@
 (``textstore``): they read back with the codes, and a stored form whose
 regions are not exactly those of the build (swapped, cut, out of range, of
 another shape, without their patterns) gives None, so the caller builds
-without them."""
+without them: the check finds it, and the reader refuses a region that does
+not index its text whatever the check says."""
 # pylint: disable=missing-function-docstring
 
 import json
 
 import pytest
+from textstore_rows import checks_of, read_back
 
 from licenseid import textstore
 from licenseid.textcorpus import TextCorpus, TextRow, VarRegion
@@ -21,7 +23,6 @@ from licenseid.textstore import (
     PATTERNS,
     TEXT_VARS,
     StoredRow,
-    restore,
     stored_rows,
 )
 
@@ -46,6 +47,14 @@ def _stored() -> list[StoredRow]:
     return stored_rows(TextCorpus.build(ROWS))
 
 
+CHECKS = checks_of(READ, _stored())
+
+
+def restore(rows: object, stored: list[StoredRow]) -> TextCorpus | None:
+    """The corpus read back from *stored* under the checks of the build."""
+    return read_back(rows, stored, CHECKS)  # type: ignore[arg-type]
+
+
 def _with(kind: str, owner: str, body: str | None) -> list[StoredRow]:
     """The stored rows with the body of (*kind*, *owner*) changed, or the row
     dropped (None)."""
@@ -55,7 +64,7 @@ def _with(kind: str, owner: str, body: str | None) -> list[StoredRow]:
 
 def test_the_regions_read_back_with_the_codes() -> None:
     built = TextCorpus.build(ROWS)
-    restored = restore(READ, stored_rows(built))
+    restored = restore(READ, stored_rows(built))  # the checks of this build
     assert restored is not None
     assert restored == built
     assert restored.entries[0].text.regions == A_REGIONS
@@ -94,14 +103,11 @@ def test_the_coding_is_version_2() -> None:
         _with(TEXT_VARS, "A-1.0", "not json"),
         _with(TEXT_VARS, "C-1.0", "[[0,1,0]]"),
         _with(CORE_VARS, "B-1.0", "[[0,1,0]]"),
-        _with(TEXT_VARS, "Z-1.0", "[[0,1,0]]"),
         _with(PATTERNS, "", None),
         _with(PATTERNS, "", '["(x)?",".+"]'),
         _with(PATTERNS, "", '[".+","(x)?","a|b"]'),
         _with(PATTERNS, "", '"not a list"'),
         _with(PATTERNS, "", "[1]"),
-        [*_stored(), (PATTERNS, "", "[]")],
-        [*_stored(), (TEXT_VARS, "A-1.0", "[[0,2,1]]")],
     ],
     ids=[
         "text-vars-missing",
@@ -119,23 +125,54 @@ def test_the_coding_is_version_2() -> None:
         "not-json",
         "vars-of-a-text-without",
         "vars-of-a-missing-core",
-        "vars-of-no-text",
         "patterns-missing",
         "patterns-cut",
         "patterns-swapped",
         "patterns-not-a-list",
         "patterns-not-strings",
-        "patterns-twice",
-        "vars-twice",
     ],
 )
 def test_regions_not_of_the_build_give_none(stored: list[StoredRow]) -> None:
     assert restore(READ, stored) is None
 
 
+@pytest.mark.parametrize(
+    "stored",
+    [
+        _with(TEXT_VARS, "A-1.0", "[[0,2,1],[4,6,0]]"),
+        _with(TEXT_VARS, "A-1.0", "[[0,2,1],[4,3,0]]"),
+        _with(TEXT_VARS, "A-1.0", "[[-1,2,1],[4,4,0]]"),
+        _with(TEXT_VARS, "A-1.0", "[[0,2,true],[4,4,0]]"),
+        _with(TEXT_VARS, "A-1.0", "[[0,2],[4,4,0]]"),
+        _with(TEXT_VARS, "A-1.0", "not json"),
+        _with(CORE_VARS, "A-1.0", "[[1,2,9]]"),
+        _with(PATTERNS, "", '"not a list"'),
+        _with(PATTERNS, "", "[" * 100_000),
+    ],
+    ids=[
+        "end-past-text",
+        "end-before-start",
+        "negative-start",
+        "bool-number",
+        "short-item",
+        "not-json",
+        "core-pattern-out-of-range",
+        "patterns-not-a-list",
+        "patterns-nested-too-deep",
+    ],
+)
+def test_regions_that_do_not_read_give_none_under_their_own_check(
+    stored: list[StoredRow],
+) -> None:
+    """Checks made for the damaged rows: the reader refuses them all the
+    same."""
+    assert read_back(READ, stored, checks_of(READ, stored)) is None
+
+
 def test_a_corpus_without_regions_reads_back() -> None:
     built = TextCorpus.build(READ)
-    assert restore(READ, stored_rows(built)) == built
+    stored = stored_rows(built)
+    assert read_back(READ, stored, checks_of(READ, stored)) == built
 
 
 @pytest.mark.parametrize(
@@ -174,10 +211,10 @@ def test_a_region_is_read_only_inside_its_text(
     assert textstore._parse_regions(body, 3, ["p"]) == expected
 
 
-def test_strings_nested_too_deep_are_none() -> None:
+def test_json_nested_too_deep_is_none() -> None:
     """``json`` raises RecursionError, not ValueError, past its depth."""
     # pylint: disable-next=protected-access
-    assert textstore._parse_strings("[" * 100_000) is None
+    assert textstore._loaded("[" * 100_000) is None
 
 
 def test_a_patterns_row_nested_too_deep_gives_none() -> None:

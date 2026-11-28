@@ -21,6 +21,7 @@ from seed_sql import (
     INSERT_LICENSE,
     INSERT_METADATA,
     INSERT_URL,
+    fill_norm_columns,
 )
 
 # Prose long enough to push an input over the 30-word threshold, so
@@ -34,10 +35,10 @@ PROSE = (
 
 
 class Lic(NamedTuple):
-    """One row of the ``licenses`` table, plus its ``license_index`` text.
+    """One row of the ``licenses`` table, plus its ``license_texts`` text.
 
-    A row is indexed for FTS5 only when ``search_text`` is non-empty, so
-    a licence can be given a name but no searchable body.
+    A row gets a text only when ``search_text`` is non-empty, so a licence
+    can be given a name but no text to match.
     """
 
     license_id: str
@@ -87,6 +88,7 @@ def seeded_db(
         for exception_id in exception_ids:
             conn.execute(INSERT_EXCEPTION, (exception_id, exception_id, False, None))
         conn.executemany(INSERT_URL, urls)
+        fill_norm_columns(conn)
         conn.execute(INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))
     yield db_path
     keep_alive.close()

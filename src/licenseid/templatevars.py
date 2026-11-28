@@ -29,11 +29,10 @@ from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from typing import Final, NamedTuple
 
-from rapidfuzz.distance import Indel
-
 from licenseid.coretext import pieces
 from licenseid.normalize import normalize_text
-from licenseid.textcorpus import VarRegion, split_words
+from licenseid.textcorpus import VarRegion
+from licenseid.textgrams import split_words
 
 #: Words around each var in a rendered template. No List text holds them, and
 #: normalisation keeps them as they are (lower-case letters only).
@@ -135,6 +134,10 @@ def _matches(rendered: Sequence[str], stored: Sequence[str]) -> list[int] | None
             codes[word] = chr(_FIRST_CODE + len(codes))
     first = "".join([codes[word] for word in rendered])
     second = "".join([codes[word] for word in stored])
+    # RapidFuzz loads here, not at import: only a build reads templates, and
+    # a lookup imports this module through ``licenseid.records`` (start-up).
+    from rapidfuzz.distance import Indel  # pylint: disable=import-outside-toplevel
+
     matched = [-1] * len(rendered)
     for block in Indel.editops(first, second).as_matching_blocks():
         for k in range(block.size):

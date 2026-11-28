@@ -127,8 +127,10 @@ EXPRESSION=ECL-2.0	METHOD=text	EXACT=false	SCORE=0.9584	SIMILARITY=0.9584	COVERA
   read first), `several texts` (no result at all, and the input holds the texts
   of two licences or more: the top result was a text match whose text is not
   the first text in the file, or every candidate was held back because none of
-  the texts found was a candidate) or `no match` (nothing was a candidate; a
-  `WARNING` on standard error may say why, such as `too few words for text`).
+  the texts found was a candidate) or `no match` (nothing was a candidate: no
+  List text shares enough runs of three words with the input, and no heading,
+  title or hint named a licence; a `WARNING` on standard error may say why,
+  such as `too few words for text`).
   It names no licence, as an ID in a record of no answer invites a guess; to
   see the nearest candidate run `licenseid detect --threshold 0 --top 1 -v`
   (under `several texts` there is none: read `TEXTS`). The API `detect()`

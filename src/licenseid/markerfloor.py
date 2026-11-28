@@ -14,7 +14,7 @@ GPL-2.0-or-later.
 
 So the floor stays unless the input is longer than the marker's licence text
 (coverage above :data:`MAX_WHOLE_COVERAGE`) and the whole-text search
-(``licenseid.wholetexts.found_texts``, the search of ``TEXTS``) finds texts
+(``licenseid.textcandidates``, the search of ``TEXTS``) finds texts
 that are not all the marker's (its same-text group, an ``-only`` or
 ``-or-later`` twin or a deprecated ID's replacement included, an exception
 dropped). Then the candidate keeps the additive boost only, and every
@@ -31,13 +31,15 @@ Measured in ``working-docs/implementation/whole-texts.md``.
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from licenseid.database import LicenseDatabase, text_corpus
+from licenseid.database import LicenseDatabase
 from licenseid.listlookup import fold_case
-from licenseid.textnames import has_tokens, search_id, text_groups
+from licenseid.textnames import search_id, text_groups
 from licenseid.types import InternalMatch
-from licenseid.wholetexts import found_texts
+
+if TYPE_CHECKING:  # firsttext imports both
+    from licenseid.textcandidates import TextCandidates
 
 __all__ = ["MAX_WHOLE_COVERAGE", "doubt_floors", "floor_doubted", "found_in"]
 
@@ -85,27 +87,25 @@ def found_in(
 
 
 def _search(
-    db: LicenseDatabase, norm_input: str, marker_id: str
+    db: LicenseDatabase, texts: "TextCandidates", marker_id: str
 ) -> tuple[list[str] | None, dict[str, tuple[str, ...]]]:
-    """The row IDs of the texts *norm_input* holds whole (None: none, or an
-    input too short or too long to search), and the same-text group of each.
-    *marker_id* wins a tie, as an answer does in ``TEXTS``."""
-    if not has_tokens(norm_input):
-        return None, {}
-    found = found_texts(norm_input, text_corpus(db), search_id(marker_id))
+    """The row IDs of the texts the input of *texts* holds whole (None: none,
+    or an input too short or too long to search), and the same-text group of
+    each. *marker_id* wins a tie, as an answer does in ``TEXTS``."""
+    found = texts.found(search_id(marker_id))
     if found is None:
         return None, {}
     return found.rows, text_groups(db, found.rows)
 
 
 def doubt_floors(
-    ranked: Sequence[InternalMatch], norm_input: str, db: LicenseDatabase
+    ranked: Sequence[InternalMatch], texts: "TextCandidates", db: LicenseDatabase
 ) -> list[InternalMatch]:
     """*ranked* (scored, not yet sorted), each match's floor lift taken back
     where :func:`floor_doubted` says the input holds other licence texts and
     its coverage is above :data:`MAX_WHOLE_COVERAGE`. Where one is taken
     back, only the matches :func:`found_in` the texts found are kept. The
-    search of *norm_input* runs once, at the first such match."""
+    search of the input (*texts*) runs once, at the first such match."""
     found: tuple[list[str] | None, dict[str, tuple[str, ...]]] | None = None
     doubted = False
     for match in ranked:
@@ -113,7 +113,7 @@ def doubt_floors(
         if lift <= 0.0 or match["coverage"] <= MAX_WHOLE_COVERAGE:
             continue
         if found is None:
-            found = _search(db, norm_input, match["license_id"])
+            found = _search(db, texts, match["license_id"])
         if floor_doubted(found[0], match["license_id"], found[1]):
             match["score"] -= lift
             del match["floor_lift"]

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-19
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -111,7 +111,8 @@ yet started, see [`../design/`](../design/).
 
 - **Pipeline**: a whole input `resolve()` reads (0.7.2) → Tier 0.5 (marker
   detection: tags, then a manifest's `license` field) → Tier 0 (short-text
-  ID/name shortcut) → Tier 1 (SQLite FTS5 recall) → Tier 2 (RapidFuzz
+  ID/name shortcut) → Tier 1 (SQLite FTS5 recall; stored word 3-grams from
+  0.10.0, [gram-candidates.md](gram-candidates.md)) → Tier 2 (RapidFuzz
   ranking). Tier 0 first asks `resolve()` about a "+": a value under 30
   words refused with a reason of that family
   (`resolvereason.is_plus_refusal`) skips the text tiers (2026-11-09, item
@@ -192,7 +193,7 @@ yet started, see [`../design/`](../design/).
 | 2026-05-08 | [speed-optimizations.md](speed-optimizations.md) | implemented (as PR #19, PR #21) | Original plan for discriminative n-gram fingerprints and pre-computed-normalization/RapidFuzz acceleration; superseded in narrative detail by the round-2 doc's results. |
 | 2026-07-20 | [speed-optimizations-round-2.md](speed-optimizations-round-2.md) | implemented | Profile-driven sweep: DB index on `licenses.name`, removed redundant lookups, lazy imports, instance-level metadata caching, `mmap_size` pragma. One change (`score_cutoff` on `partial_ratio_alignment`) was tried and reverted — see its "Rejected" section. CLI cold start ~125ms → ~31ms. |
 | 2026-09-18 | [data-fetching-and-caching.md](data-fetching-and-caching.md) | implemented (PR #51, #85, #90) | Third-party fetching in `spdx_source.py`, the `SpdxData` / `records.py` store path, the bundle source chain, its publishing workflow and the build hook for the snapshot: gentle requests, fallback order (`--no-cache` never uses stale data), atomic caches, version validation, safe tarball reading, self-healing corrupt caches, non-silent fallbacks; test patterns and traps. |
-| 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. |
+| 2026-09-20 | [database-readiness-gate.md](database-readiness-gate.md) | implemented (PR #55; one shape for 0.10.0) | The readiness gate and the write/delete guard: fail-open on read, fail-closed on write, the `unknown` condition between them; SQLite URI, path-spelling and file-type traps; test and process anti-patterns found over four review rounds. One shape: an older build is not ready (`build vN outdated`) and `update` rebuilds it from nothing. |
 | 2026-09-28 | [spdx-expression-reading.md](spdx-expression-reading.md) | implemented (PR #61) | A tag's whole expression, `--id` narrowed to one license, "or later" as a grant; quadratic paths each fix added, timing against `main`, the slow deep parse on Python 3.10. |
 | 2026-10-02 | [tech-debt-resolved.md](tech-debt-resolved.md) | record | The tech-debt roadmap's items resolved before 0.5.0: what each was and what was done, moved out of the roadmap to keep it under the size limit. |
 | 2026-10-06 | [cross-platform.md](cross-platform.md) | record | The Windows work of PR #77: the 0.4.0 URI bug, the path and URI rules, how tests handle Windows, and what a real Windows run has and has not confirmed. |
@@ -211,6 +212,12 @@ yet started, see [`../design/`](../design/).
 | 2026-11-24 | [whole-texts.md](whole-texts.md) | implemented (after 0.9.2) | The `TEXTS` field: the List texts an input holds whole, found by word-coded 5-gram anchors and one character ratio on the trimmed span; limits by counts, null past them. |
 | 2026-11-26 | [whole-texts.md](whole-texts.md) section 10 | implemented (after 0.9.3) | Item 64: the variable parts of a template (`<<var>>`) left out of the fit of a whole text where the input's words match their pattern; regions stored in build 7. |
 | 2026-11-26 | [tech-debt-resolved-0-10.md](tech-debt-resolved-0-10.md) | record | The roadmap items resolved from item 64 (2026-11-26) on, split from `tech-debt-resolved-0-9.md` at the size limit. |
+| 2026-11-27 | [gram-postings.md](gram-postings.md) | implemented (0.10.0 task T2, not merged) | Word 3-gram postings of the List texts stored by `update` (build 8): one blob per gram, a stamp in the same transaction, used only when they are those of the rows, else built in memory and never written back; damage cases and measures. |
+| 2026-11-27 | [gram-candidates.md](gram-candidates.md) | implemented (0.10.0 task T3, not merged) | Tier 1 from the stored word 3-grams: filters first, none under 0.1, the first 3 and those within 0.05, at most 20; the bound of 50,000 grams; the FTS5 query, the notice-free query and the windowed search of mixed content removed; measures and moved answers. |
+| 2026-11-27 | [word-region.md](word-region.md) | implemented (0.10.0 task T4, not merged) | Tier 2 aligns a fragment where its word codes place it: accepted at 60, 4 words of padding, walls at the cut ends, growth, no alignment that its shared codes bar; measures, moved answers, the short-word inputs. |
+| 2026-11-27 | [whole-text-first.md](whole-text-first.md) | implemented (0.10.0 task T5, not merged) | The whole-text search runs first, on one candidate set an input (the top 20 by gram score and every text held at half, cores counted); one text found narrows Tier 2 to its group and three runner-ups, which rank under it or are left out; the guard; measures, the JSON-over-MIT files, item 68. |
+| 2026-11-27 | [texts-per-candidate.md](texts-per-candidate.md) | implemented (0.10.0 task T6, not merged) | A call reads the coded texts it searches and scores, in one transaction, each checked by its own SHA-256 in `text_code_checks` (build 9); damage builds the corpus in memory for that database; the store of loaded entries is filled under a lock; measures. |
+| 2026-11-27 | [plain-text-table.md](plain-text-table.md) | implemented (0.10.0 task T7, not merged) | The texts in a plain table, `license_texts` (build 10), the FTS5 table dropped: 28 to 18 MB; a file of 0.9.x is `outdated`, not `invalid`, and `update` drops its tables; the readiness verdict made once per call, the norm columns checked where they are read; the Versions and Storage alone gates. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

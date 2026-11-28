@@ -29,6 +29,7 @@ from licenseid.types import InternalMatch
 
 if TYPE_CHECKING:
     from licenseid.database import LicenseDatabase
+    from licenseid.textcandidates import TextCandidates
 
 FIXTURES = Path(__file__).parent / "fixtures"
 GPL_NOTICE = (
@@ -199,7 +200,7 @@ class _Search:
         self.calls: list[str] = []
 
     def __call__(
-        self, _db: object, _norm: str, marker_id: str
+        self, _db: object, _texts: object, marker_id: str
     ) -> tuple[list[str] | None, dict[str, tuple[str, ...]]]:
         self.calls.append(marker_id)
         return self.rows, {}
@@ -221,7 +222,9 @@ def _doubt(
     """The search stand-in after :func:`doubt_floors`, and the IDs it kept."""
     search = _Search(rows)
     monkeypatch.setattr(markerfloor, "_search", search)
-    kept = doubt_floors(ranked, "input", cast("LicenseDatabase", None))
+    kept = doubt_floors(
+        ranked, cast("TextCandidates", None), cast("LicenseDatabase", None)
+    )
     return search, [m["license_id"] for m in kept]
 
 

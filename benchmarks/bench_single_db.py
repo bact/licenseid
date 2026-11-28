@@ -122,7 +122,7 @@ def build_rows(tar_path: Path) -> Rows:
 
     Returns:
         to_insert_licenses: rows for the ``licenses`` table.
-        to_insert_index: rows for the ``license_index`` table.
+        to_insert_index: rows for the table of the texts.
         safe_to_canon: filesystem-safe licence ID → canonical licence ID.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -156,6 +156,15 @@ def _insert_licenses(
     )
 
 
+def _text_table(conn: sqlite3.Connection) -> str:
+    """The table of the texts of this source tree: ``license_texts`` from
+    database build 10, the FTS5 table ``license_index`` before."""
+    found = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'license_texts'"
+    ).fetchone()
+    return "license_texts" if found else "license_index"
+
+
 def load_db(
     db_path: str,
     to_insert_licenses: list[tuple[Any, ...]],
@@ -176,7 +185,7 @@ def load_db(
     try:
         _insert_licenses(conn, to_insert_licenses)
         conn.executemany(
-            "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
+            f"INSERT INTO {_text_table(conn)} (license_id, search_text) VALUES (?, ?)",
             to_insert_index,
         )
         conn.executemany(

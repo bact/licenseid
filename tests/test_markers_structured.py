@@ -21,6 +21,7 @@ from collections.abc import Generator
 
 import pytest
 from conftest import GivenWarnings, make_memory_db_path
+from seed_sql import fill_norm_columns
 
 from licenseid.database import LicenseDatabase
 from licenseid.manifest import license_value_groups
@@ -38,6 +39,7 @@ def detector() -> Generator[MarkerDetector, None, None]:
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute(insert, ("MIT", "MIT License", True, True, True))
         conn.execute(insert, ("Apache-2.0", "Apache License 2.0", True, True, True))
+        fill_norm_columns(conn)
         conn.commit()
     yield MarkerDetector(LicenseDatabase(db_path))
     keep_alive.close()

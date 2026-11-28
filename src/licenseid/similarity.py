@@ -12,11 +12,15 @@ LicenseDetector.
 """
 
 import math
-from typing import Final
+from collections.abc import Callable
+from collections.abc import Set as AbstractSet
+from typing import Final, NamedTuple, Protocol
 from unicodedata import east_asian_width
 
 from rapidfuzz import fuzz
 
+from licenseid import regionalign
+from licenseid.textgrams import CRITICAL_TOKENS, whole_tokens
 from licenseid.types import CandidateMatch, InternalMatch, TextParts
 
 # Probe-gate settings for fragment ranking (query shorter than candidate).
@@ -77,9 +81,63 @@ EVIDENCE_COLUMNS: int = 40
 # scoring it twice would double the cost of a long input for nothing.
 CORE_MIN_SHARE: float = 0.8
 
-# Words whose presence on one side only turns a grant around: a similarity
-# above 0.9 loses 5 % for each (calculate_base_similarity).
-CRITICAL_TOKENS: Final = frozenset({"not", "except", "unless", "irrevocable"})
+
+class Regions(Protocol):  # pylint: disable=too-few-public-methods
+    """Where a candidate's text holds the input (``licenseid.wordregion``)."""
+
+    def region(self, license_id: str, text: str) -> tuple[int, int] | None:
+        """The slice of *text* (the text of *license_id*) to align the input
+        with, or None for the whole text."""
+
+
+class Query(NamedTuple):
+    """One input as Tier 2 reads it, made once per call (:func:`query_of`)."""
+
+    #: The normalised input.
+    text: str
+    #: Its words (split on white space).
+    words: int
+    #: Its distinct words.
+    tokens: AbstractSet[str]
+    #: The probe sample (build_probe).
+    probe: str | None
+    #: Where each candidate's text holds the input; None: the whole text.
+    regions: Regions | None = None
+    #: Widen an aligned window to whole words (``--diff`` shows it so).
+    snap: bool = False
+    #: A character the input does not hold (``regionalign.aligned``).
+    wall: str = "\0"
+    #: What this call has already scored, by what the score depends on (the
+    #: text, never the licence): licences that share one text are scored
+    #: once (:func:`_scored_once`). None: nothing is kept.
+    done: dict[tuple[object, ...], tuple[float, str]] | None = None
+
+
+def query_of(
+    norm_input: str, regions: Regions | None = None, *, snap: bool = False
+) -> Query:
+    """*norm_input* ready for :func:`calculate_base_similarity`."""
+    words = norm_input.split()
+    held = set(norm_input)
+    wall = next(chr(code) for code in range(len(held) + 1) if chr(code) not in held)
+    probe = build_probe(words)
+    return Query(norm_input, len(words), set(words), probe, regions, snap, wall, {})
+
+
+def _scored_once(
+    query: Query,
+    key: tuple[object, ...],
+    score: Callable[[], tuple[float, str]],
+) -> tuple[float, str]:
+    """``score()``, or what it gave for *key* earlier in this call: a score
+    of the input depends on the text compared (and where the words locate the
+    input in it), never on the licence that holds it, so twins (licences of
+    one normalised text) pay for one alignment."""
+    if query.done is None:
+        return score()
+    if key not in query.done:
+        query.done[key] = score()
+    return query.done[key]
 
 
 def _center(text: str, size: int) -> str:
@@ -128,46 +186,60 @@ def alignment_affordable(norm_input: str, q_len: int) -> bool:
 
 
 def fragment_similarity(
-    norm_input: str,
-    search_text: str,
-    probe: str | None,
+    query: Query, license_id: str, search_text: str
 ) -> tuple[float, str]:
     """Similarity for fragment inputs (query shorter than candidate).
 
-    Probe gate first: a short mid-query sample scans the candidate ~80x
-    faster than the full fragment.  Weak candidates (probe score below
-    PROBE_GATE) are scored by the probe alone and never pay for the
-    full O(q x c) scan.  Candidates that pass get a single alignment
-    pass (score + window in one scan) followed by a token_sort_ratio
-    re-score of the aligned window.
+    Where the input's words locate it in the text (*query*'s ``regions``,
+    ``licenseid.wordregion``), the character steps run on that region only:
+    their cost follows the characters of both sides. Otherwise on the whole
+    text, with the probe gate first: a short mid-query sample scans the
+    candidate ~80x faster than the full fragment. Weak candidates (probe
+    score below PROBE_GATE) are scored by the probe alone and never pay for
+    the full O(q x c) scan. Candidates that pass, or are located, get a
+    single alignment pass (score + window in one scan) followed by a
+    token_sort_ratio re-score of the aligned window.
 
-    Do NOT pass score_cutoff=60 to the alignment call below as a "free"
-    speedup (tried and reverted): it makes RapidFuzz return None -- and
-    this function flatten the score to a bare 0.0 -- for every candidate
-    that doesn't clear 60, rather than their true score.  That looks safe
-    (candidates below 0.6 never win the top rank) but isn't: for heavily
-    distorted input the TRUE match itself often legitimately scores below
-    60, and flattening its score to 0.0 destroys its ranking relative to
-    every other sub-60 candidate, which now also reads as 0.0.  Full
-    bench_compare caught this as a real regression concentrated exactly
-    where predicted -- the heaviest-distortion tier and mixed-content
-    fixtures -- down up to -7.93 pts at deeper Recall@N, while low/no
-    distortion stayed at +0.00. Confirmed by reverting: regression gone.
+    Do NOT pass score_cutoff=60 to the alignment (``regionalign``) as a "free"
+    speedup (tried and reverted): RapidFuzz then returns None, flattened
+    here to 0.0, for every candidate under 60. For heavily distorted input
+    the true match itself often scores under 60, and its rank against the
+    other sub-60 candidates is lost: bench_compare showed up to -7.93 points
+    at deeper Recall@N in the heaviest-distortion tier and mixed content.
     """
-    if probe is not None:
-        probe_score = fuzz.partial_ratio(probe, search_text) / 100.0
-        if probe_score < PROBE_GATE:
-            return probe_score, search_text
-
-    alignment = fuzz.partial_ratio_alignment(norm_input, search_text)
-    fast_score = (alignment.score / 100.0) if alignment else 0.0
-    if fast_score >= 0.6 and alignment:
-        best_window = search_text[alignment.dest_start : alignment.dest_end]
-        return fuzz.token_sort_ratio(norm_input, best_window) / 100.0, best_window
-    return fast_score, search_text
+    region = None
+    if query.regions is not None:
+        region = query.regions.region(license_id, search_text)
+    return _scored_once(
+        query,
+        ("fragment", search_text, region),
+        lambda: _fragment_scored(query, search_text, region),
+    )
 
 
-def _safeguarded(similarity: float, q_tokens: set[str], text: str) -> float:
+def _fragment_scored(
+    query: Query, search_text: str, region: regionalign.Span | None
+) -> tuple[float, str]:
+    """:func:`fragment_similarity` of *query* with *search_text*, given the
+    *region* of it that holds the input (None: the whole text)."""
+    if region is None:
+        if query.probe is not None:
+            probe_score = fuzz.partial_ratio(query.probe, search_text) / 100.0
+            if probe_score < PROBE_GATE:
+                return probe_score, search_text
+        region = (0, len(search_text))
+    fast_score, aligned = regionalign.aligned(
+        query.text, query.wall, search_text, region
+    )
+    if fast_score < regionalign.WINDOW_SCORE:
+        return fast_score, search_text
+    window = search_text[aligned[0] : aligned[1]]
+    similarity = fuzz.token_sort_ratio(query.text, window) / 100.0
+    start, end = whole_tokens(search_text, *aligned) if query.snap else aligned
+    return similarity, search_text[start:end]
+
+
+def _safeguarded(similarity: float, q_tokens: AbstractSet[str], text: str) -> float:
     """*similarity* less 5 % for each of CRITICAL_TOKENS that only one of
     the query (*q_tokens*) and *text* holds, when it is above 0.9 and
     below 1: a near copy that drops a "not" says the opposite."""
@@ -199,15 +271,11 @@ def core_similarity(
 
 
 def calculate_base_similarity(
-    norm_input: str,
-    q_len: int,
-    q_tokens: set[str],
-    cand: CandidateMatch,
-    probe: str | None = None,
+    query: Query, cand: CandidateMatch
 ) -> tuple[float, float, str]:
-    """The similarity of *norm_input* to *cand*, its coverage (the input's
-    words over the words of the text compared) and the text it was compared
-    with (an aligned window of a fragment).
+    """The similarity of the input (*query*) to *cand*, its coverage (the
+    input's words over the words of the text compared) and the text it was
+    compared with (an aligned window of a fragment).
 
     The whole text first; then, when *cand* has a core (``core_text``), the
     core, whose similarity counts if it is higher: then the coverage is
@@ -215,6 +283,7 @@ def calculate_base_similarity(
     leaves out the optional parts (an appendix) thus has a similarity no
     lower than another licence that has none; a bonus can still rank that one
     first (AFL-2.1's core answers AFL-2.0, as on ``main``)."""
+    norm_input, q_len, q_tokens = query.text, query.words, query.tokens
     search_text = cand.get("search_text") or ""
     c_len = cand.get("word_count") or 0
     if c_len == 0:
@@ -226,15 +295,29 @@ def calculate_base_similarity(
     if norm_input == search_text:
         similarity = 1.0
     elif q_len >= c_len * 0.8 or not alignment_affordable(norm_input, q_len):
-        similarity = fuzz.token_sort_ratio(norm_input, search_text) / 100.0
+        similarity = _scored_once(
+            query,
+            ("sorted", search_text),
+            lambda: (fuzz.token_sort_ratio(norm_input, search_text) / 100.0, ""),
+        )[0]
     else:
-        similarity, best_window = fragment_similarity(norm_input, search_text, probe)
+        similarity, best_window = fragment_similarity(
+            query, cand["license_id"], search_text
+        )
     similarity = _safeguarded(similarity, q_tokens, search_text)
 
     core, core_words = cand.get("core_text"), cand.get("core_word_count") or 0
     if core and core_words and similarity < 1.0:
+        floor = similarity
         from_core = _safeguarded(
-            core_similarity(norm_input, q_len, core, core_words, similarity),
+            _scored_once(
+                query,
+                ("core", core, core_words, floor),
+                lambda: (
+                    core_similarity(norm_input, q_len, core, core_words, floor),
+                    "",
+                ),
+            )[0],
             q_tokens,
             core,
         )
@@ -348,26 +431,22 @@ FP_BOOST: Final = 0.05
 
 def score_candidates(
     candidates: list[CandidateMatch],
-    norm_input: str,
+    query: Query,
     boosts: dict[str, float],
     is_pure: bool,
     enable_popularity: bool,
 ) -> list[InternalMatch]:
-    """Tier 2: each of *candidates* scored against *norm_input* (with the
-    marker *boosts*), unsorted."""
-    query_words = norm_input.split()
-    q_len = len(query_words)
-    q_tokens = set(query_words)
+    """Tier 2: each of *candidates* scored against the input (*query*, made
+    once for the call: its probe sample and regions), with the marker
+    *boosts*; unsorted."""
+    norm_input, q_len = query.text, query.words
     ranked: list[InternalMatch] = []
 
-    # Once per query: the probe sample (see PROBE_WORDS), and how far a short
-    # query's similarity counts in the score (text_evidence).
-    probe, evidence = build_probe(query_words), text_evidence(norm_input)
+    # Once per query: how far a short query's similarity counts in the score.
+    evidence = text_evidence(norm_input)
 
     for cand in candidates:
-        sim, coverage, best_window = calculate_base_similarity(
-            norm_input, q_len, q_tokens, cand, probe
-        )
+        sim, coverage, best_window = calculate_base_similarity(query, cand)
         ranked.append(
             InternalMatch(
                 license_id=cand["license_id"],

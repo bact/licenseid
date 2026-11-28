@@ -32,15 +32,16 @@ OR keep the meaning (SPDX 3, Annex D: AND binds tighter than OR).
 
 import re
 from collections.abc import Iterable, Sequence
-from typing import Final, NamedTuple
-
-import py_spdx_license
+from typing import TYPE_CHECKING, Final, NamedTuple
 
 from licenseid.errors import reason_detail
 from licenseid.exprtokens import OPERATOR
 from licenseid.identifiers import MAX_PARSE_DEPTH, MAX_PARSE_OPERATORS, parse_expression
 from licenseid.looseid import RE_GRANT_WORDS, grant_end
 from licenseid.resolvertypes import Step, step
+
+if TYPE_CHECKING:
+    import py_spdx_license
 
 # A bracket of any kind, or an operator word (WITH stays in its leaf).
 _RE_PART: Final = re.compile(rf"[()\[\]{{}}]|{OPERATOR}", re.IGNORECASE | re.ASCII)
@@ -253,6 +254,8 @@ def parse(tokens: list[Token], texts: list[str]) -> Node | str:
     if tree is not None:
         return _node(tree)
     message = "not an expression"
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     try:  # again, for the message: the skeleton is small (oversize)
         py_spdx_license.parse(skeleton, allow_unknown=True)
     except Exception as error:  # pylint: disable=broad-exception-caught
@@ -280,9 +283,11 @@ def _skeleton(tokens: list[Token]) -> list[str]:
     return words
 
 
-def _node(tree: py_spdx_license.Node) -> Node:
+def _node(tree: "py_spdx_license.Node") -> Node:
     """Our tree of a parsed skeleton: a leaf index, or an operator and its
     operands (brackets are no node: the tree holds the grouping)."""
+    import py_spdx_license  # pylint: disable=import-outside-toplevel  # start-up
+
     while isinstance(tree, py_spdx_license.CompoundExpression):
         tree = tree.child
     if isinstance(tree, py_spdx_license.LicenseRef):

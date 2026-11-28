@@ -9,7 +9,7 @@ import os
 import sys
 from pathlib import Path
 
-from licenseid.dbcheck import refused
+from licenseid.dbverdict import refused
 from licenseid.errors import LicenseIdError, fold, shown
 
 

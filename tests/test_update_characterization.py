@@ -22,6 +22,7 @@ from db_variants import create_database
 from release_fakes import tarball
 from test_database_update import _serve
 
+from licenseid import dbschema
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 
@@ -110,7 +111,7 @@ def test_non_deprecated_license_without_text_is_dropped(
         {"text/A-1.txt": _TEXT.encode()},
     )
     assert _rows(conn, "SELECT license_id FROM licenses") == [("A-1",)]
-    assert _rows(conn, "SELECT license_id FROM license_index") == [("A-1",)]
+    assert _rows(conn, "SELECT license_id FROM license_texts") == [("A-1",)]
 
 
 def test_deprecated_license_without_text_keeps_a_metadata_row(
@@ -135,7 +136,7 @@ def test_deprecated_license_without_text_keeps_a_metadata_row(
         ("Old-1", "Old-1 name", None, 1, 0, 0, 0, 1, None,
          1, 0, "old 1", "old 1 name"),
     ]  # fmt: skip
-    assert _rows(conn, "SELECT license_id FROM license_index") == [
+    assert _rows(conn, "SELECT license_id FROM license_texts") == [
         ("GPL-2.0-or-later",)
     ]
 
@@ -146,7 +147,7 @@ def test_crlf_text_is_read_with_lf_line_endings(
     # Text-mode reading turns CRLF into LF; a reader of bytes must match.
     crlf = b"Permission is hereby\r\ngranted, free of\r\ncharge to any person."
     conn = _update(tmp_path, monkeypatch, [_lic("A-1")], {"text/A-1.txt": crlf})
-    assert _rows(conn, "SELECT search_text FROM license_index") == [
+    assert _rows(conn, "SELECT search_text FROM license_texts") == [
         ("permission is hereby granted free of charge to any person",)
     ]
     assert _rows(conn, "SELECT word_count FROM licenses") == [(10,)]
@@ -285,11 +286,19 @@ def test_a_failed_insert_rolls_back_and_names_the_database(
 ) -> None:
     path = tmp_path / "licenses.db"
     create_database(path)
-    with contextlib.closing(sqlite3.connect(path)) as conn:
+    replace = dbschema.replace_schema
+
+    def replace_then_fail(conn: sqlite3.Connection) -> None:
+        """The tables made new, then an insert that fails, in the same
+        transaction: the rollback takes back both."""
+        replace(conn)
         conn.execute(
             "CREATE TRIGGER no_exceptions BEFORE INSERT ON exceptions "
             "BEGIN SELECT RAISE(ABORT, 'boom'); END"
         )
+
+    monkeypatch.setattr("licenseid.database.replace_schema", replace_then_fail)
+    before = path.read_bytes()
     with pytest.raises(LicenseIdError, match=r"^database: update failed: boom"):
         _update(
             tmp_path,
@@ -304,6 +313,7 @@ def test_a_failed_insert_rolls_back_and_names_the_database(
         )
     with contextlib.closing(sqlite3.connect(path)) as conn:
         assert _rows(conn, "SELECT license_id FROM licenses") == []
+    assert path.read_bytes() == before
 
 
 def test_a_failed_vacuum_is_a_warning(

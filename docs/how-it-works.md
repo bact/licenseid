@@ -112,25 +112,42 @@ declared values, SPDX expressions and the matching pipeline.
   - **Tier 0.5 (Marker detection)**: Detects `SPDX-License-Identifier` tags and
     structured markers (name fields, headings). An exact SPDX tag returns
     immediately with full confidence.
-  - **Tier 1 (Recall)**: Candidate retrieval using SQLite FTS5 trigram index,
-    queried with the input's first 20 words, plus its last 20 for an input
-    over 200 words (at most 25 more candidates), for consistent performance.
-    When removing the copyright notices changes those first 20 words (a
-    title and a long copyright line can fill them), a second head query
-    runs without the notices. When its first 10 results hold a licence the
-    first query did not find, it adds all of its 50 results the first query
-    lacks; otherwise it adds none.
-    A word is cut to its first 128 characters (the longest word of the List
-    is 70), so one very long word stays fast.
-    Comment prefixes (`//`, `#`, `*`, `;`) are stripped before querying.
+  - **Tier 1 (Recall)**: Candidate retrieval by word 3-grams. Comment
+    prefixes (`//`, `#`, `*`, `;`) are stripped and the input normalised;
+    each run of three words (each Han or kana character is a word) is looked
+    up, once, in the postings `licenseid update` stores. Every List text that
+    shares a gram scores `shared / min(grams of the input, grams of the
+    text)`. `exclude`, `only_spdx` and `only_common` take their licences out
+    first, and with them every text that one they took out beats on both
+    counts, more grams shared and a higher score: it fits the input less
+    than a text the caller ruled out.
+    A best score under 0.1 gives no candidate. Else the input is
+    first searched for whole texts (`TEXTS`, below) among the texts of the
+    first 20 scores and every text it holds half of the runs of three words
+    of (or of its core's, where that is smaller), whatever the filters.
+    Where that search finds one text alone, the second tier scores the
+    licences of that text that the filters leave and three others, the next
+    by score that reach 0.1; one of those three that scores as high as the
+    text found or higher is left out, so the text found answers. It does not
+    when another text shares more than 1.1 times the runs of words the text
+    found shares (a short text held whole inside part of a longer one), nor
+    when the filters took the text found out. Otherwise the second tier
+    scores the first 3 texts by score and every text within 0.05 of the
+    best, at most 20 (equal scores in table order). The candidates of
+    markers and hints join after them. Only the first 50,000 distinct grams
+    of an input are looked up; past that, `TEXTS` is empty.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. An input of at
     least 80% of a text's words (or a very long one) is compared with the
     whole text by sorted words; a shorter one is aligned with the best part
-    of the text, a fragment. An input of about a licence's core length is
-    compared with its core as well: the text without its optional parts (an
-    appendix, or the GPL-3.0 text quoted in the LGPL-3.0), which the SPDX
-    matching guidelines allow for optional text. The higher similarity
-    counts, and coverage is counted over the words of the text that won;
+    of the text, a fragment. Its words find that part first, on the word
+    codes `licenseid update` stores; its characters are then aligned there,
+    with 4 words more on each side, not along the whole text (where the
+    words agree too little, or a text has no codes, along the whole text).
+    An input of about a licence's core length is compared with its core as
+    well: the text without its optional parts (an appendix, or the GPL-3.0
+    text quoted in the LGPL-3.0), which the SPDX matching guidelines allow
+    for optional text. The higher similarity counts, and coverage is
+    counted over the words of the text that won;
     `EXACT` is still a whole-text match. The score then adds small terms for
     coverage, for marker confidence (applied only from 0.85) and for a
     fingerprint. A marker's confidence floor stays only where the input is
@@ -139,8 +156,10 @@ declared values, SPDX expressions and the matching pipeline.
     where it does not stay, a candidate whose text is not among those found
     is dropped. What `SCORE`, `SIMILARITY` and `COVERAGE` measure, and their
     ranges, is in [output.md](output.md#default-and-verbose-text).
-  - **Whole texts (`TEXTS`)**: After the ranking, the input is searched for
-    every whole text of the List, without a database query per text. Words
+  - **Whole texts (`TEXTS`)**: Before the ranking, the input is searched
+    for the whole texts among the candidates of Tier 1 above (one set an
+    input: a text the input holds whole shares every run of its words with
+    it), without a database query per text. Words
     become one code each; a text is first sampled by its word 5-grams, and
     one that the input holds has most of them. The word 5-grams of such a
     text vote for an offset, and neighbouring offsets with enough votes make a
@@ -162,11 +181,9 @@ declared values, SPDX expressions and the matching pipeline.
     within 2 percent, name neither, unless the input holds one's own words there
     and not the other's. A longer text around such a hit doubts it with its
     own parts left out whatever their length: a long clause in a part of X11
-    names neither X11 nor the MIT text inside it. A database built before
-    `licenseid update` stored
-    those parts (build 7) compares them as written. A
-    copy that drops a critical word such as "not", or misses 150 characters or
-    more of the text in one run (a clause), is not counted. Hits are kept
+    names neither X11 nor the MIT text inside it. A copy that drops a
+    critical word such as "not", or misses 150 characters or more of the
+    text in one run (a clause), is not counted. Hits are kept
     best first, and one that overlaps a kept hit by more than a tenth of the
     shorter span is dropped; copies of one text are then named once. Every
     cost is bounded by a count (characters, tokens, votes, windows, cells):
@@ -176,7 +193,7 @@ declared values, SPDX expressions and the matching pipeline.
     only for a critical word still counts as that look-alike's rival.
     The texts are named in the order the input first gives each.
   - **First text**: When the top result is a text match, not exact, of an
-    input of 40 words or more, that search runs for every output (the `is-*`
+    input of 40 words or more, that search is read for every output (the `is-*`
     commands and the terse `detect` too). Where it finds the texts of two
     licences or more (licences of one text count as one), the results stand
     only when the first text found is the answer's; otherwise there is no

@@ -153,6 +153,18 @@ def test_add_free_text_looks_up_no_hint_a_candidate_already_is(
     assert spy.call_count == 1  # only Bare-1.0
 
 
+def test_add_free_text_drops_an_excluded_marker_candidate_and_a_hint_of_it(
+    db: LicenseDatabase,
+) -> None:
+    """``exclude`` takes a marker's candidate out too, and a hint of the
+    same ID is no way back."""
+    marker = hinted_candidates(db, DetectOptions(hint=["Common-1.0"]), [])
+    candidates: list[Any] = []
+    options = DetectOptions(exclude=["COMMON-1.0"], hint=["Common-1.0", "Rare-1.0"])
+    add_free_text(db, options, candidates, marker)
+    assert [c["license_id"] for c in candidates] == ["Rare-1.0"]
+
+
 def test_only_the_first_hints_carry_their_text(db: LicenseDatabase) -> None:
     """The text stops at MAX_HINTS_WITH_TEXT hints: the next one is added
     with none, so it scores 0 (a Tier 2 pass costs the same for each)."""

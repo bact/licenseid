@@ -7,10 +7,10 @@
 database at the default path.
 
 A :class:`licenseid.detector.LicenseDetector` costs a handful of connections
-to build, and an outdated database warns when it is opened. So the function
-keeps one detector while the default path and its file are the same (the
-stamp ``licenseid.listsource.file_stamp`` reads), as ``listsource`` keeps
-its choice of list, and gives each build warning once per process
+to build, and a database of a newer build warns when it is opened. So the
+function keeps one detector while the default path and its file are the same
+(the stamp ``licenseid.listsource.file_stamp`` reads), as ``listsource``
+keeps its choice of list, and gives each build warning once per process
 (``licenseid.warning.once``), as ``resolve()`` does. A detector that could
 not be built is never kept, and neither is one on a path with no file to
 stamp (an in-memory URI).
@@ -49,8 +49,9 @@ def detect(
     ``LicenseDetector(...).detect(...)`` on the database at the default
     path, with one detector kept while that file is unchanged. Raises
     :class:`licenseid.errors.DatabaseNotReadyError` when that database is
-    not ready (missing, empty, invalid or unreadable), and
-    :class:`licenseid.errors.InvalidInputError` as the method does. The
+    not ready (missing, empty, invalid, unreadable, or of older rules:
+    ``build vN outdated``), and :class:`licenseid.errors.InvalidInputError`
+    as the method does. The
     inputs are checked first: a wrong call is a :class:`TypeError` or an
     InvalidInputError, with a database or without one.
     """

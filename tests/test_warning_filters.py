@@ -154,12 +154,12 @@ print(licenseid.resolve("MIT", sys.argv[1])["expression"])
 """
 
 
-def test_resolve_on_an_outdated_database_in_a_plain_process(tmp_path: Path) -> None:
-    """``resolve()`` on a database stamped build v2, in a Python process with
+def test_resolve_on_a_newer_database_in_a_plain_process(tmp_path: Path) -> None:
+    """``resolve()`` on a database stamped build v99, in a Python process with
     no filter of its own (not pytest, not the CLI): it answers and warns."""
-    db = make_ready_file_db(tmp_path / "old.db")
+    db = make_ready_file_db(tmp_path / "new.db")
     with writer(db) as conn:
-        conn.execute("UPDATE db_metadata SET value = '2' WHERE key = 'build_version'")
+        conn.execute("UPDATE db_metadata SET value = '99' WHERE key = 'build_version'")
     home = tmp_path / "child-home"
     home.mkdir()
     env = {
@@ -180,7 +180,7 @@ def test_resolve_on_an_outdated_database_in_a_plain_process(tmp_path: Path) -> N
     assert "Traceback" not in done.stderr, done.stderr
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "MIT"
-    assert "database: build v2 outdated" in done.stderr
+    assert "database: build v99 newer" in done.stderr
 
 
 # once() under context-aware warnings: an ignored warning is not marked given.
