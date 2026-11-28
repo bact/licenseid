@@ -7,14 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 # The result of `resolve()`
 
 What `licenseid.resolve()` reads in a declared licence value and what it
-returns: every field, the categories and their trust, the reasons for a
-refusal, and how quote marks are read. The
-[Python API](python-api.md) shows how to call it. A value that is not
-a `str` (`None`, bytes, a number) raises `TypeError` before any list is
-read, as does a `db` that is neither a `LicenseDatabase` nor the path of
-one (a `str` or `os.PathLike`); a blank path raises `InvalidInputError`
-(`database: missing: db`). A path is opened read-only, and every database
-is checked ready before it is read: a missing file raises
+returns: every field, the categories and their trust, the reasons for a refusal,
+and how quote marks are read. The [Python API](python-api.md) shows how to call
+it. A value that is not a `str` (`None`, bytes, a number) raises `TypeError`
+before any list is read, as does a `db` that is neither a `LicenseDatabase` nor
+the path of one (a `str` or `os.PathLike`); a blank path raises
+`InvalidInputError` (`database: missing: db`). A path is opened read-only, and
+every database is checked ready before it is read: a missing file raises
 `DatabaseNotReadyError` (`not found`) and is never created.
 
 `detect()` reads a whole input with `resolve()` first:
@@ -289,16 +288,15 @@ database at the default path or the SPDX License List shipped in the wheel,
 whichever holds the newer List; a tie goes to the database unless a newer
 licenseid built it. With no database file it reads the shipped list; with a
 database that is there but unusable, the shipped list after one warning,
-`database: <condition>: <detail>; using packaged data v<version>`. A
-database an older licenseid built is unusable, whatever List it holds
-(`database: build v7 outdated: current v10; using packaged data v3.29.0`),
-as an empty one is, until `licenseid update` builds it again. So is one a
-newer licenseid built in a shape this version cannot read
-(`database: build v11 newer: current v10; using packaged data v3.29.0`).
-`source="database"` reads only the database (and raises for one that
-cannot answer, as `auto` would call it unusable) and `source="packaged"`
-only the shipped list. The answer is the same from either, and
-`lists[*].source` says which was read. `licenseid.DatabaseNotReadyError` is
+`database: <condition>: <detail>; using packaged data v<version>`. A database an
+older licenseid built is unusable, whatever List it holds (`database: build v7
+outdated: current v10; using packaged data v3.29.0`), as an empty one is, until
+`licenseid update` builds it again. So is one a newer licenseid built in a shape
+this version cannot read (`database: build v11 newer: current v10; using
+packaged data v3.29.0`). `source="database"` reads only the database (and raises
+for one that cannot answer, as `auto` would call it unusable) and
+`source="packaged"` only the shipped list. The answer is the same from either,
+and `lists[*].source` says which was read. `licenseid.DatabaseNotReadyError` is
 raised only when the chosen list cannot be read: with `auto`, when there is
 neither (an editable install ships no list).
 
@@ -308,13 +306,13 @@ deleted or updated file is seen at the next call, unless the file system
 keeps coarse times (FAT, HFS+) and the update keeps the file's size within
 one tick.
 
-A warning is a `licenseid.LicenseIdWarning` given through Python's
-`warnings` (see [the Python API](python-api.md#warnings)), never a line written
-to standard error: the fallback above, a database built by a newer
-licenseid (`database: build v11 newer: current v10`) and an unusable shipped
-list (`spdx-bundle.json.gz: invalid: ...`). Each is given once per process,
-not once per value; `licenseid resolve` prints each as a `WARNING:` line.
-Opening a database writes nothing.
+A warning is a `licenseid.LicenseIdWarning` given through Python's `warnings`
+(see [the Python API](python-api.md#warnings)), never a line written to standard
+error: the fallback above, a database built by a newer licenseid (`database:
+build v11 newer: current v10`) and an unusable shipped list
+(`spdx-bundle.json.gz: invalid: ...`). Each is given once per process, not once
+per value; `licenseid resolve` prints each as a `WARNING:` line. Opening a
+database writes nothing.
 
 ## The whole result
 
@@ -452,26 +450,25 @@ are in [the command line reference](cli.md#resolve-a-declared-value).
 
 ## Operands and components
 
-`operands` holds each
-licence the value names, in the order written: its `text`, its `span`, which
-indexes the raw `input` (`[start, end)` in code points; the trim and the
-quotes and brackets around the whole fall outside it), and the answer the
-same text would get alone (an operand is one word, so a loose ID with a space
-is no operand; a part of a value joined by `;`, below, is the exception). A
-refused compound keeps them: `GPL-2.0-only OR Commercial` has no `expression`,
-and `operands` holds `GPL-2.0-only` (`exact`) and `Commercial` (`unresolved`),
-so a consumer can apply its own rule; licenseid gives no partial answer. A
-compound adds the steps of the whole after those of its operands, in this
-order: `operator_case`, `whitespace`,
-`brackets`, `reorder` and `dedupe`, each with the expression before and
-after. `components` names the tools besides licenseid that took part (the
-expression parser, `py-spdx-license`, whenever it parsed the value: a
-compound, read or refused); every step is licenseid's own. A compound's
-top-level `candidates` is empty: the candidates of a bare deprecated ID
-inside it are its operand's, in `operands[*].candidates` (`GPL-2.0 OR MIT`:
-`GPL-2.0-only` and `GPL-2.0-or-later` on its first operand). For
-`resolve("GPLv2+ or MIT")`, shortened (the parser's version is that of one
-run):
+`operands` holds each licence the value names, in the order written: its `text`,
+its `span`, which indexes the raw `input` (`[start, end)` in code points; the
+trim and the quotes and brackets around the whole fall outside it), and the
+answer the same text would get alone (an operand is one word, so a loose ID with
+a space is no operand; a part of a value joined by `;`, below, is the
+exception). A refused compound keeps them: `GPL-2.0-only OR Commercial` has no
+`expression`, and `operands` holds `GPL-2.0-only` (`exact`) and `Commercial`
+(`unresolved`), so a consumer can apply its own rule; licenseid gives no partial
+answer. A compound adds the steps of the whole after those of its operands, in
+this order: `operator_case`, `whitespace`, `brackets`, `reorder` and `dedupe`,
+each with the expression before and after. `components` names a tool besides
+licenseid only when it took part in the reading: the parser, `py-spdx-license`,
+when it parsed the value or a part of it (a value with `AND` or `OR`, read or
+refused: `MIT AND`); none for `MIT`, `Apache-2.0 WITH LLVM-exception`, `MIT;
+Apache-2.0` or `Apache 2.0 OR MIT` (refused first). Every step is licenseid's
+own. A compound's top-level `candidates` is empty: the candidates of a bare
+deprecated ID inside it are its operand's, in `operands[*].candidates` (`GPL-2.0
+OR MIT`: `GPL-2.0-only` and `GPL-2.0-or-later` on its first operand). For
+`resolve("GPLv2+ or MIT")`, shortened (the parser's version is that of one run):
 
 ```json
 {
@@ -571,30 +568,29 @@ At least one piece is a List ID, there are at most 150, and no piece is empty
 order, a repeat dropped (`MIT/MIT` is `MIT`), a deprecated ID kept as
 `assumed_only`. One `separator` step comes first (`from` the value, `to` the
 `OR` form, detail `slash as OR`), then the compound's own; the category is the
-weaker of `separator` and the compound's. Each operand is one piece, at its
-span in the value.
+weaker of `separator` and the compound's. Each operand is one piece, at its span
+in the value.
 
 Anything else keeps its answer. Not read: an operand that is no exact ID
 (`MIT/Apache`, `Apache2/MIT`, `BSD/MIT`, `MIT/NONE`), an exception
-(`MIT/Classpath-exception-2.0`), only `LicenseRef-*` operands, a `/` that is
-not ASCII (U+2215, U+FF0F), a URL or a path (`LICENSE/MIT`,
-`opensource.org/licenses/MIT`), and a `/` mixed with another operator or
-`;` (`MIT/ISC OR Zlib`, `MIT/ISC; Apache-2.0`). A text that holds the value
-(a licence text, a sentence) is not a whole value. A tag never reads a `/`
-(its value can run on into prose); a `license` field of `package.json`,
-`pyproject.toml`, `Cargo.toml` and `setup.cfg` answers as `resolve()` does,
-and lower case in a `Cargo.toml` (`mit/apache-2.0`) is refused. `--id` still
+(`MIT/Classpath-exception-2.0`), only `LicenseRef-*` operands, a `/` that is not
+ASCII (U+2215, U+FF0F), a URL or a path (`LICENSE/MIT`,
+`opensource.org/licenses/MIT`), and a `/` mixed with another operator or `;`
+(`MIT/ISC OR Zlib`, `MIT/ISC; Apache-2.0`). A text that holds the value (a
+licence text, a sentence) is not a whole value. A tag never reads a `/` (its
+value can run on into prose); a `license` field of `package.json`,
+`pyproject.toml`, `Cargo.toml` and `setup.cfg` answers as `resolve()` does, and
+lower case in a `Cargo.toml` (`mit/apache-2.0`) is refused. `--id` still
 declares one licence.
 
-A value with both IDs of a pair that is one licence under a name with a `/`
-is refused, in any order and place (`MIT/X11/ISC`, `X11/MIT`), by a table
-(`resolveslash.REFUSED_PAIRS`, with its reasons in
-[the lists page](lists.md#ids-joined-by-a-slash)); another pair needs a
-measured count. A value of two IDs that is also one List ID with a `/` for
-its `-` is refused too, as either may be meant: `HPND/DOC` (`HPND-doc`) and
-`HPND/Intel` (`HPND-Intel`) are `character dropped: U+002F`, while
-`DOC/HPND` is `DOC OR HPND`. The value is also refused when its `OR` form is
-over 2,000 characters.
+A value with both IDs of a pair that is one licence under a name with a `/` is
+refused, in any order and place (`MIT/X11/ISC`, `X11/MIT`), by a table
+(`resolveslash.REFUSED_PAIRS`, with its reasons in [the lists
+page](lists.md#ids-joined-by-a-slash)); another pair needs a measured count. A
+value of two IDs that is also one List ID with a `/` for its `-` is refused too,
+as either may be meant: `HPND/DOC` (`HPND-doc`) and `HPND/Intel` (`HPND-Intel`)
+are `character dropped: U+002F`, while `DOC/HPND` is `DOC OR HPND`. The value is
+also refused when its `OR` form is over 2,000 characters.
 
 ## Steps and categories
 
@@ -631,7 +627,19 @@ weakest of its operands, in this order (strongest first):
 | `malformed` | `none` | — | states a qualifier twice, or breaks the grammar |
 | `unresolved` | `none` | — | names no licence |
 
-A consumer ignores a step kind it does not know.
+A consumer ignores a step kind it does not know. A result's `trust` is that of
+its category, so a compound's may be stronger than an operand's, as
+`deprecated_ambiguous` comes after the rules: `Apache2 AND
+GPL-2.0-with-classpath-exception` is `list_data`, its operand `Apache2`
+`resolver_rule` (read `operands[*].trust`). What each level says:
+
+| Trust | A caller may rely on |
+| --- | --- |
+| `identity` | the expression is the value's own IDs; only their form changed |
+| `list_data` | the List's data read it: a name, a successor, `X+`, or a deprecated ID kept |
+| `author_words` | the value states the `-only` or `-or-later` form in words |
+| `resolver_rule` | a rule of licenseid read the value; `steps` name the rule |
+| `none` | no reading: no expression, or a bare ID the List split, kept (`GPL-3.0`, `assumed_only`) with its form unstated |
 
 The category `exact` is not the `exact` of `detect()`. Here it says the
 value was the listed ID as written, with no step; `detect()`'s `exact` says
@@ -768,27 +776,25 @@ that is only quote marks, with or without an ending or a `+` (`"".`, `""+`), is
 ## Quote marks
 
 Quote marks that delimit the whole value are not marks of that kind: the
-`unquote` step takes them off first. Two marks of one kind, double
-(`"`, `“ ”`, `„ “`, `« »`; the corner brackets `「」` and `『』` quote too, but
-only as a pair, opener first) or single (`'`, `‘ ’`, `‹ ›`, the grave accent
-and the other quotes `normalize_text` folds), delimit it, whichever
-opens; nested pairs (`'"MIT"'`) all come off, with `detail` `balanced, 2
-layers`. A quotation mark on one end only is taken off too, with `detail`
-`unbalanced, start` or `unbalanced, end`; the answer is `separator` at best
-(`resolver_rule`) and not exact, because the value may be cut:
-`"MIT'"` is read, `"MIT'` (two kinds) is not. A prime or a modifier letter
-(`GPL-2.0′`) is never taken off alone. The marks around each operand of a
-compound come off too (`"MIT" or "Apache-2.0"`), a balanced pair only. The
-marks of two kinds (`"MIT'`), or inside a word (`Apache "2.0"`), stay, and
-the value is refused as above. One `.`, `,`, `;` or `:` after the closing
-marks (`"MIT".`, `'MIT';`) is an ending: a `separator` step comes first, then
-`unquote`. The marks may be on one end only (`MIT".`, `Apache-2.0'.`). Two
-marks (`"MIT"..`), or a mark inside the quote marks as well, even behind a
-bracket (`"MIT.".`, `"(MIT;)".`), are refused.
-A format character inside the marks, at an end of the value they quote, is left
-off after `unquote`, as it is outside them (`"MIT\u200b"`: a `trim` step, see
-the characters at the ends above): white space if it is zero-width (`lexical`
-at best), else a cut (`separator` at best, not exact). With a mark inside as well
-as one after the quotes (`"MIT.\u200b".`) the value is still refused.
-An apostrophe inside a word (`AMD's`) is not a
-mark.
+`unquote` step takes them off first. Two marks of one kind, double (`"`, `“ ”`,
+`„ “`, `« »`; the corner brackets `「」` and `『』` quote too, but only as a pair,
+opener first) or single (`'`, `‘ ’`, `‹ ›`, the grave accent and the other
+quotes `normalize_text` folds), delimit it, whichever opens; nested pairs
+(`'"MIT"'`) all come off, with `detail` `balanced, 2 layers`. A quotation mark
+on one end only is taken off too, with `detail` `unbalanced, start` or
+`unbalanced, end`; the answer is `separator` at best (`resolver_rule`) and not
+exact, because the value may be cut: `"MIT'"` is read, `"MIT'` (two kinds) is
+not. A prime or a modifier letter (`GPL-2.0′`) is never taken off alone. The
+marks around each operand of a compound come off too (`"MIT" or "Apache-2.0"`),
+a balanced pair only. The marks of two kinds (`"MIT'`), or inside a word
+(`Apache "2.0"`), stay, and the value is refused as above. One `.`, `,`, `;` or
+`:` after the closing marks (`"MIT".`, `'MIT';`) is an ending: a `separator`
+step comes first, then `unquote`. The marks may be on one end only (`MIT".`,
+`Apache-2.0'.`). Two marks (`"MIT"..`), or a mark inside the quote marks as
+well, even behind a bracket (`"MIT.".`, `"(MIT;)".`), are refused. A format
+character inside the marks, at an end of the value they quote, is left off after
+`unquote`, as it is outside them (`"MIT\u200b"`: a `trim` step, see the
+characters at the ends above): white space if it is zero-width (`lexical` at
+best), else a cut (`separator` at best, not exact). With a mark inside as well
+as one after the quotes (`"MIT.\u200b".`) the value is still refused. An
+apostrophe inside a word (`AMD's`) is not a mark.

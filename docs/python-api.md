@@ -68,6 +68,23 @@ on `score` and `exact` yourself; the `is_*()` predicates use a bar of 0.85.
 A file of the texts of several licences whose first text is not the top
 result's returns `[]` ([output.md](output.md), `TEXTS`).
 
+A licence file that holds only an SPDX tag is read as the tag: one result,
+its `method` `"tag"`, the expression as declared. Take such a result as the
+licence the file states:
+
+```python
+from pathlib import Path
+
+import licenseid
+
+Path("COPYING").write_text("SPDX-License-Identifier: MIT OR Apache-2.0\n")
+results = licenseid.detect(file_path="COPYING")
+len(results)  # 1
+results[0]["expression"]  # "Apache-2.0 OR MIT"
+results[0]["method"]  # "tag"
+results[0]["exact"]  # True
+```
+
 `texts()` (`licenseid.texts()`, or `LicenseDetector.texts()`) lists the
 List texts an input holds whole, with no answer to name first, as the
 record of no answer prints them (`TEXTS`): in the order the input gives

@@ -26,12 +26,12 @@ CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
 resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 (data file) waits on an upstream release. Release 0.10.0
-(2026-11-28) is the
-new detection engine (PR #249). Next: item 68, then items 69 and 70
-(decided 2026-11-27); after or beside them what Pitloom reported on
-2026-11-28: item 13 here, items 79 to 81 in the reading file; its second
-handoff of that day, on 0.10.0 itself, is in items 68 to 70 and item 82
-(its order: 82, then 69, 70). Items 71 to
+(2026-11-28) is the new detection engine (PR #249). Items 13 and 68 are
+resolved for 0.10.1 (PR #256, 2026-11-28: no look-alike that nothing names
+beside a text found whole), and finding 3 of item 80 is built (PR #257:
+`coverage` capped at 1). Next: item 82, then items 69 and 70 (Pitloom's
+order, from its second handoff of 2026-11-28, on 0.10.0); beside them items
+79 and 80 in the reading file (item 81 is answered). Items 71 to
 75 were found while that engine was built; 72 waits on 71. Items 76 to 78
 (2026-11-28) are for after 0.10.0. The open items
 that need a rule or a decision before a fix are grouped in
@@ -194,27 +194,6 @@ alone.
   this is based on — note that document predates the deprecated-ID fixes
   described in its own status note and has not been re-benchmarked since.
 
-## 13. Apache-2.0 vs Pixar near-duplicate confusion — Priority 15
-
-`Pixar` is `Apache-2.0` with a modified section 6 ([`new-matcher.md`](new-matcher.md)
-has the word counts). Apache-2.0 without its appendix answered Pixar until
-the core text (PR #239); a verbatim Pixar text answers Pixar.
-
-Open, from Pitloom (2026-11-28, found on 0.9.4; its known-bugs entry "A
-dependency's Apache 2.0 file with no licence stated stays unread", and
-`bact/pitloom` issues 286 and 570): a verbatim Apache 2.0 file answers
-`Apache-2.0` 1.0 with `Pixar` 0.995 beside it, a near-tie Pitloom leaves
-undecided when nothing else is stated (rfc8785 0.1.4, rfc3161-client,
-sigstore-rekor-types). Same on 0.10.0 for rfc8785's file: `Apache-2.0`
-1.0000, `Pixar` 0.9947, `ImageMagick` 0.9871, and `TEXTS=Apache-2.0` on
-each row, the evidence item 68 reads. Done when an unmodified Apache 2.0
-text is decisively `Apache-2.0` (Pixar's clause is absent), with that file
-as a fixture, and a real Pixar text still answers `Pixar`. Decided
-2026-11-28: a runner-up that `TEXTS` does not name is not listed beside a
-text found whole, so that file answers `Apache-2.0` alone.
-
-- Impact 3, Risk 2, Effort 3.
-
 ## 61. Leftovers of the core text and the notice-free query — Priority 12
 
 From the review of PR #239 (2026-11-24); none answers worse than `main`.
@@ -239,54 +218,9 @@ report shows a first row (MIT, ISC, 0BSD, HPND, RHeCos-1.1 and others
 under copyright lines) it is the same on both sides. Open: cores alike
 (OLDAP) is untouched; the recall cases are not read apart from this run.
 
-## 68. `TEXTS` as ranking evidence — Priority 18
-
-Next: after the new detection engine of release 0.10.0, which changes the
-ranking and the whole-text search this item reads; measure the 25 files again
-on it first.
-
-Left by item 59 (2026-11-26; `../implementation/whole-texts.md`, section 9).
-On 25 of 596 real files `TEXTS` names one text and the top is a look-alike of
-it under 0.85 (MIT under DocBook-XML, JSON, ICU, curl, Unicode-DFS-2015), so
-there is no answer though the file holds a whole List text; the record of no
-answer now shows it (`REASON=below threshold`, `TEXTS=MIT`). Idea: where the
-search finds one text whole and the top is a look-alike, rank the text found
-first. It makes answers, so measure what it adds wrong (real files, the
-synthetic bundles, every fixture) before taking it: precision over recall.
-
-Pitloom (handoff of 2026-11-26, items C1 and C2): wcwidth's `LICENSE` (the MIT
-text, then a three-line grant) answers `JSON` 0.9238 above `MIT` 0.9197, with
-`TEXTS=MIT` on both: a wrong answer above the threshold, not only a missing
-one. mypy_extensions (one line, then the MIT text) gets no answer. The 0.9.3
-records of no answer hid `TEXTS`; item 59 shows it. Item 64 (2026-11-26,
-built) finds a project's own text where it fills the template's variable
-parts: the first ID of `TEXTS` is now `BSD-3-Clause` in sympy 1.13.1 and in
-numpy 2.4.6 `LICENSE.md` (both `MIT` before), `MIT-CMU` in Pillow 11.2.1
-(`MIT`) and 11.3.0 (`BSD-2-Clause`). Measure this item on top of it: the
-fragments of the HPND family that name a neighbour once the variable parts
-cost nothing (item 64's fixture numbers) must not become answers.
-
-Impact 3, Risk 3, Effort 3.
-
-After the engine of 0.10.0 (2026-11-28): a text found whole ranks first
-(task T5). `roadmap:68`, 27 inputs, takes 14.59 s to 0.44 s; the HPND
-family gate shows no new answer; labels agree 182 to 193
-(`L27-vs-0.9.4-final.txt`).
-Of the 14 real files with one text in `TEXTS` (measured on the T5 tree,
-`../implementation/whole-text-first.md` section 6): 8 answer, 4 name it
-in the top row under 0.85, 2 stay as they were (guard). Open: those 2,
-and `real:f3b34c66` at 211 ms (item 78); the 25 files were not read again.
-
-Pitloom (second handoff of 2026-11-28, on 0.10.0; its cases were run again
-here the same day, with the same numbers): C1 and C2 are fixed (wcwidth
-0.9.5 answers `MIT` 0.9197, mypy_extensions 1.2.0 `MIT` 0.9641). What is
-left is a text found whole that the top row names under 0.85 (the 4 files
-above; Pitloom's D1, its first priority) and a first text of several that
-is not the answer (D2): item 82.
-
 ## 69. A Mozilla Public License header as a notice — Priority 16
 
-Next: after item 68.
+Next: after item 82.
 
 Pitloom (handoff of 2026-11-26, item C6): certifi's `LICENSE` holds the
 standard MPL-2.0 header ("This Source Code Form is subject to the terms of the
@@ -329,19 +263,19 @@ Impact 2, Risk 2, Effort 3.
 Next: after release 0.10.0 (decided 2026-11-27); measure first.
 
 The List gives a `standardLicenseHeader` for 79 licences in use (3.29.0): the
-notice a source file carries. The database holds none (only each licence's
-text and its core), and hand-written rules in `markers` read the GNU ones
-alone (12 of the 79). Measured while 0.10.0 was built (the 79 headers as
-given; right, wrong, no answer at 0.85, same-text twins counted as one):
-0.9.4 56, 11, 12; the 0.10.0 engine 54, 10, 15. With the placeholder lines
-taken out: 52, 13, 14 and 49, 15, 15. Wrong on both: the GFDL-1.2 and 1.3
-`-only` headers answer the GFDL-1.1 forms, `LGPL-2.0` and `LGPL-2.1` swap,
-`Pixar` answers `Apache-2.0` (item 13). No answer on both: the AFL headers,
-`UCL-1.0`, `SSPL-1.0`, `W3C`. The 0.10.0 engine also answers GFDL-1.1 for
-the GFDL-1.2 `-or-later` headers (and the cut 1.3 ones), which 0.9.4 had
-right by 0.014: their wording is the GFDL-1.1 text's own notice, only the
-number differs, and such near ties move with the window Tier 2 aligns (it
-gains `GPL-2.0-only` cut the same way). A header known as a text ends that.
+notice a source file carries. The database holds none (only each licence's text
+and its core), and hand-written rules in `markers` read the GNU ones alone (12
+of the 79). Measured while 0.10.0 was built (the 79 headers as given; right,
+wrong, no answer at 0.85, same-text twins counted as one): 0.9.4 56, 11, 12; the
+0.10.0 engine 54, 10, 15. With the placeholder lines taken out: 52, 13, 14 and
+49, 15, 15. Wrong on both: the GFDL-1.2 and 1.3 `-only` headers answer the
+GFDL-1.1 forms, `LGPL-2.0` and `LGPL-2.1` swap, `Pixar` answers `Apache-2.0`
+(the pair of item 13, resolved for whole texts). No answer on both: the AFL
+headers, `UCL-1.0`, `SSPL-1.0`, `W3C`. The 0.10.0 engine also answers GFDL-1.1
+for the GFDL-1.2 `-or-later` headers (and the cut 1.3 ones), which 0.9.4 had
+right by 0.014: their wording is the GFDL-1.1 text's own notice, only the number
+differs, and such near ties move with the window Tier 2 aligns (it gains
+`GPL-2.0-only` cut the same way). A header known as a text ends that.
 
 Idea: a header is a second text of its licence, in the gram postings and the
 whole-text search of 0.10.0; an input that holds it whole names that ID, and
@@ -352,7 +286,7 @@ the hand-written GNU patterns. Open before a design:
   edited): the 79 clean headers are not what files hold.
 - A header inside a licence's own text (the GPL's appendix) is not a second
   text; a header beside another licence's text (an Apache-2.0 header above a
-  BSD-3-Clause text, item 68's file) is.
+  BSD-3-Clause text, `f3b34c66` of item 68, now in item 78) is.
 - Whether a header is in `TEXTS`, and under which `method`.
 - The header's own template marks (`<alt>`, `<optional>`) go through the
   template reader.
@@ -488,7 +422,7 @@ figures are CPU time of one call, measured on 0.10.0 and 0.9.4.
   25,000 characters, the words do not place the input in them (word
   alignment under 60), and each gets a character alignment of about 70 ms;
   0.9.4 only probed them. A cure moves scores.
-- The real file of item 68 (`real:f3b34c66`) spends its time in one alignment
+- The real file `real:f3b34c66` (from item 68) spends its time in one alignment
   of the whole Apache-2.0 text, the same call 0.9.4 makes: no bound by counts
   keeps the score (under 0.6 the alignment score is the similarity). It takes
   211 ms against the plan's limit of 200 (2,059 ms in 0.9.4): accepted for
@@ -509,13 +443,23 @@ figures are CPU time of one call, measured on 0.10.0 and 0.9.4.
   (0.8, 0.75) answer 17 and 18 files right and 8 and 9 wrong, about as 0.9.4
   (20 and 22 right, 8 and 10 wrong).
 
+- From item 68 (closed 2026-11-28): two real files answer a licence a
+  marker names, beside another text found whole, and the guard of 0.10.0
+  keeps them as they were: `83a1fcfd` (`LGPL-2.1-or-later` 0.9187,
+  `TEXTS=NCL`, labelled `LGPL-2.1-or-later`) and `f3b34c66` (`Apache-2.0`
+  0.9187, `TEXTS=BSD-3-Clause`, no label). Decide whether a marker's licence
+  answers above a text found, with these as fixtures.
+
 Done when: each is fixed or decided not to be, with its number measured again.
 
 Impact 2, Risk 2, Effort 3.
 
 ## 82. The first whole text of a file gives no answer — Priority 21
 
-Next: beside item 68; measure, then a decision by the maintainer.
+Next: first; measure, then a decision by the maintainer. Item 68 (closed
+2026-11-28) handed here its 4 real files whose top row names the one text
+found under 0.85: `2e9aec16`, `aaf1f9bb`, `b87bd47e` (mdurl 0.1.2) and
+`e57d6584` (tqdm 4.70.1).
 
 Pitloom (second handoff of 2026-11-28, items D1 and D2). Pitloom declares
 a package's licence from `detect`'s answer on its licence file; no answer
@@ -552,7 +496,7 @@ Today the record of no answer carries `TEXTS`, in file order. The caller
 rule of `docs/output.md` (declare `EXPRESSION` when `TEXTS` is exactly
 `EXPRESSION`) holds for mdurl, tqdm and ruff, but they have no
 `EXPRESSION` to read. The plan for item 68 (`texts-ranking-evidence-plan.md`,
-question 5; not merged on 2026-11-28) recommends to leave the D1 files
+question 5; built as PR #256) recommends to leave the D1 files
 without an answer, since a score lifted because a text is found makes
 answers. Pitloom's first priority is the other way: answer that question
 with this item in view.
