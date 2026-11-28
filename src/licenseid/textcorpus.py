@@ -277,6 +277,12 @@ class TextCorpus:
     vocabulary: Mapping[str, str]
     entries: tuple[CorpusEntry, ...]
     representatives: Mapping[str, str]
+    #: Each entry by the name of its same-text group (``entry``).
+    _by_name: Mapping[str, CorpusEntry] = field(init=False, compare=False, repr=False)
+
+    def __post_init__(self) -> None:
+        by_name = {entry.text.row_id: entry for entry in self.entries}
+        object.__setattr__(self, "_by_name", MappingProxyType(by_name))
 
     @classmethod
     def build(cls, rows: Iterable[TextRow]) -> "TextCorpus":
@@ -306,6 +312,12 @@ class TextCorpus:
         """The ID that names *license_id*'s same-text group, or None when
         the corpus has no text of it."""
         return self.representatives.get(license_id)
+
+    def entry(self, license_id: str) -> CorpusEntry | None:
+        """The entry of *license_id*'s same-text group, or None when the
+        corpus has no text of it."""
+        name = self.representatives.get(license_id)
+        return None if name is None else self._by_name.get(name)
 
     def encode(self, words: Iterable[str]) -> str:
         """*words* as codes; a word no List text holds is UNKNOWN."""

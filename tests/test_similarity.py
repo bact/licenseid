@@ -76,7 +76,6 @@ LONG_WORD_CANDIDATE: CandidateMatch = {
 def scans(norm_input: str, cand: CandidateMatch | None = None) -> bool:
     """Whether scoring *norm_input* against *cand* (CANDIDATE by default) runs
     the alignment."""
-    words = norm_input.split()
     with mock.patch.object(
         fuzz,
         "partial_ratio_alignment",
@@ -84,11 +83,7 @@ def scans(norm_input: str, cand: CandidateMatch | None = None) -> bool:
         wraps=fuzz.partial_ratio_alignment,
     ) as alignment:
         similarity.calculate_base_similarity(
-            norm_input,
-            len(words),
-            set(words),
-            cand or CANDIDATE,
-            similarity.build_probe(words),
+            similarity.query_of(norm_input), cand or CANDIDATE
         )
     return alignment.called
 

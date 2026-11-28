@@ -47,6 +47,8 @@ _CJK: Final = "\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
 #: A token: one Han or kana character, or a run of other characters that are
 #: not white space.
 TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
+# One character of a token of several: neither white space nor Han or kana.
+_RUN_CHAR: Final = re.compile(f"[^\\s{_CJK}]")
 
 
 def split_words(text: str) -> list[str]:
@@ -55,6 +57,27 @@ def split_words(text: str) -> list[str]:
     if text.isascii():
         return text.split()
     return TOKEN.findall(text)
+
+
+def _joined(text: str, at: int) -> bool:
+    """Whether position *at* of *text* falls inside a token, between two of
+    its characters."""
+    return (
+        0 < at < len(text)
+        and _RUN_CHAR.match(text, at - 1) is not None
+        and _RUN_CHAR.match(text, at) is not None
+    )
+
+
+def whole_tokens(text: str, start: int, end: int) -> tuple[int, int]:
+    """*start* and *end*, a slice of *text*, moved out to the edges of the
+    tokens they cut (as :func:`split_words` reads them): the slice then
+    shows every token it touches whole."""
+    while _joined(text, start):
+        start -= 1
+    while _joined(text, end):
+        end += 1
+    return start, end
 
 
 def gram_hash(gram: str) -> int:

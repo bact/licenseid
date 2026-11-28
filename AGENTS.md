@@ -93,6 +93,8 @@ in another module.
   `variant_stated`, a trailing "only"), `similarity`
   (Tier 2 scores of the candidates, the fingerprint bonus; a long input against
   a licence's core too, the higher kept, coverage over the text that won) with
+  `wordregion` (where a fragment sits in a text, by its words) and
+  `regionalign` (its characters aligned there, walls at the cut ends),
   `coretext` (a template without its optional parts), `fingerprint` (maths) and
   `fingerprintstore` (its table), `ranking` (sort order, `-only`/`-or-later`
   tie-breaker), `markers` and `candidates` (its helpers), `classify` (prose "or
@@ -558,6 +560,16 @@ and `--json`) against these rules and checks the default output against the
   and lengths, on the branch and on `main`, and compare the top answers
   (item 16 in `working-docs/implementation/tech-debt-resolved.md`). Tier 0
   scorers take `score_cutoff=threshold`.
+- Tier 2 aligns a fragment's characters on a region of the text that its
+  words locate (`wordregion`: the stored codes, alignment 60 or more, 4
+  words of padding), never on the region alone: `regionalign` walls its cut
+  ends (RapidFuzz scores windows trimmed at a haystack's ends, a cost in the
+  cube of the characters) and grows it where a window runs into a wall. No
+  codes (an ID or text the corpus lacks) or a weak alignment: the whole
+  text, as before. A word alignment its shared codes cannot lift to 60 is
+  not made (`best_possible`; a Japanese input has a code a character). A
+  region never scores above the whole text; its window may differ, so a
+  change here moves near ties: run `tools.golden`.
 - Tier 1 cost is in distinct word 3-grams: `gramselect.GRAM_LIMIT` (50,000,
   `textlocate.MAX_INPUT_TOKENS`) bounds those looked up; past it `TEXTS` is
   None. No List text comes near it (`tests/test_gram_candidates.py`). Time an

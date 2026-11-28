@@ -22,6 +22,7 @@ from harness_changes_firsttext import FIRSTTEXT_CHANGES, FIRSTTEXT_CLI_CHANGES
 from harness_changes_grams import GRAM_CHANGES
 from harness_changes_nametier import NAME_TIER_CHANGES
 from harness_changes_nametier2 import NAME_TIER2_CHANGES
+from harness_changes_region import REGION_CHANGES
 from harness_changes_resolvefirst import RESOLVE_FIRST_CHANGES
 from harness_changes_review090 import REVIEW090_CHANGES
 from harness_changes_slash import SLASH_CHANGES
@@ -47,7 +48,8 @@ DETECT_CHANGES: dict[str, tuple[str, str]] = {
     **NAME_TIER2_CHANGES,  # last: moves `GNU ... v3` of NAME_TIER_CHANGES again
     **REVIEW090_CHANGES,  # only `exact` moves, on the answers above
     **FIRSTTEXT_CHANGES,  # several texts, the answer's not first
-    **GRAM_CHANGES,  # last: Tier 1 from word grams moves rows of the above
+    **GRAM_CHANGES,  # Tier 1 from word grams moves rows of the above
+    **REGION_CHANGES,  # last: Tier 2 on the word region moves rows of GRAM's
 }
 CLI_CHANGES: dict[str, tuple[str, str]] = {
     "detect-name#text": ("bea927311e33", _FIRST),

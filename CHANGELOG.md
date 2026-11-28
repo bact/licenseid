@@ -23,13 +23,16 @@ and this project adheres to
 - `import licenseid` and `licenseid --version` start in about a third of the
   time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
 - `detect()` on free text finds its candidates by the word 3-grams it shares
-  with each licence text: 13 times faster on 868 licence texts and files
-  (353 s to 27 s of CPU), from 1.3 to 37 times by kind of input
+  with each licence text, and aligns a fragment where its words place it in
+  a text: 15 times faster on 868 licence texts and files (353 s to 23 s of
+  CPU), from 7 to 21 times by kind of input
 - `detect()` on free text no longer lists a far, low-scoring row; an input that
   shares too few runs of three words with any text has `REASON` `no match`, no
   longer `below threshold`, and lists nothing
 - Mixed content (a licence text inside code or prose) is no longer cut into
   sections searched one by one; the word grams find its texts whole
+- `detect --diff` shows the part of the licence text from a whole word to a
+  whole word, no longer from inside one
 
 ## [0.9.4] - 2026-11-27
 

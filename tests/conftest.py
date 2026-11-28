@@ -129,14 +129,16 @@ class FoundRows:
 def found_rows(monkeypatch: pytest.MonkeyPatch) -> FoundRows:
     """Stand in for ``wholetexts.found_texts`` (as ``textnames``,
     ``markerfloor`` and ``firsttext`` call it) and for the corpus the
-    database builds: the test sets ``rows`` (and ``first``), and reads
-    ``calls`` and ``built``. A detector made before the test would keep a
-    corpus of its own: use a new one."""
+    database builds (a real one, which Tier 2's word regions read): the
+    test sets ``rows`` (and ``first``), and reads ``calls`` and ``built``. A
+    detector made before the test would keep a corpus of its own: use a new
+    one."""
     fake = FoundRows()
+    real_build = TextCorpus.build
 
-    def build(rows: Iterable[Any]) -> object:
+    def build(rows: Iterable[Any]) -> TextCorpus:
         fake.built.append(list(rows))
-        return object()
+        return real_build(fake.built[-1])
 
     def search(norm_input: str, corpus: object, answer_id: str) -> Found | None:
         assert corpus is not None

@@ -14,7 +14,7 @@ from typing_extensions import Unpack
 
 from licenseid.candidates import as_matches
 from licenseid.classify import is_pure_license_text
-from licenseid.database import LicenseDatabase, text_parts
+from licenseid.database import LicenseDatabase, text_corpus, text_parts
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.detectrequest import PathInput, check_request, target_text_of
@@ -53,8 +53,8 @@ from licenseid.shorttext import (
 )
 from licenseid.similarity import (
     boost_by_fingerprint,
-    build_probe,
     calculate_base_similarity,
+    query_of,
     score_candidates,
     with_core,
 )
@@ -70,6 +70,7 @@ from licenseid.types import (
 )
 from licenseid.variants import DEFAULT, read_as, read_from, settle_free_text
 from licenseid.wholetexts import Found
+from licenseid.wordregion import WordRegions
 
 
 @dataclass(frozen=True)
@@ -591,9 +592,9 @@ class LicenseDetector:
     def _diff_pair(self, text: str, license_id: str) -> tuple[str, str]:
         """The two sides of a word diff of *text* against *license_id*: the
         normalised input Tier 2 read (a short one without its tags) and the
-        part of the license's normalised text it aligned with. ("", "") if
-        the license has no text. The alignment Tier 2 makes, made again for
-        one license."""
+        part of the license's normalised text it aligned with, widened to
+        whole words. ("", "") if the license has no text. The alignment Tier
+        2 makes, made again for one license."""
         with self.db.reading():
             # A "WITH Font-exception-2.0" the License List has no row for is
             # ranked on its license's text (markers, the font-exception rule).
@@ -607,12 +608,11 @@ class LicenseDetector:
                 self.markers.to_candidate(details, 0.0),
                 text_parts(self.db).get(details["license_id"]),
             )
-        norm_input = self._without_tags(ctx).norm_input
-        words = norm_input.split()
-        _, _, window = calculate_base_similarity(
-            norm_input, len(words), set(words), candidate, build_probe(words)
-        )
-        return norm_input, window
+            norm_input = self._without_tags(ctx).norm_input
+            corpus = text_corpus(self.db)  # read here, in the one connection
+        regions = WordRegions(norm_input, lambda: corpus)
+        query = query_of(norm_input, regions, snap=True)
+        return norm_input, calculate_base_similarity(query, candidate)[2]
 
     def is_spdx(
         self,
@@ -670,9 +670,11 @@ class LicenseDetector:
         marker-boosted scoring."""
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         parts = text_parts(self.db)
+        # The corpus is read at the first candidate a word region is asked of.
+        regions = WordRegions(norm_input, lambda: text_corpus(self.db))
         ranked = score_candidates(
             [with_core(c, parts.get(c["license_id"])) for c in candidates],
-            norm_input,
+            query_of(norm_input, regions),
             marker_boosts or {},
             is_pure,
             enable_popularity,

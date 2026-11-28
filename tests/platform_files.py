@@ -105,6 +105,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_update_matrix.py",
         "test_update_sources.py",
         "test_warning_filters.py",
+        "test_word_region_detect.py",  # a database file with damaged codes
         "test_zero_width.py",
     }
 )

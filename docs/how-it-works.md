@@ -126,11 +126,15 @@ declared values, SPDX expressions and the matching pipeline.
   - **Tier 2 (Precision)**: Adaptive ranking with RapidFuzz. An input of at
     least 80% of a text's words (or a very long one) is compared with the
     whole text by sorted words; a shorter one is aligned with the best part
-    of the text, a fragment. An input of about a licence's core length is
-    compared with its core as well: the text without its optional parts (an
-    appendix, or the GPL-3.0 text quoted in the LGPL-3.0), which the SPDX
-    matching guidelines allow for optional text. The higher similarity
-    counts, and coverage is counted over the words of the text that won;
+    of the text, a fragment. Its words find that part first, on the word
+    codes `licenseid update` stores; its characters are then aligned there,
+    with 4 words more on each side, not along the whole text (where the
+    words agree too little, or a text has no codes, along the whole text).
+    An input of about a licence's core length is compared with its core as
+    well: the text without its optional parts (an appendix, or the GPL-3.0
+    text quoted in the LGPL-3.0), which the SPDX matching guidelines allow
+    for optional text. The higher similarity counts, and coverage is
+    counted over the words of the text that won;
     `EXACT` is still a whole-text match. The score then adds small terms for
     coverage, for marker confidence (applied only from 0.85) and for a
     fingerprint. A marker's confidence floor stays only where the input is

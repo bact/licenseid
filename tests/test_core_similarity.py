@@ -146,10 +146,7 @@ WHOLE = " ".join(
 
 
 def _scored(norm_input: str, cand: CandidateMatch) -> tuple[float, float, str]:
-    words = norm_input.split()
-    return similarity.calculate_base_similarity(
-        norm_input, len(words), set(words), cand, similarity.build_probe(words)
-    )
+    return similarity.calculate_base_similarity(similarity.query_of(norm_input), cand)
 
 
 def _with_core(search_text: str = WHOLE, core: str = CORE) -> CandidateMatch:
@@ -259,7 +256,8 @@ def test_the_diff_shows_the_core_it_was_compared_with(
 
 
 def test_matching_the_core_is_not_exact() -> None:
-    ranked = similarity.score_candidates([_with_core()], CORE, {}, True, False)
+    query = similarity.query_of(CORE)
+    ranked = similarity.score_candidates([_with_core()], query, {}, True, False)
     assert (ranked[0]["similarity"], ranked[0]["exact"]) == (1.0, False)
 
 
