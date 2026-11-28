@@ -77,6 +77,8 @@ in another module.
   short refused one), `shorttext` (Tier 0), `namehits` (which name hits of Tier
   0 stand: tied names) and `namerules` (what beside one name doubts it),
   `retrieval` (Tier 1), `textcorpus` (word codes) and `textstore` (stored),
+  `textgrams` (tokens, word 3-grams and their hashes, the gram score) and
+  `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
   overlap), `textdoubt` (look-alike doubt), `textmask` and `templatevars` (fit
   without template vars), `firsttext` (1st text), `textnames`, `ftsquery` (its
@@ -451,7 +453,9 @@ and `--json`) against these rules and checks the default output against the
   verdict of `check_database_ready` and `LicenseDatabase(path,
   create=False)`). Every caller treats both as it treats `empty`: no caller
   gets a rule of its own. Never write a reader of an older shape: a new
-  table or column joins `dbschema.TABLES` and bumps `BUILD_VERSION`.
+  table or column joins `dbschema.TABLES` and bumps `BUILD_VERSION`. A view,
+  or a table without the rowid it should have (`WITHOUT_ROWID`), of one of
+  these names is a missing one.
 - A lookup never creates or writes. `Connections.connect` opens read-only
   (`dbcheck.open_uri`); `LicenseDatabase(path, create=False)` only reads
   (but `Connections.recover` for a hot journal). `LicenseDatabase(path)`
@@ -479,6 +483,13 @@ and `--json`) against these rules and checks the default output against the
   `textstore.CODING_VERSION`). `textstore.restore` gives the corpus `build`
   gives or None, then built in memory, never written back (a BLOB body too); a
   row SQLite cannot decode is `unreadable`. A coding change bumps both.
+- `text_postings` and `text_posting_ids`: the word 3-gram postings of the
+  texts, with a stamp `update` writes in the same transaction (gram spec,
+  width, counts, a copy of `last_update_datetime`). Used only when they are
+  those of the rows: a stamp that differs, a count that is not the table's
+  or a blob that does not read (`gramstore.Damaged`) and `gramstore` builds
+  the index in memory from the texts, never written back. A change to the
+  gram spec (`textgrams`) bumps `BUILD_VERSION`.
 - Never set `PRAGMA mmap_size`: a file cut by another program (`cp`,
   `truncate`) under a mapped page kills the process with SIGBUS, no message.
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite

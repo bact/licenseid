@@ -53,6 +53,8 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_detection_lists.py",
         "test_docs_examples.py",
         "test_fingerprint.py",
+        "test_gramstore.py",  # byte order of the stored blobs
+        "test_gramstore_db.py",  # database files, threads
         "test_harness_golden_cli.py",
         "test_hatch_build.py",
         "test_housekeeping_home.py",

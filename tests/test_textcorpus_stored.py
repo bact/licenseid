@@ -22,8 +22,8 @@ from licenseid.textcorpus import (
     critical_codes,
     critical_counts,
     critical_counts_of_codes,
-    split_words,
 )
+from licenseid.textgrams import split_words
 from licenseid.textstore import (
     CHECK,
     CORE,

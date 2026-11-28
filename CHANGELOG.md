@@ -18,6 +18,8 @@ and this project adheres to
   update` once after upgrading
 - `detect()` on a declared value is about a quarter faster (462 PyPI values:
   1.39 s to 1.06 s); every answer, score and warning is unchanged
+- Database build 8 (3.4 MB more) stores the word 3-gram postings of every
+  licence text, for the faster text search to come; nothing reads them yet
 
 ## [0.9.4] - 2026-11-27
 

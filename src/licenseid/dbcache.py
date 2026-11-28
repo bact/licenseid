@@ -20,8 +20,10 @@ from typing import TYPE_CHECKING, TypeVar, cast
 
 from licenseid.dbconnection import Connections
 from licenseid.dbschema import LICENSE_FLAGS
+from licenseid.gramstore import GramCache
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
+from licenseid.textgrams import GramTable
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
 
 if TYPE_CHECKING:
@@ -51,6 +53,7 @@ class _Keyed:
 
     __slots__ = (
         "exception_words",
+        "grams",
         "names",
         "text_corpus",
         "text_parts",
@@ -65,6 +68,8 @@ class _Keyed:
         self.exception_words: list[frozenset[str]] | None = None
         self.text_parts: dict[str, TextParts] | None = None
         self.text_corpus: TextCorpus | None = None
+        # Also checked per call against the stamp read in its transaction.
+        self.grams = GramCache()
         self.urls: (
             tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
         ) = None
@@ -97,6 +102,16 @@ class TableCache:
         self._names_and_ids = self._active_by_name = None
         self._deprecated = None
         self._keyed = _Keyed()
+
+    def gram_scores(self, norm_text: str, limit: int | None) -> GramTable:
+        """The texts that share a gram with *norm_text*
+        (``licenseid.gramstore.GramCache.scores``): the stamp, the ids and
+        the postings are read in one transaction, so an ``update`` cannot
+        land between them."""
+        with self._connections.reading(), self._connections.connection() as conn:
+            if not conn.in_transaction:
+                conn.execute("BEGIN")
+            return self._keyed.grams.scores(conn, norm_text, limit)
 
     def _check_stamp(self) -> None:
         """Drop every read if the tables were rebuilt since they were made."""

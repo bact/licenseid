@@ -18,7 +18,8 @@ from timing import slack
 
 from licenseid import textdoubt, textmask, wholetexts
 from licenseid.templatevars import fill_matches
-from licenseid.textcorpus import RunChars, TextCorpus, TextRow, VarRegion, split_words
+from licenseid.textcorpus import RunChars, TextCorpus, TextRow, VarRegion
+from licenseid.textgrams import split_words
 from licenseid.textlocate import Budget, Fit, align, span_fit
 
 BODY = " ".join(f"clause{i} says the licensee may copy item{i}" for i in range(8))

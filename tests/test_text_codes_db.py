@@ -106,8 +106,8 @@ def _build_5(build_now: Path) -> Path:
     return build_now
 
 
-def test_the_build_is_7() -> None:
-    assert BUILD_VERSION == "7"
+def test_the_build_is_8() -> None:
+    assert BUILD_VERSION == "8"
 
 
 def test_update_stores_the_vocabulary_and_each_text_and_core(build_now: Path) -> None:

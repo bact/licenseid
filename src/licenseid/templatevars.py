@@ -33,7 +33,8 @@ from rapidfuzz.distance import Indel
 
 from licenseid.coretext import pieces
 from licenseid.normalize import normalize_text
-from licenseid.textcorpus import VarRegion, split_words
+from licenseid.textcorpus import VarRegion
+from licenseid.textgrams import split_words
 
 #: Words around each var in a rendered template. No List text holds them, and
 #: normalisation keeps them as they are (lower-case letters only).

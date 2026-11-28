@@ -14,6 +14,7 @@ Stdlib only, so ``dbcheck`` can judge a file without importing a connection
 or the builder.
 """
 
+import re
 import sqlite3
 from collections.abc import Mapping
 
@@ -41,7 +42,10 @@ NORMALIZATION_VERSION = "2"
 # Version 7: ``text_codes`` holds the regions of each text's variable parts
 # (``templatevars``) and their patterns, so the search of whole texts leaves
 # a copy's own copyright holder or project name out of its fit.
-BUILD_VERSION = "7"
+# Version 8: ``text_postings`` and ``text_posting_ids`` hold the word 3-gram
+# postings of the List texts (``gramstore``), with their stamp; a change to
+# the gram spec (``textgrams``) bumps it too.
+BUILD_VERSION = "8"
 
 # The flags of a licence: BOOLEAN columns, which SQLite stores as integers.
 LICENSE_FLAGS = (
@@ -78,23 +82,39 @@ TABLES: Mapping[str, tuple[str, ...]] = {
     "license_fingerprints": ("license_id", "ngram", "idf_norm"),
     "license_urls": ("owner_id", "is_exception", "url"),
     "text_codes": ("kind", "owner_id", "body"),
+    "text_postings": ("h", "ids"),
+    "text_posting_ids": ("k", "id", "size"),
 }
 INDEXES = ("idx_fp_ngram", "idx_licenses_name")
 SCHEMA_OBJECTS = (*TABLES, *INDEXES)
+# The tables made WITHOUT ROWID; every other one has a rowid.
+WITHOUT_ROWID = frozenset({"text_codes"})
+_WITHOUT_ROWID_SQL = re.compile(r"\bWITHOUT\s+ROWID\s*\Z", re.ASCII | re.IGNORECASE)
 
 
 def has_shape(conn: sqlite3.Connection) -> bool:
-    """Whether every table and index of this build is there, each table with
-    every column of :data:`TABLES`. Reads only."""
+    """Whether every table and index of this build is there, each table a
+    table (not a view), with a rowid unless it is made WITHOUT ROWID
+    (:data:`WITHOUT_ROWID`), and with every column of :data:`TABLES`. Reads
+    only."""
     marks = ", ".join("?" * len(SCHEMA_OBJECTS))
     found = {
-        row[0]
-        for row in conn.execute(
-            f"SELECT name FROM sqlite_master WHERE name IN ({marks})",
+        name: (kind, sql)
+        for name, kind, sql in conn.execute(
+            f"SELECT name, type, sql FROM sqlite_master WHERE name IN ({marks})",
             SCHEMA_OBJECTS,
         )
     }
-    if found != set(SCHEMA_OBJECTS):
+    if found.keys() != set(SCHEMA_OBJECTS) or any(
+        found[name][0] != "index" for name in INDEXES
+    ):
+        return False
+    if any(
+        found[table][0] != "table"
+        or bool(_WITHOUT_ROWID_SQL.search(str(found[table][1])))
+        != (table in WITHOUT_ROWID)
+        for table in TABLES
+    ):
         return False
     # Each table is one of the fixed names above, never user input.
     return all(
@@ -162,9 +182,17 @@ def create_schema(conn: sqlite3.Connection) -> None:
 def replace_schema(conn: sqlite3.Connection) -> None:
     """Drop licenseid's tables, with their indexes and the FTS5 index's shadow
     tables, and create the shape of this build: ``update`` builds every file
-    from nothing, whatever build made it. Inside the caller's transaction."""
-    for table in TABLES:
-        conn.execute(f"DROP TABLE IF EXISTS {table}")  # a fixed name
+    from nothing, whatever build made it. Inside the caller's transaction.
+
+    An object of one of its names that has another kind (a view, or an index
+    of a table's name) is dropped as what it is (roadmap item 66)."""
+    marks = ", ".join("?" * len(SCHEMA_OBJECTS))
+    found = conn.execute(
+        f"SELECT type, name FROM sqlite_master WHERE name IN ({marks})",
+        SCHEMA_OBJECTS,
+    ).fetchall()
+    for kind, name in found:  # a fixed name; a table, index, view or trigger
+        conn.execute(f"DROP {kind.upper()} IF EXISTS {name}")
     _create_objects(conn)
 
 
@@ -259,4 +287,20 @@ def _create_objects(conn: sqlite3.Connection) -> None:
             body     TEXT NOT NULL,
             PRIMARY KEY (kind, owner_id)
         ) WITHOUT ROWID
+    """)
+    # The word 3-gram postings of the texts (gramstore.write_postings): the
+    # texts by number, then per gram hash the numbers of the texts that hold
+    # it, one blob. Used only under their stamp in db_metadata.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS text_postings (
+            h   INTEGER PRIMARY KEY,
+            ids BLOB
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS text_posting_ids (
+            k    INTEGER PRIMARY KEY,
+            id   TEXT,
+            size INTEGER
+        )
     """)

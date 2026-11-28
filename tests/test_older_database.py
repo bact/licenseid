@@ -75,8 +75,47 @@ NOT_OF_THIS_BUILD: dict[str, tuple[str, str]] = {
         "UPDATE db_metadata SET value = '1' WHERE key = 'normalization_version'",
         OUTDATED.format("normalization v1", NORMALIZATION_VERSION),
     ),
-    # A build-7 stamp on a file without a table: the stamp lies.
+    # A file of build 7: no postings, and its stamp.
+    "build-7": (
+        (
+            "DROP TABLE text_postings; DROP TABLE text_posting_ids;"
+            " DELETE FROM db_metadata"
+            " WHERE key IN ('text_postings', 'text_postings_update');"
+            " UPDATE db_metadata SET value = '7' WHERE key = 'build_version'"
+        ),
+        OUTDATED.format("build v7", BUILD_VERSION),
+    ),
+    # A stamp of this build on a file without a table: the stamp lies.
     "no-text_codes": ("DROP TABLE text_codes", EMPTY),
+    "no-text_postings": ("DROP TABLE text_postings", EMPTY),
+    "no-text_posting_ids": ("DROP TABLE text_posting_ids", EMPTY),
+    # A table of this build's name and another shape (roadmap item 66).
+    "postings-view": (
+        (
+            "DROP TABLE text_postings;"
+            " CREATE VIEW text_postings AS SELECT 1 AS h, x'00' AS ids"
+        ),
+        EMPTY,
+    ),
+    "postings-without-rowid": (
+        (
+            "DROP TABLE text_postings; CREATE TABLE text_postings"
+            " (h INTEGER PRIMARY KEY, ids BLOB) WITHOUT ROWID"
+        ),
+        EMPTY,
+    ),
+    "text_codes-with-rowid": (
+        (
+            "DROP TABLE text_codes; CREATE TABLE text_codes"
+            " (kind TEXT, owner_id TEXT, body TEXT, PRIMARY KEY (kind, owner_id))"
+        ),
+        EMPTY,
+    ),
+    "posting-ids-no-column": ("ALTER TABLE text_posting_ids DROP COLUMN size", EMPTY),
+    "index-a-view": (
+        "DROP INDEX idx_licenses_name; CREATE VIEW idx_licenses_name AS SELECT 1",
+        EMPTY,
+    ),
     "no-license_urls": ("DROP TABLE license_urls", EMPTY),
     "no-index": ("DROP INDEX idx_licenses_name", EMPTY),
     "no-column": ("ALTER TABLE licenses DROP COLUMN same_text", EMPTY),
@@ -102,7 +141,7 @@ def _variant(fresh: Path, name: str, path: Path) -> tuple[Path, str]:
     path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(fresh, path)
     with writer(path) as conn:
-        conn.execute(statement)
+        conn.executescript(statement)
     return path, refusal.format(path=path)
 
 
@@ -189,7 +228,9 @@ def _schema_and_rows(path: Path) -> tuple[object, ...]:
         stamps = sorted(
             conn.execute(
                 "SELECT key, value FROM db_metadata"
-                " WHERE key NOT IN ('last_check_datetime', 'last_update_datetime')"
+                " WHERE key NOT IN"
+                " ('last_check_datetime', 'last_update_datetime',"
+                " 'text_postings_update')"
             )
         )
     return schema, rows, stamps

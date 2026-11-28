@@ -27,7 +27,8 @@ from licenseid.templatevars import (
     shared_regions,
     var_regions,
 )
-from licenseid.textcorpus import VarRegion, split_words
+from licenseid.textcorpus import VarRegion
+from licenseid.textgrams import split_words
 
 LIST_PATTERNS: list[str] = json.loads(PATTERNS.read_text(encoding="utf-8"))
 BEGIN, END = "<<beginOptional>>", "<<endOptional>>"

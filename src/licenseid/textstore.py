@@ -13,7 +13,8 @@ the corpus ``TextCorpus.build`` gives or nothing: codes of other rows, or of
 another coding, are never taken. Both are pure functions of rows; the
 database is read and written elsewhere.
 
-Standard library only, apart from ``licenseid.textcorpus``.
+Standard library only, apart from ``licenseid.textcorpus`` and the tokens
+of ``licenseid.textgrams``.
 """
 
 import hashlib
@@ -24,7 +25,6 @@ from typing import Final, NamedTuple
 
 from licenseid.textcorpus import (
     LAST_NUMBER,
-    TOKEN,
     CodedText,
     CorpusEntry,
     TextCorpus,
@@ -36,6 +36,7 @@ from licenseid.textcorpus import (
     group_rows,
     word_code,
 )
+from licenseid.textgrams import TOKEN
 
 #: Raised on a change to the coding (what a token is, which code point a word
 #: gets, what a region is) that no change to the rows of a database shows: a

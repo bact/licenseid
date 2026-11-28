@@ -45,10 +45,12 @@ from licenseid.dbschema import (
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.ftsquery import match_query
+from licenseid.gramstore import write_postings
 from licenseid.listlookup import ListedUrl
 from licenseid.normalize import normalize_text
 from licenseid.records import Records, build_records
 from licenseid.spdxdata import SpdxData
+from licenseid.textgrams import GramTable
 from licenseid.types import (
     CandidateMatch,
     DatabaseMetadata,
@@ -403,8 +405,8 @@ class LicenseDatabase:
             warn("database", "compact failed", typed(exc))
 
     def _write_db_records(self, records: Records, release_date: str | None) -> None:
-        """Replace every table, and all licence, exception, URL and metadata
-        rows, in a single transaction.
+        """Replace every table, and all licence, exception, URL, metadata
+        and postings rows, in a single transaction.
 
         ``update`` stamps ``license_list_version`` after the fingerprints: a
         run that fails before leaves a database it does not skip."""
@@ -460,6 +462,9 @@ class LicenseDatabase:
                     "INSERT INTO text_codes (kind, owner_id, body) VALUES (?, ?, ?)",
                     records.texts,
                 )
+                # Read back from the rows just written: the postings are
+                # those of the texts a lookup reads, stamped with them.
+                write_postings(conn, now)
                 conn.execute("COMMIT")
             except Exception:
                 conn.execute("ROLLBACK")
@@ -636,6 +641,18 @@ def text_parts(db: LicenseDatabase) -> dict[str, TextParts]:
     ``dbcache.TableCache.text_parts``): a function, not a method, as the
     class has as many public ones as the linter allows."""
     return db._tables.text_parts()  # pylint: disable=protected-access
+
+
+def gram_scores(
+    db: LicenseDatabase, norm_text: str, limit: int | None = None
+) -> GramTable:
+    """The List texts that share a word 3-gram with *norm_text* (normalised),
+    each with its shared grams, size and score, in row order (see
+    ``licenseid.gramstore``): from the stored postings when they are those of
+    the rows, else from an index built in memory. Only the first *limit* of
+    its distinct grams are looked up when given; the table says so
+    (``bounded``)."""
+    return db._tables.gram_scores(norm_text, limit)  # pylint: disable=protected-access
 
 
 def text_corpus(db: LicenseDatabase) -> "TextCorpus":

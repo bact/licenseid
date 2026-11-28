@@ -211,6 +211,7 @@ yet started, see [`../design/`](../design/).
 | 2026-11-24 | [whole-texts.md](whole-texts.md) | implemented (after 0.9.2) | The `TEXTS` field: the List texts an input holds whole, found by word-coded 5-gram anchors and one character ratio on the trimmed span; limits by counts, null past them. |
 | 2026-11-26 | [whole-texts.md](whole-texts.md) section 10 | implemented (after 0.9.3) | Item 64: the variable parts of a template (`<<var>>`) left out of the fit of a whole text where the input's words match their pattern; regions stored in build 7. |
 | 2026-11-26 | [tech-debt-resolved-0-10.md](tech-debt-resolved-0-10.md) | record | The roadmap items resolved from item 64 (2026-11-26) on, split from `tech-debt-resolved-0-9.md` at the size limit. |
+| 2026-11-27 | [gram-postings.md](gram-postings.md) | implemented (0.10.0 task T2, not merged) | Word 3-gram postings of the List texts stored by `update` (build 8): one blob per gram, a stamp in the same transaction, used only when they are those of the rows, else built in memory and never written back; damage cases and measures. |
 
 Deferred/not-yet-built work (e.g. probe-anchored windowing) lives under
 [`../design/`](../design/), not in this table — this directory only

@@ -16,10 +16,9 @@ search reads it from any thread. Cores are coded at build time. The database
 stores it (``licenseid.textstore``).
 
 Standard library only, apart from ``licenseid.similarity``'s list of
-critical words.
+critical words and the tokens of ``licenseid.textgrams``.
 """
 
-import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import accumulate
@@ -27,15 +26,10 @@ from types import MappingProxyType
 from typing import Final, NamedTuple
 
 from licenseid.similarity import CRITICAL_TOKENS
+from licenseid.textgrams import TOKEN, split_words
 
 #: The code of an input word that no List text holds: it matches nothing.
 UNKNOWN: Final = "\0"
-
-# Han and kana are written without spaces between words, so each of their
-# characters is a token of its own; a phrase of 60 characters as one "word"
-# would make a one-character change a whole-word miss.
-_CJK: Final = "぀-ヿ㐀-䶿一-鿿豈-﫿"
-TOKEN: Final = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
 
 # Word numbers run from 1 (0 is UNKNOWN); a code point is never a surrogate,
 # which a str may hold but RapidFuzz and the encoders refuse.
@@ -52,14 +46,6 @@ COUNTED_WITH: Final = MappingProxyType({"not": ("not", "neither")})
 _CLASSES: Final = tuple(COUNTED_WITH.get(word, (word,)) for word in CRITICAL_ORDER)
 
 Span = tuple[int, int]
-
-
-def split_words(text: str) -> list[str]:
-    """The tokens of *text*: its words, and each Han or kana character
-    alone. ASCII text is split on white space only (the fast path)."""
-    if text.isascii():
-        return text.split()
-    return TOKEN.findall(text)
 
 
 def input_tokens(text: str, limit: int) -> tuple[list[str], list[Span] | None]:

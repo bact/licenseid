@@ -18,8 +18,8 @@ from licenseid.textcorpus import (
     VarRegion,
     critical_counts,
     input_tokens,
-    split_words,
 )
+from licenseid.textgrams import split_words
 
 _TEXT = "alpha beta gamma delta epsilon"
 
