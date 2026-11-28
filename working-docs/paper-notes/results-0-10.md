@@ -157,3 +157,13 @@ Sources: PR #249 and PR #250, their CI runs, the session of 2026-11-28
   files of Python packages and on fixtures cut from the List. A separate
   benchmark project holds declared values of other ecosystems today, not
   licence files; its planned licence-text part is the hold-out set.
+- **A consumer's sweep (reported, not run here).** Pitloom ran
+  `detect --json --top 1` on the 223 licence files of one Python 3.10
+  environment with 0.9.4 and with 0.10.0 (its handoff of 2026-11-28):
+  no answer lost, three real changes (two files now answer `MIT`, one
+  reason changed), 14 files that are no licence move from `below
+  threshold` to `no match`, and the sweep takes 6 s where it took
+  minutes. Run here on 0.10.0, with its numbers: eight of its files
+  that hold a whole text and get no answer, four because the file
+  holds more than the text (score 0.16 to 0.76), four because several
+  texts are found (roadmap item 82).
