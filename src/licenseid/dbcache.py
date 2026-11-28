@@ -13,10 +13,11 @@ table, about 1.2 s for 4,000 distinct tags. Reading each table's IDs once
 turns every later lookup into a seek, and an unknown ID into no query.
 """
 
+import contextlib
 import sqlite3
 import threading
-from collections.abc import Callable
-from typing import TYPE_CHECKING, TypeVar, cast
+from collections.abc import Callable, Iterator, Mapping
+from typing import TypeVar, cast
 
 from licenseid.dbconnection import Connections
 from licenseid.dbschema import LICENSE_FLAGS
@@ -25,12 +26,9 @@ from licenseid.gramstore import GramCache
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.nameindex import NameIndex, build_name_index
 from licenseid.normalize import normalize_text
+from licenseid.textentries import StoredTexts, TextStore, read_text_parts
 from licenseid.textgrams import GramTable
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
-
-if TYPE_CHECKING:
-    from licenseid.textcorpus import TextCorpus
-    from licenseid.textstore import StoredRow
 
 __all__ = ["TableCache", "cast_license_details"]
 _V = TypeVar("_V", str, int)
@@ -50,8 +48,8 @@ class _Keyed:
     tables: names_and_ids() by a key of each ID, and the rows of
     ``license_urls`` with their index by a key of each URL. One key of each
     is kept; a call with another builds its index again. The words of the
-    exceptions, the text parts, the corpus of texts and the index of names
-    are here too: they are read for one generation as well."""
+    exceptions, the text parts, the store of coded texts and the index of
+    names are here too: they are read for one generation as well."""
 
     __slots__ = (
         "exception_words",
@@ -59,8 +57,8 @@ class _Keyed:
         "grams",
         "name_index",
         "names",
-        "text_corpus",
         "text_parts",
+        "texts",
         "url_rows",
         "urls",
     )
@@ -73,9 +71,9 @@ class _Keyed:
         self.flags: dict[str, ListFlags] | None = None
         self.name_index: NameIndex | None = None
         self.text_parts: dict[str, TextParts] | None = None
-        self.text_corpus: TextCorpus | None = None
         # Also checked per call against the stamp read in its transaction.
         self.grams = GramCache()
+        self.texts = TextStore()
         self.urls: (
             tuple[Callable[[str], str | None], dict[str, list[ListedUrl]]] | None
         ) = None
@@ -109,15 +107,32 @@ class TableCache:
         self._deprecated = None
         self._keyed = _Keyed()
 
-    def gram_scores(self, norm_text: str, limit: int | None) -> GramTable:
-        """The texts that share a gram with *norm_text*
-        (``licenseid.gramstore.GramCache.scores``): the stamp, the ids and
-        the postings are read in one transaction, so an ``update`` cannot
-        land between them."""
+    @contextlib.contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        """This thread's shared connection in a read transaction (``BEGIN``:
+        Python's ``sqlite3`` opens none for a ``SELECT``), which every query
+        made in the block joins; or the transaction of an enclosing block.
+        The outermost query ends it (``Connections``)."""
         with self._connections.reading(), self._connections.connection() as conn:
             if not conn.in_transaction:
                 conn.execute("BEGIN")
-            return self._keyed.grams.scores(conn, norm_text, limit)
+            yield conn
+
+    @contextlib.contextmanager
+    def snapshot(self) -> Iterator[None]:
+        """One read transaction for the block's queries: the postings, the
+        ids and the coded texts of one call are read in it, so an ``update``
+        cannot land between them. The stamp is read again in it, so the
+        reads kept are those of the rows it sees."""
+        with self._transaction():
+            self._check_stamp(again=True)
+            yield
+
+    def texts(self) -> "ListTexts":
+        """The postings and the coded texts of this generation, for the
+        whole-text search and Tier 2 of one call. Each keeps its reads for the
+        ``last_update_datetime`` it reads in the call's transaction."""
+        return ListTexts(self, self._keyed, self._transaction)
 
     def list_flags(self) -> dict[str, ListFlags]:
         """What the filters of ``detect()`` read of each licence's row, by ID
@@ -143,10 +158,11 @@ class TableCache:
                 holder.flags = found
         return found
 
-    def _check_stamp(self) -> None:
-        """Drop every read if the tables were rebuilt since they were made."""
+    def _check_stamp(self, again: bool = False) -> None:
+        """Drop every read if the tables were rebuilt since they were made;
+        read once per ``reading()`` block, unless *again*."""
         block = self._connections.current_block()
-        if block and getattr(self._checked, "block", 0) == block:
+        if block and getattr(self._checked, "block", 0) == block and not again:
             return
         with self._connections.connection() as conn:
             row = conn.execute(
@@ -189,8 +205,8 @@ class TableCache:
                 self._license_ids = ids
         return ids.get(fold_case(license_id))
 
-    def index_row(self, license_id: str) -> int | None:
-        """The ``license_index`` rowid of *license_id* (exact case), or None."""
+    def index_rows(self) -> dict[str, int]:
+        """The first ``license_index`` rowid of each ID, in table order."""
         self._check_stamp()
         generation, rows = self._generation, self._index_rows
         if rows is None:
@@ -199,7 +215,7 @@ class TableCache:
             )
             if generation == self._generation:
                 self._index_rows = rows
-        return rows.get(license_id)
+        return rows
 
     def names_and_ids(self) -> list[LicenseNameId]:
         """Every licence's ID, name and flags, for short-text matching."""
@@ -258,78 +274,7 @@ class TableCache:
     def _read_text_parts(self) -> dict[str, TextParts]:
         """The rows of ``licenses`` that have a core or a twin."""
         with self._connections.connection() as conn:
-            rows: list[tuple[str, str | None, int | None, str | None]] = conn.execute(
-                "SELECT license_id, core_text, core_word_count, same_text"
-                " FROM licenses ORDER BY rowid"
-            ).fetchall()
-        found: dict[str, TextParts] = {}
-        for license_id, core, words, same in rows:
-            if core is None and not same:
-                continue
-            found.setdefault(
-                license_id,
-                TextParts(
-                    core if core is not None and words else None,
-                    words if core is not None and words else None,
-                    tuple(same.split()) if same else (),
-                ),
-            )
-        return found
-
-    def text_corpus(self) -> "TextCorpus":
-        """The texts of the List, coded for the search of the texts an input
-        holds whole (:mod:`licenseid.textcorpus`): each licence that has a
-        text in the index, with its core and its twins, built at the first
-        call and kept until the tables are rebuilt. It is immutable, so a
-        caller may share it between threads. Not built for a call that asks
-        no text search."""
-        self._check_stamp()
-        generation, holder = self._generation, self._keyed
-        corpus = holder.text_corpus
-        if corpus is None:
-            corpus = self._build_text_corpus()
-            if generation == self._generation:
-                holder.text_corpus = corpus
-        return corpus
-
-    def _build_text_corpus(self) -> "TextCorpus":
-        """The corpus of ``license_index``'s texts, in table order (the
-        first row of an ID wins, as a scan would find it)."""
-        # Lazy: the search code is loaded for a call that searches only.
-        # pylint: disable-next=import-outside-toplevel
-        from licenseid.textcorpus import TextCorpus, TextRow
-
-        # pylint: disable-next=import-outside-toplevel
-        from licenseid.textstore import restore
-
-        parts = self.text_parts()
-        with self._connections.connection() as conn:
-            rows: list[tuple[str | None, str | None]] = conn.execute(
-                "SELECT license_id, search_text FROM license_index ORDER BY rowid"
-            ).fetchall()
-        texts: dict[str, str] = {}
-        for license_id, text in rows:
-            if license_id is not None and text:
-                texts.setdefault(license_id, text)
-        built = []
-        for license_id, text in texts.items():
-            part = parts.get(license_id)
-            core = part.core if part else None
-            group = (part.same_text if part else ()) or (license_id,)
-            built.append(TextRow(license_id, text, core, group))
-        # The codes the build stored, when they are those of these rows: one
-        # damaged or edited since has others, which are coded here and not
-        # written back (a lookup never writes; ``update`` stores them).
-        stored = restore(built, self._stored_texts())
-        return TextCorpus.build(built) if stored is None else stored
-
-    def _stored_texts(self) -> "list[StoredRow]":
-        """The rows of ``text_codes``."""
-        with self._connections.connection() as conn:
-            rows: list[StoredRow] = conn.execute(
-                "SELECT kind, owner_id, body FROM text_codes"
-            ).fetchall()
-        return rows
+            return read_text_parts(conn)
 
     def names_by_key(self, key: Callable[[str], str]) -> dict[str, list[LicenseNameId]]:
         """names_and_ids() by *key* of each ID, in table order: built once,
@@ -437,3 +382,47 @@ class TableCache:
             if generation == self._generation:
                 holder.exception_words = found
         return found
+
+
+class ListTexts:
+    """The postings and the coded texts of one generation of a database's
+    reads (``TableCache.texts``); also what the store of coded texts reads
+    (``licenseid.textentries.Reads``)."""
+
+    def __init__(
+        self,
+        tables: TableCache,
+        keyed: _Keyed,
+        transaction: Callable[
+            [], contextlib.AbstractContextManager[sqlite3.Connection]
+        ],
+    ) -> None:
+        self._tables = tables
+        self._keyed = keyed
+        self._transaction = transaction
+
+    def connection(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
+        """A connection for one query, in the read transaction of the
+        enclosing block (``TableCache.snapshot``), or in one of its own."""
+        return self._transaction()
+
+    def gram_scores(self, norm_text: str, limit: int | None) -> GramTable:
+        """The texts that share a gram with *norm_text*
+        (``licenseid.gramstore.GramCache.scores``): the stamp, the ids and
+        the postings are read in one transaction, so an ``update`` cannot
+        land between them."""
+        with self.connection() as conn:
+            return self._keyed.grams.scores(conn, norm_text, limit)
+
+    def source(self) -> StoredTexts:
+        """The coded List texts one call reads, entry by entry
+        (``licenseid.textentries``)."""
+        return StoredTexts(self._keyed.texts, self)
+
+    def index_rows(self) -> Mapping[str, int]:
+        """The first ``license_index`` rowid of each ID, in table order."""
+        return self._tables.index_rows()
+
+    def text_parts(self) -> Mapping[str, TextParts]:
+        """The core and the same-text group of each licence with one."""
+        return self._tables.text_parts()

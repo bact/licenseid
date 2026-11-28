@@ -132,8 +132,10 @@ def test_each_damage_changes_one_thing_and_the_intact_copy_nothing(
     source = tmp_path / "src.db"
     _database(source)
     copies = damage.make_copies(source, tmp_path / "out")
-    assert copies["no checks table"] is None
-    assert copies["check of BSD-3-Clause changed"] is None
+    for kind in CHECKS_KINDS:
+        assert copies[kind] is None
+    edited = "text of MIT edited, new update time, codes kept"
+    assert copies[edited] is None and edited + damage.REFERENCE not in copies
 
     def body(name: str, kind: str, owner: str) -> str:
         path = copies[name]
@@ -165,6 +167,74 @@ def test_each_damage_changes_one_thing_and_the_intact_copy_nothing(
         kept is not None
         and body("text of MIT changed, codes kept", "text", "MIT") == "abcd"
     )
+
+
+CHECKS_KINDS = [
+    "check of BSD-3-Clause changed",
+    "no checks table",
+    "checks table misshaped",
+    "check of the head changed",
+    "check of MIT missing",
+    "codes of MIT a blob one byte short",
+]
+
+
+def _with_checks(path: Path) -> None:
+    _database(path)
+    con = sqlite3.connect(path)
+    con.execute(
+        "CREATE TABLE text_code_checks (owner_id TEXT PRIMARY KEY, digest TEXT)"
+        " WITHOUT ROWID"
+    )
+    con.executemany(
+        "INSERT INTO text_code_checks VALUES (?, ?)",
+        [("", "h"), ("MIT", "m"), ("BSD-3-Clause", "b")],
+    )
+    con.execute("CREATE TABLE db_metadata (key TEXT, value TEXT)")
+    con.execute("INSERT INTO db_metadata VALUES ('last_update_datetime', 't')")
+    con.commit()
+    con.close()
+
+
+def _rows_of(path: Path | None, sql: str) -> list[Any]:
+    assert path is not None
+    con = sqlite3.connect(path)
+    try:
+        return con.execute(sql).fetchall()
+    finally:
+        con.close()
+
+
+def test_each_damage_of_the_checks_changes_what_it_names(tmp_path: Path) -> None:
+    source = tmp_path / "src.db"
+    _with_checks(source)
+    copies = damage.make_copies(source, tmp_path / "out")
+    checks = "SELECT owner_id, digest FROM text_code_checks ORDER BY owner_id"
+    intact = [("", "h"), ("BSD-3-Clause", "b"), ("MIT", "m")]
+    assert _rows_of(copies[damage.INTACT], checks) == intact
+    assert _rows_of(copies["check of the head changed"], checks)[0] == ("", "x")
+    assert _rows_of(copies["check of MIT missing"], checks) == intact[:2]
+    assert _rows_of(copies["check of BSD-3-Clause changed"], checks)[1][1] == "x"
+    tables = "SELECT name, sql FROM sqlite_master WHERE name = 'text_code_checks'"
+    assert not _rows_of(copies["no checks table"], tables)
+    (shape,) = _rows_of(copies["checks table misshaped"], tables)
+    assert "WITHOUT ROWID" not in shape[1]
+    assert _rows_of(copies["checks table misshaped"], checks) == intact
+    codes = "SELECT body, typeof(body) FROM text_codes WHERE owner_id = 'MIT'"
+    assert _rows_of(copies["codes of MIT a blob one byte short"], codes)[0] == (
+        b"abc",
+        "blob",
+    )
+    edited = "text of MIT edited, new update time, codes kept"
+    text = "SELECT search_text FROM license_index"
+    stamp = "SELECT value FROM db_metadata"
+    assert _rows_of(copies[edited], text) == [("permission",)]
+    assert _rows_of(copies[edited], stamp) == [("2099-01-01 00:00:00",)]
+    assert _rows_of(copies[edited], codes)[0] == ("abcd", "text")
+    reference = copies[edited + damage.REFERENCE]
+    assert _rows_of(reference, text) == [("permission",)]
+    assert not _rows_of(reference, codes)
+    assert damage.NOT_READY == {"no checks table", "checks table misshaped"}
 
 
 def test_a_database_is_built_from_cached_files_or_not_at_all(tmp_path: Path) -> None:

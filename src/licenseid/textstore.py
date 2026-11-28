@@ -3,15 +3,20 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The stored form of a ``licenseid.textcorpus.TextCorpus``.
+"""The stored form of a ``licenseid.textcorpus.TextCorpus``, and its checks.
 
-The database stores the codes (``stored_rows``), so that a process reads them
-(``restore``) instead of coding every text again: 0.18 s once per process,
-against about 15 ms. A stored check value (a SHA-256 of the List texts,
-cores, codes and vocabulary, and of ``CODING_VERSION``) makes a restore give
-the corpus ``TextCorpus.build`` gives or nothing: codes of other rows, or of
-another coding, are never taken. Both are pure functions of rows; the
-database is read and written elsewhere.
+The database stores the codes (``stored_rows``), so that a lookup reads the
+entries of the texts it needs (``read_entry``) instead of coding every text
+again. Each stored value is used only when it is what ``TextCorpus.build``
+gives for the rows: ``update`` writes, beside the codes, a SHA-256 of the
+head (``head_digest``: the coding, the copy of ``last_update_datetime`` the
+rows were written with, the vocabulary, the patterns of the variable parts,
+the gram counts of the cores) and one of each entry (``entry_digest``: the
+head's, the group's name, its text and core as the rows hold them, and its
+stored codes and regions). A read recomputes them from what it read; any
+difference, a row of a wrong type or shape, or a row missing gives None, and
+the caller then builds the corpus in memory. Pure functions of rows: the
+database is read and written elsewhere (``licenseid.textentries``).
 
 Standard library only, apart from ``licenseid.textcorpus`` and the tokens
 of ``licenseid.textgrams``.
@@ -19,7 +24,7 @@ of ``licenseid.textgrams``.
 
 import hashlib
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
@@ -28,93 +33,200 @@ from licenseid.textcorpus import (
     CodedText,
     CorpusEntry,
     TextCorpus,
-    TextRow,
     VarRegion,
-    core_of_row,
     critical_codes,
     critical_counts_of_codes,
-    group_rows,
     word_code,
 )
 from licenseid.textgrams import TOKEN
 
 #: Raised on a change to the coding (what a token is, which code point a word
-#: gets, what a region is) that no change to the rows of a database shows: a
-#: corpus stored by an older coding then fails its check and is built, not
+#: gets, what a region is) that no change to the rows of a database shows:
+#: stored codes of an older coding then fail their check and are built, not
 #: read. Version 2: the regions of the variable parts (``TEXT_VARS``).
 CODING_VERSION: Final = 2
 
-#: One row of the stored corpus: ``(kind, owner_id, body)``. The vocabulary
-#: is one row (``WORDS``, no owner), its check value another (``CHECK``, no
-#: owner), the ``match`` patterns of the variable parts another (``PATTERNS``,
-#: no owner, a JSON list), each text and core one row of codes (``TEXT``,
-#: ``CORE``; the owner is the name of its same-text group) and one row of
-#: regions when it has some (``TEXT_VARS``, ``CORE_VARS``: a JSON list of
-#: ``[start, end, pattern number]``).
+#: One row of ``text_codes``: ``(kind, owner_id, body)``. The head is three
+#: rows with no owner: the vocabulary (``WORDS``, a JSON list of the words in
+#: code order), the ``match`` patterns of the variable parts (``PATTERNS``, a
+#: JSON list) and the distinct word 3-grams of each core (``CORE_GRAMS``, a
+#: JSON object by group name; ``licenseid.gramselect.is_held`` reads it for
+#: texts it loads no entry of). Each text and core is one row of codes
+#: (``TEXT``, ``CORE``; the owner is the name of its same-text group) and one
+#: row of regions when it has some (``TEXT_VARS``, ``CORE_VARS``: a JSON list
+#: of ``[start, end, pattern number]``).
 StoredRow = tuple[str, str, str]
+#: One row of ``text_code_checks``: ``(owner_id, digest)``; the head's owner
+#: is ``HEAD``.
+CheckRow = tuple[str, str]
 WORDS: Final = "words"
-CHECK: Final = "check"
 PATTERNS: Final = "patterns"
+CORE_GRAMS: Final = "coregrams"
 TEXT: Final = "text"
 CORE: Final = "core"
 TEXT_VARS: Final = "textvars"
 CORE_VARS: Final = "corevars"
-
-# The kinds stored once, with no owner, and those stored per group.
-_SINGLE: Final = (WORDS, CHECK, PATTERNS)
-_OWNED: Final = (TEXT, CORE, TEXT_VARS, CORE_VARS)
-
-
-class _Stored(NamedTuple):
-    """The stored rows read: the vocabulary, the check value, the patterns
-    and the codes and regions by ``(kind, owner)``."""
-
-    words: list[str]
-    check: str
-    patterns: list[str]
-    codes: dict[tuple[str, str], str]
+HEAD: Final = ""
+#: The kinds of the head, and those of an entry.
+HEAD_KINDS: Final = (WORDS, PATTERNS, CORE_GRAMS)
+ENTRY_KINDS: Final = (TEXT, CORE, TEXT_VARS, CORE_VARS)
 
 
-def _parse_strings(body: str) -> list[str] | None:
-    """The JSON list of strings in *body*, or None."""
+def _digest(parts: Iterable[str]) -> str:
+    """The SHA-256 (hex) of *parts*, each with its length in front, so that no
+    two lists of parts join to the same bytes."""
+    digest = hashlib.sha256()
+    for part in parts:
+        data = part.encode("utf-8", "surrogatepass")
+        digest.update(len(data).to_bytes(8, "big"))
+        digest.update(data)
+    return digest.hexdigest()
+
+
+def _present(body: str | None) -> str:
+    """A stored body as a part of a digest: a row that is not there differs
+    from every row that is."""
+    return "" if body is None else "+" + body
+
+
+def head_digest(updated: str, bodies: Mapping[str, str]) -> str:
+    """The check of the head: the coding, the token rule, *updated* (the
+    ``last_update_datetime`` the rows were written with) and the *bodies* of
+    the kinds of ``HEAD_KINDS``. A rebuild of the rows, by ``update`` or by
+    hand with a new time, so fails it, as the stamp of the postings does."""
+    return _digest(
+        (
+            str(CODING_VERSION),
+            TOKEN.pattern,
+            updated,
+            *(_present(bodies.get(kind)) for kind in HEAD_KINDS),
+        )
+    )
+
+
+def entry_digest(
+    head: str, name: str, text: str, core: str | None, bodies: Mapping[str, str]
+) -> str:
+    """The check of the entry of group *name*: the *head*'s check, its
+    *text* and *core* as the rows hold them, and its stored *bodies* by kind
+    (``ENTRY_KINDS``)."""
+    return _digest(
+        (
+            head,
+            name,
+            text,
+            _present(core),
+            *(_present(bodies.get(kind)) for kind in ENTRY_KINDS),
+        )
+    )
+
+
+def _json(value: object) -> str:
+    return json.dumps(value, separators=(",", ":"))
+
+
+def stored_rows(corpus: TextCorpus) -> list[StoredRow]:
+    """The codes of *corpus* as rows of ``text_codes``: the head (the
+    vocabulary in code order, the patterns of its regions, the gram counts of
+    its cores), then the codes and regions of each text and core. The checks
+    are written beside them (``licenseid.textentries.write_checks``)."""
+    words = list(corpus.vocabulary)
+    coded = [
+        part
+        for entry in corpus.entries
+        for part in (entry.text, entry.core)
+        if part is not None
+    ]
+    patterns = sorted({region.pattern for part in coded for region in part.regions})
+    number = {pattern: at for at, pattern in enumerate(patterns)}
+    core_grams = {
+        entry.text.row_id: entry.core.gram_count
+        for entry in corpus.entries
+        if entry.core is not None
+    }
+    rows = [
+        (WORDS, HEAD, _json(words)),
+        (PATTERNS, HEAD, _json(patterns)),
+        (CORE_GRAMS, HEAD, _json(core_grams)),
+    ]
+    for part in coded:
+        rows.append((CORE if part.is_core else TEXT, part.row_id, part.codes))
+        if part.regions:
+            regions = [[r.start, r.end, number[r.pattern]] for r in part.regions]
+            kind = CORE_VARS if part.is_core else TEXT_VARS
+            rows.append((kind, part.row_id, _json(regions)))
+    return rows
+
+
+class Head(NamedTuple):
+    """What every entry of one database reads: the check of the head, the
+    vocabulary, the patterns, the counted critical codes and the gram counts
+    of the cores by group name."""
+
+    digest: str
+    vocabulary: Mapping[str, str]
+    patterns: tuple[str, ...]
+    counted: tuple[tuple[str, ...], ...]
+    core_grams: Mapping[str, int]
+
+
+def _loaded(body: str) -> object:
+    """*body* as JSON, or None when it is not."""
     try:
-        loaded = json.loads(body)
+        return json.loads(body)
     except (ValueError, RecursionError):  # RecursionError: nested too deep
         return None
-    if not isinstance(loaded, list) or not all(map(_is_str, loaded)):
+
+
+def _strings(value: object) -> list[str] | None:
+    """*value* when it is a list of strings, else None."""
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         return None
-    return loaded
+    return value
 
 
-def _parse_stored(stored: Iterable[StoredRow]) -> _Stored | None:
-    """The vocabulary, the check value, the patterns and the codes of
-    *stored*, or None when a row has a kind, owner or body that is not text
-    (a BLOB read as bytes), is of no kind, repeated, or empty, or the
-    vocabulary or the patterns are not a list of strings or a row of the
-    vocabulary, the check or the patterns is missing."""
-    single: dict[str, str] = {}
-    codes: dict[tuple[str, str], str] = {}
-    for row in stored:
-        if not all(map(_is_str, row)):
-            return None
-        kind, owner, body = row
-        if kind in _SINGLE and kind not in single and not owner:
-            single[kind] = body
-        elif kind in _OWNED and body and (kind, owner) not in codes:
-            codes[(kind, owner)] = body
-        else:
-            return None
-    if len(single) != len(_SINGLE):
+def _counts(value: object) -> dict[str, int] | None:
+    """*value* when it is an object of counts (not a JSON ``true``), else
+    None."""
+    if not isinstance(value, dict) or not all(
+        type(v) is int and v >= 0  # pylint: disable=C0123
+        for v in value.values()
+    ):
         return None
-    words = _parse_strings(single[WORDS])
-    patterns = _parse_strings(single[PATTERNS])
-    if words is None or patterns is None:
+    return value
+
+
+def read_head(
+    updated: object, bodies: Mapping[str, object], stored: object
+) -> Head | None:
+    """The head of the rows read: *updated* (``last_update_datetime``), the
+    *bodies* of ``HEAD_KINDS`` and the *stored* check; None when one is
+    missing or not text, the check differs (other rows, another coding), or a
+    body does not read (the vocabulary a list of distinct strings, the
+    patterns a list of strings, the gram counts an object of counts)."""
+    texts = {kind: body for kind, body in bodies.items() if isinstance(body, str)}
+    if (
+        not isinstance(updated, str)
+        or not isinstance(stored, str)
+        or texts.keys() != set(HEAD_KINDS)
+        or head_digest(updated, texts) != stored
+    ):
         return None
-    return _Stored(words, single[CHECK], patterns, codes)
-
-
-def _is_str(value: object) -> bool:
-    return isinstance(value, str)
+    words = _strings(_loaded(texts[WORDS]))
+    patterns = _strings(_loaded(texts[PATTERNS]))
+    core_grams = _counts(_loaded(texts[CORE_GRAMS]))
+    if words is None or patterns is None or core_grams is None:
+        return None
+    vocabulary = dict(zip(words, map(word_code, range(1, len(words) + 1))))
+    if len(vocabulary) != len(words) or len(words) > LAST_NUMBER:
+        return None
+    return Head(
+        stored,
+        MappingProxyType(vocabulary),
+        tuple(patterns),
+        critical_codes(vocabulary),
+        MappingProxyType(core_grams),
+    )
 
 
 def _parse_regions(
@@ -126,10 +238,7 @@ def _parse_regions(
     *patterns*."""
     if body is None:
         return ()
-    try:
-        loaded = json.loads(body)
-    except (ValueError, RecursionError):  # RecursionError: nested too deep
-        return None
+    loaded = _loaded(body)
     if not isinstance(loaded, list):
         return None
     regions = [_region(item, length, patterns) for item in loaded]
@@ -151,139 +260,91 @@ def _region(item: object, length: int, patterns: Sequence[str]) -> VarRegion | N
     return VarRegion(start, end, patterns[number])
 
 
-def _fingerprint(words: Sequence[str], entries: Iterable[CorpusEntry]) -> str:
-    """The SHA-256 (hex) of the coding, the vocabulary *words* and, per
-    entry, its group name, text, core, codes and regions: equal for the
-    corpus ``build`` makes and the one ``restore`` reads from its rows only
-    when every stored code and region is the one ``build`` gives. Each part
-    has its length in front, so no two corpora join to the same bytes."""
-    digest = hashlib.sha256()
+class RawEntry(NamedTuple):
+    """The rows of one same-text group as read: its *name*, its *text* (of
+    its first licence's index row) and *core* (of that licence's row, None
+    when it has none or it is the text), its stored *bodies* by kind (a kind
+    with no row is not in it) and its stored *check*."""
 
-    def add(part: str, encoding: str = "utf-8") -> None:
-        data = part.encode(encoding, "surrogatepass")
-        digest.update(len(data).to_bytes(8, "big"))
-        digest.update(data)
-
-    # Codes are Unicode beyond ASCII: UTF-32 is a copy, UTF-8 a conversion.
-    def add_coded(coded: CodedText | None) -> None:
-        add("" if coded is None else coded.text)  # a core is never empty
-        add("" if coded is None else coded.codes, "utf-32-le")
-        # Each pattern has its length in front: one may hold a line break.
-        regions = () if coded is None else coded.regions
-        add(
-            "\n".join(
-                f"{r.start} {r.end} {len(r.pattern)} {r.pattern}" for r in regions
-            )
-        )
-
-    add(f"{CODING_VERSION}\n{TOKEN.pattern}\n{len(words)}")
-    add("\n".join(words))  # a token holds no white space: no word has a "\n"
-    for entry in entries:
-        add(entry.text.row_id)
-        add_coded(entry.text)
-        add_coded(entry.core)
-    return digest.hexdigest()
+    name: str
+    text: object
+    core: str | None
+    bodies: Mapping[str, object]
+    check: object
 
 
-class _Reader(NamedTuple):
-    """What every entry of a restore reads: the stored codes and regions
-    (taken out as read), the patterns and the counted critical codes."""
-
-    codes: dict[tuple[str, str], str]
-    patterns: list[str]
-    counted: tuple[tuple[str, ...], ...]
-
-    def coded(self, name: str, text: str, kinds: tuple[str, str]) -> CodedText | None:
-        """*text* of group *name* with its stored codes and regions of
-        *kinds*, or None when it has no codes or its regions do not read."""
-        body = self.codes.pop((kinds[0], name), None)
-        if body is None:
-            return None  # regions without codes stay: a leftover row
-        regions = _parse_regions(
-            self.codes.pop((kinds[1], name), None), len(body), self.patterns
-        )
-        if regions is None:
-            return None
-        return CodedText(
-            row_id=name,
-            is_core=kinds[0] == CORE,
-            text=text,
-            codes=body,
-            critical=critical_counts_of_codes(body, self.counted),
-            regions=regions,
-        )
-
-
-def _stored_entry(row: TextRow, name: str, reader: _Reader) -> CorpusEntry | None:
-    """The entry of group *name* from the stored rows (taken out of the
-    reader), or None when its text, or a core it needs, has none, or a core
-    or regions are stored that *row* does not have."""
-    core = core_of_row(row)
-    text = reader.coded(name, row.text, (TEXT, TEXT_VARS))
-    stored_core = reader.coded(name, core or "", (CORE, CORE_VARS))
-    if text is None or (core is None) != (stored_core is None):
+def _shaped(raw: RawEntry) -> dict[str, str] | None:
+    """The bodies of *raw* when every value read is text, the text and each
+    body are not empty, and they are those of an entry (:func:`_complete`);
+    else None."""
+    if not raw.text or not isinstance(raw.text, str):
         return None
-    return CorpusEntry(text=text, core=stored_core)
-
-
-def stored_rows(corpus: TextCorpus) -> list[StoredRow]:
-    """The codes of *corpus* as rows to store: the vocabulary (its words in
-    code order, as JSON), its check value, the patterns of its regions, and
-    the codes and regions of each text and core. ``restore`` reads them
-    back."""
-    words = list(corpus.vocabulary)
-    coded = [
-        part
-        for entry in corpus.entries
-        for part in (entry.text, entry.core)
-        if part is not None
-    ]
-    patterns = sorted({region.pattern for part in coded for region in part.regions})
-    number = {pattern: at for at, pattern in enumerate(patterns)}
-    rows = [
-        (WORDS, "", _json(words)),
-        (CHECK, "", _fingerprint(words, corpus.entries)),
-        (PATTERNS, "", _json(patterns)),
-    ]
-    for part in coded:
-        rows.append((CORE if part.is_core else TEXT, part.row_id, part.codes))
-        if part.regions:
-            regions = [[r.start, r.end, number[r.pattern]] for r in part.regions]
-            kind = CORE_VARS if part.is_core else TEXT_VARS
-            rows.append((kind, part.row_id, _json(regions)))
-    return rows
-
-
-def _json(value: object) -> str:
-    return json.dumps(value, separators=(",", ":"))
-
-
-def restore(rows: Iterable[TextRow], stored: Iterable[StoredRow]) -> TextCorpus | None:
-    """The corpus ``TextCorpus.build(rows)`` gives, read from the *stored*
-    rows of that corpus instead of coded again, regions included (*rows*
-    have none: the templates are not in the database); None when *stored*
-    is not exactly the codes of *rows* (empty, damaged, of other rows or of
-    another coding: its check value then differs): the caller then builds,
-    without regions."""
-    parsed = _parse_stored(stored)
-    if parsed is None:
+    bodies = {kind: body for kind, body in raw.bodies.items() if body}
+    if len(bodies) != len(raw.bodies):
         return None
-    words, check, patterns, codes = parsed
-    vocabulary = dict(zip(words, map(word_code, range(1, len(words) + 1))))
-    if len(vocabulary) != len(words) or len(words) > LAST_NUMBER:
+    texts = {kind: body for kind, body in bodies.items() if isinstance(body, str)}
+    if len(texts) != len(bodies) or not _complete(texts, raw.core is not None):
         return None
-    reader = _Reader(codes, patterns, critical_codes(vocabulary))
-    first, representatives = group_rows(rows)
-    entries = []
-    for name in sorted(first):
-        entry = _stored_entry(first[name], name, reader)
-        if entry is None:
-            return None
-        entries.append(entry)
-    if codes or check != _fingerprint(words, entries):
-        return None  # a text no row of *rows* holds, or other codes
-    return TextCorpus(
-        vocabulary=MappingProxyType(vocabulary),
-        entries=tuple(entries),
-        representatives=MappingProxyType(representatives),
+    return texts
+
+
+def _complete(bodies: Mapping[str, str], has_core: bool) -> bool:
+    """Whether *bodies* hold the codes of the text, and those of a core
+    exactly when the row has one (its regions only with its codes)."""
+    return (
+        TEXT in bodies
+        and has_core == (CORE in bodies)
+        and (CORE in bodies or CORE_VARS not in bodies)
     )
+
+
+def _coded(
+    head: Head, raw: RawEntry, bodies: Mapping[str, str], kinds: tuple[str, str]
+) -> CodedText | None:
+    """The text (*kinds* ``TEXT``) or core of *raw* with its codes and
+    regions, or None when the regions do not read."""
+    codes = bodies[kinds[0]]
+    regions = _parse_regions(bodies.get(kinds[1]), len(codes), head.patterns)
+    if regions is None:
+        return None
+    return CodedText(
+        row_id=raw.name,
+        is_core=kinds[0] == CORE,
+        text=str(raw.text) if kinds[0] == TEXT else str(raw.core),
+        codes=codes,
+        critical=critical_counts_of_codes(codes, head.counted),
+        regions=regions,
+    )
+
+
+def entry_check(head: str, raw: RawEntry) -> str | None:
+    """The check of the entry *raw* under the head's check *head*
+    (:func:`entry_digest`), or None when its rows are of no entry: a row
+    missing, not text or empty."""
+    bodies = _shaped(raw)
+    if bodies is None:
+        return None
+    return entry_digest(head, raw.name, str(raw.text), raw.core, bodies)
+
+
+def read_entry(head: Head, raw: RawEntry) -> CorpusEntry | None:
+    """The entry ``TextCorpus.build`` gives for the rows of *raw*, read from
+    its stored codes and regions; None when they are not exactly those (a row
+    missing, not text or empty, or one the check does not hold: other codes,
+    another text, another head). Checked before anything is made of them: a
+    region past the end of an edited text would raise."""
+    bodies = _shaped(raw)
+    if bodies is None or raw.check != entry_digest(
+        head.digest, raw.name, str(raw.text), raw.core, bodies
+    ):
+        return None
+    try:  # checked: a region past the text's last token is not expected
+        text = _coded(head, raw, bodies, (TEXT, TEXT_VARS))
+        core = (
+            None if raw.core is None else _coded(head, raw, bodies, (CORE, CORE_VARS))
+        )
+    except (IndexError, ValueError):
+        return None
+    if text is None or (raw.core is not None and core is None):
+        return None
+    return CorpusEntry(text=text, core=core)

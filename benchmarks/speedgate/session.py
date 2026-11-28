@@ -51,9 +51,10 @@ def gram_check(side: Side, job: Job) -> dict[str, Any]:
         return {}
     before = sha256(side.db)
     result = run_child(side, job, ["grams", "--set", "damage"])
+    same = sha256(side.db) == before
     if "tables" not in result:
-        return {"grams_error": result.get("error", "no tables")}
-    return {"grams": result["tables"], "bytes_same": sha256(side.db) == before}
+        return {"grams_error": result.get("error", "no tables"), "bytes_same": same}
+    return {"grams": result["tables"], "bytes_same": same}
 
 
 def run_damage(side: Side, job: Job) -> dict[str, Any]:

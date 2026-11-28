@@ -100,6 +100,7 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_text_codes_db.py",
         "test_text_parts.py",
         "test_textinput.py",
+        "test_texts_per_candidate.py",  # threads, a writer process, file locks
         "test_update_characterization.py",
         "test_update_fallbacks.py",
         "test_update_matrix.py",

@@ -3,10 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The stored form of a corpus (``stored_rows``, ``restore``): read back, it is
-the corpus ``build`` gives, whatever the rows hold; a stored form that is not
-exactly the codes of the rows (other texts, other codes, another coding, rows
-that are not text) gives None, so the caller builds."""
+"""The stored form of a corpus (``stored_rows``) and its checks
+(``head_digest``, ``entry_digest``): read back entry by entry
+(``read_head``, ``read_entry``), it is the corpus ``build`` gives, whatever
+the rows hold; a stored form that is not exactly the codes of the rows
+(other texts, other codes, another coding, another time, rows that are not
+text) gives None, so the caller builds."""
 # pylint: disable=missing-function-docstring
 
 import json
@@ -14,6 +16,7 @@ import re
 from dataclasses import replace
 
 import pytest
+from textstore_rows import UPDATED, checks_of, read_back
 
 from licenseid import textstore
 from licenseid.textcorpus import (
@@ -25,13 +28,17 @@ from licenseid.textcorpus import (
 )
 from licenseid.textgrams import split_words
 from licenseid.textstore import (
-    CHECK,
     CORE,
+    CORE_GRAMS,
+    HEAD,
     PATTERNS,
     TEXT,
     WORDS,
+    RawEntry,
     StoredRow,
-    restore,
+    entry_check,
+    read_entry,
+    read_head,
     stored_rows,
 )
 
@@ -49,6 +56,14 @@ ROWS = (
 
 def _stored() -> list[StoredRow]:
     return stored_rows(TextCorpus.build(ROWS))
+
+
+CHECKS = checks_of(ROWS, _stored())
+
+
+def restore(rows: object, stored: object) -> TextCorpus | None:
+    """The corpus read back from *stored* under the checks of the build."""
+    return read_back(rows, stored, CHECKS)  # type: ignore[arg-type]
 
 
 def _replaced(kind: str, owner: str, body: str) -> list[StoredRow]:
@@ -88,7 +103,7 @@ def _without(kind: str, owner: str | None = None) -> list[StoredRow]:
 
 def test_the_stored_rows_read_back_as_the_corpus() -> None:
     built = TextCorpus.build(ROWS)
-    restored = restore(ROWS, stored_rows(built))
+    restored = read_back(ROWS, stored_rows(built), checks_of(ROWS, stored_rows(built)))
     assert restored is not None
     assert restored == built
     assert [e.text.row_id for e in restored.entries] == [
@@ -104,8 +119,8 @@ def test_the_stored_rows_name_each_text_and_core_once() -> None:
     kinds = [(kind, owner) for kind, owner, _ in _stored()]
     assert kinds == [
         (WORDS, ""),
-        (CHECK, ""),
         (PATTERNS, ""),
+        (CORE_GRAMS, ""),
         (TEXT, "A-1.0"),
         (CORE, "A-1.0"),
         (TEXT, "B-1.0"),
@@ -118,7 +133,18 @@ def test_the_stored_rows_name_each_text_and_core_once() -> None:
 
 def test_an_empty_corpus_reads_back() -> None:
     built = TextCorpus.build([])
-    assert restore([], stored_rows(built)) == built
+    assert read_back([], stored_rows(built), checks_of([], stored_rows(built))) == (
+        built
+    )
+
+
+def test_the_gram_counts_of_the_cores_are_those_of_the_codes() -> None:
+    counts = json.loads(_body(CORE_GRAMS, ""))
+    built = TextCorpus.build(ROWS)
+    assert counts == {
+        e.text.row_id: e.core.gram_count for e in built.entries if e.core is not None
+    }
+    assert counts == {"A-1.0": 1, "D-1.0": 1, "F-1.0": 0}  # Han: a token each
 
 
 def test_the_vocabulary_is_in_code_order() -> None:
@@ -151,20 +177,18 @@ def test_a_critical_word_no_text_holds_counts_nothing() -> None:
         _without(TEXT, "B-1.0"),
         _without(CORE, "A-1.0"),
         _without(TEXT),
-        [*_stored(), (TEXT, "Z-1.0", "\x01")],  # a text no row holds
         [*_stored(), (CORE, "B-1.0", "\x01")],  # a core the row has not
-        [*_stored(), (TEXT, "A-1.0", "\x01")],  # a text twice
-        [*_stored(), (WORDS, "", '["x"]')],  # a vocabulary twice
-        [*_stored(), ("other", "A-1.0", "\x01")],  # a kind of no meaning
         [(WORDS, "", "not json"), *_without(WORDS)],
         [(WORDS, "", '{"a": 1}'), *_without(WORDS)],
         [(WORDS, "", '["a", 1]'), *_without(WORDS)],
         [(WORDS, "", '["a", "a"]'), *_without(WORDS)],  # a word twice
         [(TEXT, "A-1.0", ""), *_without(TEXT, "A-1.0")],  # an empty text
-        _without(CHECK),
-        [*_stored(), (CHECK, "", "00")],  # a check twice
-        _replaced(CHECK, "", ""),
-        _replaced(CHECK, "", "0" * 64),
+        _without(CORE_GRAMS),
+        _without(PATTERNS),
+        [(CORE_GRAMS, "", "[1]"), *_without(CORE_GRAMS)],
+        [(CORE_GRAMS, "", '{"A-1.0": true}'), *_without(CORE_GRAMS)],
+        [(CORE_GRAMS, "", '{"A-1.0": -1}'), *_without(CORE_GRAMS)],
+        _replaced(CORE_GRAMS, "", '{"A-1.0":2,"D-1.0":1,"F-1.0":0}'),
         _replaced(TEXT, "A-1.0", _body(TEXT, "A-1.0") + "\x01"),  # a code more
         _replaced(TEXT, "A-1.0", "\x02" + _body(TEXT, "A-1.0")[1:]),  # one other
         _replaced(CORE, "A-1.0", _body(TEXT, "A-1.0")),  # a text as a core
@@ -173,7 +197,6 @@ def test_a_critical_word_no_text_holds_counts_nothing() -> None:
         _replaced(WORDS, "", _body(WORDS, "").replace("alpha", "ALPHA")),
         _replaced(WORDS, "", _words_swapped()),
         [(WORDS, "x", _body(WORDS, "")), *_without(WORDS)],  # an owner
-        [(CHECK, "x", _body(CHECK, "")), *_without(CHECK)],
     ],
     ids=[
         "none",
@@ -181,20 +204,18 @@ def test_a_critical_word_no_text_holds_counts_nothing() -> None:
         "text-missing",
         "core-missing",
         "no-texts",
-        "unknown-text",
         "unneeded-core",
-        "text-twice",
-        "vocabulary-twice",
-        "unknown-kind",
         "not-json",
         "not-a-list",
         "not-strings",
         "word-twice",
         "empty-codes",
-        "no-check",
-        "check-twice",
-        "empty-check",
-        "other-check",
+        "no-core-grams",
+        "no-patterns",
+        "core-grams-a-list",
+        "core-grams-bool",
+        "core-grams-negative",
+        "core-grams-other",
         "code-more",
         "code-other",
         "text-as-core",
@@ -203,7 +224,6 @@ def test_a_critical_word_no_text_holds_counts_nothing() -> None:
         "word-renamed",
         "words-swapped",
         "words-owner",
-        "check-owner",
     ],
 )
 def test_a_stored_form_that_is_not_the_rows_codes_gives_none(
@@ -212,11 +232,96 @@ def test_a_stored_form_that_is_not_the_rows_codes_gives_none(
     assert restore(ROWS, stored) is None
 
 
+def test_rows_of_no_entry_read_are_not_read() -> None:
+    """A text no row holds, or another kind, is no entry: never asked for."""
+    built = TextCorpus.build(ROWS)
+    extra = [*_stored(), (TEXT, "Z-1.0", "\x01"), ("other", "A-1.0", "\x01")]
+    assert restore(ROWS, extra) == built
+
+
 def test_the_stored_rows_of_other_rows_give_none() -> None:
-    assert restore(ROWS[:1], _stored()) is None
     assert (
         restore([*ROWS, TextRow("G-1.0", "new", None, ("G-1.0",))], _stored()) is None
     )
+
+
+@pytest.mark.parametrize(
+    "checks",
+    [
+        {**CHECKS, HEAD: "0" * 64},
+        {**CHECKS, "A-1.0": "0" * 64},
+        {**CHECKS, "A-1.0": CHECKS["B-1.0"]},
+        {key: value for key, value in CHECKS.items() if key != HEAD},
+        {key: value for key, value in CHECKS.items() if key != "D-1.0"},
+        {**CHECKS, HEAD: CHECKS[HEAD].encode()},
+        {**CHECKS, "A-1.0": None},
+    ],
+    ids=[
+        "head",
+        "entry",
+        "another-entry",
+        "no-head",
+        "no-entry",
+        "head-bytes",
+        "entry-none",
+    ],
+)
+def test_checks_not_of_the_rows_give_none(checks: dict[str, object]) -> None:
+    assert read_back(ROWS, _stored(), checks) is None
+
+
+def test_another_time_gives_none() -> None:
+    """``update`` writes the time of the rows in the head's check: a rebuild
+    of the rows, stamped anew, never reads codes of before."""
+    assert read_back(ROWS, _stored(), CHECKS, updated=UPDATED) is not None
+    assert read_back(ROWS, _stored(), CHECKS, updated="later") is None
+    assert read_back(ROWS, _stored(), CHECKS, updated=None) is None
+
+
+def test_a_row_of_the_wrong_shape_gives_none_even_under_its_check() -> None:
+    """The check holds what ``update`` stored; the reader refuses rows of no
+    entry whatever the check says: a core the row lacks, regions without
+    codes, a region past the text's end."""
+    head = read_head(
+        UPDATED,
+        {k: _body(k, HEAD) for k in (WORDS, PATTERNS, CORE_GRAMS)},
+        CHECKS[HEAD],
+    )
+    assert head is not None
+    bodies = {TEXT: _body(TEXT, "B-1.0")}
+    for raw in [
+        RawEntry("B-1.0", "one two three four", None, {**bodies, CORE: "\x01"}, None),
+        RawEntry(
+            "B-1.0", "one two three four", None, {**bodies, "corevars": "[]"}, None
+        ),
+        RawEntry("B-1.0", "one two three four", "one", bodies, None),
+        RawEntry("B-1.0", "", None, bodies, None),
+        RawEntry("B-1.0", "one two three four", None, {}, None),
+    ]:
+        assert entry_check(head.digest, raw) is None
+        assert (
+            read_entry(head, raw._replace(check=entry_check(head.digest, raw))) is None
+        )
+    long_vars = {**bodies, "textvars": "[[0,9,0]]"}
+    past = RawEntry("B-1.0", "one two three four", None, long_vars, None)
+    assert read_entry(head, past._replace(check=entry_check(head.digest, past))) is None
+
+
+def test_a_region_past_the_tokens_of_its_text_gives_none_not_an_error() -> None:
+    """Codes longer than the text's tokens, under a check made for them:
+    the region fits the codes but not the text, and the entry is refused."""
+    head = read_head(
+        UPDATED,
+        {k: _body(k, HEAD) for k in (WORDS, PATTERNS, CORE_GRAMS)},
+        CHECKS[HEAD],
+    )
+    assert head is not None
+    patterns = json.loads(_body(PATTERNS, HEAD))
+    assert not patterns  # no regions in ROWS: give the entry a pattern of its own
+    head = head._replace(patterns=(".+",))
+    bodies = {TEXT: "\x01" * 9, "textvars": "[[7,8,0]]"}
+    raw = RawEntry("B-1.0", "one two", None, bodies, None)
+    assert read_entry(head, raw._replace(check=entry_check(head.digest, raw))) is None
 
 
 def _rows_with(license_id: str, text: str) -> list[TextRow]:
@@ -251,8 +356,9 @@ def test_a_text_and_core_cut_at_another_place_give_none() -> None:
     built = [TextRow("A-1.0", "aa bb", "cc", ("A-1.0",))]
     cut = [TextRow("A-1.0", "aa bbc", "c", ("A-1.0",))]
     stored = stored_rows(TextCorpus.build(built))
-    assert restore(built, stored) is not None
-    assert restore(cut, stored) is None
+    checks = checks_of(built, stored)
+    assert read_back(built, stored, checks) is not None
+    assert read_back(cut, stored, checks) is None
 
 
 def test_a_coding_of_another_version_gives_none(
@@ -262,7 +368,7 @@ def test_a_coding_of_another_version_gives_none(
     assert restore(ROWS, stored) is not None
     monkeypatch.setattr(textstore, "CODING_VERSION", textstore.CODING_VERSION + 1)
     assert restore(ROWS, stored) is None
-    assert restore(ROWS, stored_rows(TextCorpus.build(ROWS))) is not None
+    assert read_back(ROWS, stored, checks_of(ROWS, stored)) is not None
 
 
 def test_a_token_pattern_of_another_coding_gives_none(
@@ -273,10 +379,11 @@ def test_a_token_pattern_of_another_coding_gives_none(
     assert restore(ROWS, stored) is None
 
 
-def test_the_check_is_of_the_coding_not_of_the_run() -> None:
-    assert _body(CHECK, "") == _body(CHECK, "")
+def test_the_checks_are_of_the_rows_not_of_the_run() -> None:
+    assert checks_of(ROWS, _stored()) == CHECKS
     other = stored_rows(TextCorpus.build(ROWS[:1]))
-    assert [b for k, _, b in other if k == CHECK] != [_body(CHECK, "")]
+    assert checks_of(ROWS[:1], other)[HEAD] != CHECKS[HEAD]
+    assert checks_of(ROWS[:1], other)["A-1.0"] != CHECKS["A-1.0"]  # other head
 
 
 @pytest.mark.parametrize(
@@ -285,7 +392,7 @@ def test_the_check_is_of_the_coding_not_of_the_run() -> None:
         [(WORDS, "", b'["a"]'), *_without(WORDS)],  # bytes json.loads accepts
         [(TEXT, "A-1.0", b"AB"), *_without(TEXT, "A-1.0")],
         [(CORE, "A-1.0", b"AB"), *_without(CORE, "A-1.0")],
-        [(CHECK, "", b"00"), *_without(CHECK)],
+        [(PATTERNS, "", b"[]"), *_without(PATTERNS)],
         [(b"text", "A-1.0", "\x01"), *_without(TEXT, "A-1.0")],
         [(TEXT, b"A-1.0", "\x01"), *_without(TEXT, "A-1.0")],
         [(TEXT, "A-1.0", None), *_without(TEXT, "A-1.0")],
@@ -297,7 +404,7 @@ def test_the_check_is_of_the_coding_not_of_the_run() -> None:
         "words-bytes",
         "text-bytes",
         "core-bytes",
-        "check-bytes",
+        "patterns-bytes",
         "kind-bytes",
         "owner-bytes",
         "body-none",
@@ -310,4 +417,48 @@ def test_a_row_that_is_not_text_gives_none_not_an_error(
     stored: list[tuple[object, ...]],
 ) -> None:
     """A BLOB column value comes back as bytes: no code to count."""
-    assert restore(ROWS, stored) is None  # type: ignore[arg-type]
+    assert restore(ROWS, stored) is None
+
+
+@pytest.mark.parametrize(
+    ("kind", "body"),
+    [
+        (WORDS, '["a", "a"]'),
+        (WORDS, '["a", 1]'),
+        (WORDS, '{"a": 1}'),
+        (WORDS, "not json"),
+        (CORE_GRAMS, '{"A-1.0": -1}'),
+        (CORE_GRAMS, '{"A-1.0": true}'),
+        (CORE_GRAMS, "[1]"),
+    ],
+    ids=[
+        "word-twice",
+        "not-strings",
+        "not-a-list",
+        "not-json",
+        "core-grams-negative",
+        "core-grams-bool",
+        "core-grams-a-list",
+    ],
+)
+def test_a_head_that_does_not_read_gives_none_even_under_its_check(
+    kind: str, body: str
+) -> None:
+    stored = [(kind, HEAD, body), *_without(kind)]
+    assert read_back(ROWS, stored, checks_of(ROWS, stored)) is None
+
+
+def test_an_empty_body_gives_none_even_under_the_check_without_it() -> None:
+    """A row with an empty body is no row of the build: a check computed as
+    if it were not there does not make it read."""
+    head = read_head(
+        UPDATED,
+        {k: _body(k, HEAD) for k in (WORDS, PATTERNS, CORE_GRAMS)},
+        CHECKS[HEAD],
+    )
+    assert head is not None
+    bodies = {TEXT: _body(TEXT, "B-1.0")}
+    check = textstore.entry_digest(head.digest, "B-1.0", ROWS[1].text, None, bodies)
+    raw = RawEntry("B-1.0", ROWS[1].text, None, bodies, check)
+    assert read_entry(head, raw) is not None
+    assert read_entry(head, raw._replace(bodies={**bodies, "textvars": ""})) is None

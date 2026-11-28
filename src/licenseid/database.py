@@ -49,6 +49,7 @@ from licenseid.gramstore import write_postings
 from licenseid.listlookup import ListedUrl
 from licenseid.records import Records, build_records
 from licenseid.spdxdata import SpdxData
+from licenseid.textentries import write_checks
 from licenseid.textgrams import GramTable
 from licenseid.types import (
     CandidateMatch,
@@ -64,7 +65,7 @@ from licenseid.warning import warn
 if TYPE_CHECKING:
     from licenseid.nameindex import NameIndex
     from licenseid.releasesource import UpdateRequest
-    from licenseid.textcorpus import TextCorpus
+    from licenseid.textentries import StoredTexts
 
 
 def is_current_build(metadata: DatabaseMetadata) -> bool:
@@ -462,6 +463,8 @@ class LicenseDatabase:
                     "INSERT INTO text_codes (kind, owner_id, body) VALUES (?, ?, ?)",
                     records.texts,
                 )
+                # Read back as a lookup reads them, with the rows' time.
+                write_checks(conn, now)
                 # Read back from the rows just written: the postings are
                 # those of the texts a lookup reads, stamped with them.
                 write_postings(conn, now)
@@ -528,7 +531,7 @@ class LicenseDatabase:
 
     def get_search_text(self, license_id: str) -> str:
         """Return the normalized search text for a license from the FTS index."""
-        rowid = self._tables.index_row(license_id)
+        rowid = self._tables.index_rows().get(license_id)
         if rowid is None:
             return ""
         with self._connection() as conn:
@@ -608,7 +611,8 @@ def gram_scores(
     the rows, else from an index built in memory. Only the first *limit* of
     its distinct grams are looked up when given; the table says so
     (``bounded``)."""
-    return db._tables.gram_scores(norm_text, limit)  # pylint: disable=protected-access
+    texts = db._tables.texts()  # pylint: disable=protected-access
+    return texts.gram_scores(norm_text, limit)
 
 
 def list_flags(db: LicenseDatabase) -> dict[str, ListFlags]:
@@ -643,7 +647,8 @@ def candidate_rows(db: LicenseDatabase, ids: Sequence[str]) -> list[CandidateMat
     text or no row is left out. At most ``gramselect.MOST`` IDs are asked,
     well under SQLite's limit of bound values."""
     tables = db._tables  # pylint: disable=protected-access
-    rowids = [rowid for rowid in map(tables.index_row, ids) if rowid is not None]
+    index = tables.index_rows()
+    rowids = [index[license_id] for license_id in ids if license_id in index]
     if not rowids:
         return []
     with db._connection() as conn:  # pylint: disable=protected-access
@@ -655,11 +660,18 @@ def candidate_rows(db: LicenseDatabase, ids: Sequence[str]) -> list[CandidateMat
     return [found[i] for i in dict.fromkeys(ids) if i in found]
 
 
-def text_corpus(db: LicenseDatabase) -> "TextCorpus":
-    """The texts of the List, coded for the search of the texts an input
-    holds whole (see ``dbcache.TableCache.text_corpus``): built at its first
-    use, once per rebuild of the tables."""
-    return db._tables.text_corpus()  # pylint: disable=protected-access
+def text_source(db: LicenseDatabase) -> "StoredTexts":
+    """The coded texts of the List one call reads for the search of the
+    texts an input holds whole and for Tier 2, entry by entry (see
+    ``licenseid.textentries``)."""
+    return db._tables.texts().source()  # pylint: disable=protected-access
+
+
+def snapshot(db: LicenseDatabase) -> contextlib.AbstractContextManager[None]:
+    """One read transaction for the queries of a block (see
+    ``dbcache.TableCache.snapshot``): the postings, ids and coded texts of
+    one call are read in it."""
+    return db._tables.snapshot()  # pylint: disable=protected-access
 
 
 def name_index(db: LicenseDatabase) -> "NameIndex":

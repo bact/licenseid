@@ -14,7 +14,7 @@ from typing_extensions import Unpack
 
 from licenseid.candidates import as_matches
 from licenseid.classify import is_pure_license_text
-from licenseid.database import LicenseDatabase, text_corpus, text_parts
+from licenseid.database import LicenseDatabase, snapshot, text_parts, text_source
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path, require_path
 from licenseid.detectrequest import PathInput, check_request, target_text_of
@@ -352,15 +352,19 @@ class LicenseDetector:
         """Tier 1 (Broad Recall) retrieval + augmentation, then Tier 2
         (Precision Ranking), and the whole-text search of the input, which
         every reader of ``TEXTS`` shares. Never short-circuits detect()."""
-        texts = text_candidates(self.db, ctx.target_text, ctx.norm_input)
-        found = get_candidates(self.db, ctx.request, ctx.target_text, texts)
-        candidates = found.found
+        # The postings, the ids and the coded texts in one transaction.
+        with snapshot(self.db):
+            texts = text_candidates(self.db, ctx.target_text, ctx.norm_input)
+            found = get_candidates(self.db, ctx.request, ctx.target_text, texts)
+            candidates = found.found
 
-        # Merge the marker candidates, then the hinted ones, not already among
-        # the gram candidates, also when there are none. A prose marker is
-        # free text: exclude drops it as it drops a Tier 1 candidate (a
-        # declaration never gets here).
-        add_free_text(self.db, ctx.request, candidates, marker_candidates)
+            # Merge the marker candidates, then the hinted ones, not already
+            # among the gram candidates, also when there are none. A prose
+            # marker is free text: exclude drops it as it drops a Tier 1
+            # candidate (a declaration never gets here).
+            add_free_text(self.db, ctx.request, candidates, marker_candidates)
+            if candidates:  # no candidate, no result to search the texts for
+                texts.prepare([c["license_id"] for c in candidates])
 
         # Pass marker boosts and purity context so ranking can weight signals
         # appropriately: small additive bonus for pure text (similarity leads),
@@ -583,7 +587,7 @@ class LicenseDetector:
         *file_path*; raises what :meth:`detect` raises for them."""
         file_path = check_request(text, None, file_path, {"variant": variant})
         target_text = target_text_of(text, file_path)
-        with self.db.reading():
+        with snapshot(self.db):
             texts = text_candidates(self.db, target_text)
             return input_texts(self.db, texts, variant)
 
@@ -611,7 +615,7 @@ class LicenseDetector:
         part of the license's normalised text it aligned with, widened to
         whole words. ("", "") if the license has no text. The alignment Tier
         2 makes, made again for one license."""
-        with self.db.reading():
+        with snapshot(self.db):
             # A "WITH Font-exception-2.0" the License List has no row for is
             # ranked on its license's text (markers, the font-exception rule).
             details = self.db.get_license_details(
@@ -625,7 +629,8 @@ class LicenseDetector:
                 text_parts(self.db).get(details["license_id"]),
             )
             norm_input = self._without_tags(ctx).norm_input
-            corpus = text_corpus(self.db)  # read here, in the one connection
+            # Read here, in the one transaction.
+            corpus = text_source(self.db).corpus([details["license_id"]])
         regions = WordRegions(norm_input, lambda: corpus)
         query = query_of(norm_input, regions, snap=True)
         return norm_input, calculate_base_similarity(query, candidate)[2]
@@ -688,8 +693,10 @@ class LicenseDetector:
         norm_input = texts.norm_input
         enable_popularity = data.get("enable_popularity", self.enable_popularity)
         parts = text_parts(self.db)
-        # The corpus is read at the first candidate a word region is asked of.
-        regions = WordRegions(norm_input, lambda: text_corpus(self.db))
+        # The candidates' texts, read at the first a word region is asked of
+        # (already read where the caller prepared them).
+        ids = [c["license_id"] for c in candidates]
+        regions = WordRegions(norm_input, lambda: texts.scored(ids))
         ranked = score_candidates(
             [with_core(c, parts.get(c["license_id"])) for c in candidates],
             query_of(norm_input, regions),

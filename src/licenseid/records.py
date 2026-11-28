@@ -120,7 +120,7 @@ def text_rows(
 ) -> list[StoredRow]:
     """The rows of ``text_codes`` of the licence rows *licenses* with their
     *index* entries: the corpus the search of whole texts reads, built from
-    the same rows it would read back (``dbcache.TableCache.text_corpus``),
+    the same rows a lookup reads (``licenseid.textentries``),
     with the regions of the variable parts that the *templates* of each
     same-text group share (``templatevars.row_regions``). A member without a
     template is left out of the sharing: it has no regions to vote with."""

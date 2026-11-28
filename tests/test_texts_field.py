@@ -22,11 +22,11 @@ import pytest
 from click.testing import CliRunner
 from conftest import NO_DETECTION, FoundRows
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
+from stored_texts import all_texts
 from texts_db import GPL, A, texts_database
 
 from licenseid import firsttext, textnames
 from licenseid.cli import cli
-from licenseid.database import text_corpus
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.result import json_line, no_detection_line, text_line
@@ -382,15 +382,16 @@ def test_an_answer_with_an_exception_names_its_licence(
 def test_the_corpus_is_kept_between_calls_outside_a_reading_block_and_rebuilt(
     db_path: str, found_rows: FoundRows
 ) -> None:
-    """The stamp is read at each lookup outside a block, as for every read."""
+    """The stamp is read at each lookup outside a block, as for every read
+    (a seeded database: the corpus is built, its codes stored nowhere)."""
     db = LicenseDetector(db_path).db
-    first = text_corpus(db)
-    assert text_corpus(db) is first and len(found_rows.built) == 1
+    first = all_texts(db)
+    assert all_texts(db) == first and len(found_rows.built) == 1
     with sqlite3.connect(db_path, uri=True) as conn:
         conn.execute(
             "INSERT OR REPLACE INTO db_metadata VALUES ('last_update_datetime', 'y')"
         )
-    assert text_corpus(db) is not first and len(found_rows.built) == 2
+    assert all_texts(db) == first and len(found_rows.built) == 2
 
 
 def test_the_corpus_rows_carry_the_core_a_licence_keeps(
@@ -403,6 +404,6 @@ def test_the_corpus_rows_carry_the_core_a_licence_keeps(
             " WHERE license_id = 'A-1.0'",
             (core,),
         )
-    text_corpus(LicenseDetector(db_path).db)
+    all_texts(LicenseDetector(db_path).db)
     by_id = {r.license_id: r for r in found_rows.built[0]}
     assert (by_id["A-1.0"].core, by_id["B-1.0"].core) == (core, None)

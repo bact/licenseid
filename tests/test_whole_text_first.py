@@ -22,10 +22,11 @@ import pytest
 from conftest import GivenWarnings
 from long_text_db import LONG_TEXTS, long_text_detector
 from several_texts import several_text
+from stored_texts import all_texts
 from template_texts import template_texts_db
 
 from licenseid import retrieval, textcandidates
-from licenseid.database import LicenseDatabase, text_corpus
+from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
 from licenseid.normalize import normalize_text
 from licenseid.retrieval import Candidates, get_candidates, text_candidates
@@ -334,7 +335,7 @@ def test_the_set_holds_the_top_20_and_every_text_held() -> None:
 def search_all(detector: LicenseDetector, text: str) -> list[str] | None:
     """``texts()`` as a search of every List text gives it."""
     with detector.db.reading():
-        found = found_texts(normalize_text(text), text_corpus(detector.db), "")
+        found = found_texts(normalize_text(text), all_texts(detector.db), "")
         if found is None:
             return None
         groups = text_groups(detector.db, found.rows)

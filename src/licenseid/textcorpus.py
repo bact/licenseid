@@ -255,29 +255,47 @@ class _Vocabulary:
         )
 
 
-def _representative(row: TextRow) -> str:
-    """The ID that names *row*'s same-text group: the least of its IDs."""
-    return min((row.license_id, *row.group))
-
-
-def group_rows(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
-    """The first row of each same-text group by its name, and the name of the
-    group of each ID. A row with no text has none."""
-    first: dict[str, TextRow] = {}
+def group_names(
+    members: Iterable[tuple[str, tuple[str, ...]]],
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Of each licence with a text, in table order, its ID and its same-text
+    group: the ID of the first licence of each group by the group's name (the
+    least of its IDs), and the name of the group of each ID (the first group
+    that names an ID wins)."""
+    first: dict[str, str] = {}
     representatives: dict[str, str] = {}
-    for row in rows:
-        if not row.text:
-            continue
-        name = _representative(row)
-        first.setdefault(name, row)
-        for member in (row.license_id, *row.group):
+    for license_id, group in members:
+        name = min((license_id, *group))
+        first.setdefault(name, license_id)
+        for member in (license_id, *group):
             representatives.setdefault(member, name)
     return first, representatives
 
 
+def group_rows(rows: Iterable[TextRow]) -> tuple[dict[str, TextRow], dict[str, str]]:
+    """The first row of each same-text group by its name, and the name of the
+    group of each ID (:func:`group_names`). A row with no text has none."""
+    with_text = [row for row in rows if row.text]
+    by_id: dict[str, TextRow] = {}
+    for row in with_text:
+        by_id.setdefault(row.license_id, row)
+    first, representatives = group_names(
+        (row.license_id, row.group) for row in with_text
+    )
+    return {name: by_id[license_id] for name, license_id in first.items()}, (
+        representatives
+    )
+
+
 def core_of_row(row: TextRow) -> str | None:
     """*row*'s core, or None when it has none or it is the text."""
-    return row.core if row.core and row.core != row.text else None
+    return own_core(row.text, row.core)
+
+
+def own_core(text: object, core: str | None) -> str | None:
+    """*core*, the core of a licence whose text is *text*, or None when it
+    has none or it is the text."""
+    return core if core and core != text else None
 
 
 @dataclass(frozen=True)
@@ -329,6 +347,17 @@ class TextCorpus:
         corpus has no text of it."""
         name = self.representatives.get(license_id)
         return None if name is None else self._by_name.get(name)
+
+    def cut(self, ids: Iterable[str]) -> "TextCorpus":
+        """The corpus of the same-text groups of the licences *ids*, its
+        entries in this corpus's order (a tie of a search keeps the order the
+        whole corpus gives), with this corpus's vocabulary and names."""
+        names = {self.representatives.get(license_id) for license_id in ids}
+        return TextCorpus(
+            vocabulary=self.vocabulary,
+            entries=tuple(e for e in self.entries if e.text.row_id in names),
+            representatives=self.representatives,
+        )
 
     def encode(self, words: Iterable[str]) -> str:
         """*words* as codes; a word no List text holds is UNKNOWN."""

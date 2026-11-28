@@ -7,9 +7,12 @@
 must equal what it answers on the intact build.
 
 A damage applies where its table exists: the per-entry checks table is added
-by task T6, so those two kinds are recorded as not applicable until then. The
-word-gram postings tables (database build 8) are damaged in eight ways; a side
-without them (the 0.9.4 baseline) records those kinds as not applicable."""
+by task T6 (database build 9), so its kinds are recorded as not applicable
+before. The word-gram postings tables (database build 8) are damaged in eight
+ways; a side without them (the 0.9.4 baseline) records those kinds as not
+applicable. A file without the checks table, or with one of another shape,
+is not of build 9: every lookup must refuse it as not ready
+(:data:`NOT_READY`)."""
 
 import json
 import shutil
@@ -109,6 +112,54 @@ def _drop_checks(con: sqlite3.Connection) -> None:
     con.execute("DROP TABLE text_code_checks")
 
 
+def _misshape_checks(con: sqlite3.Connection) -> None:
+    """The checks table with a rowid: not the shape build 9 makes."""
+    con.execute("ALTER TABLE text_code_checks RENAME TO old_checks")
+    con.execute("CREATE TABLE text_code_checks (owner_id TEXT, digest TEXT)")
+    con.execute("INSERT INTO text_code_checks SELECT * FROM old_checks")
+    con.execute("DROP TABLE old_checks")
+
+
+def _change_head_check(con: sqlite3.Connection) -> None:
+    con.execute("UPDATE text_code_checks SET digest = 'x' WHERE owner_id = ''")
+
+
+def _drop_entry_check(con: sqlite3.Connection) -> None:
+    con.execute("DELETE FROM text_code_checks WHERE owner_id = 'MIT'")
+
+
+def _cut_codes(con: sqlite3.Connection) -> None:
+    """The codes of MIT a blob one byte short."""
+    con.execute(
+        "UPDATE text_codes SET body = CAST(substr(CAST(body AS BLOB), 1,"
+        " length(CAST(body AS BLOB)) - 1) AS BLOB)"
+        " WHERE kind = 'text' AND owner_id = 'MIT'"
+    )
+
+
+def _half_text(con: sqlite3.Connection) -> str:
+    """The first half of the text of MIT (fewer tokens than its codes)."""
+    row = con.execute(
+        "SELECT search_text FROM license_index WHERE license_id = 'MIT'"
+    ).fetchone()
+    text = str(row[0])
+    return text[: len(text) // 2].strip()
+
+
+def _edit_text_stamped(con: sqlite3.Connection) -> None:
+    """A text edited by hand, stamped as a rebuild: a new
+    ``last_update_datetime``, the codes of the old text kept (0.9.4 and layer
+    11 raise ``IndexError`` on it)."""
+    con.execute(
+        "UPDATE license_index SET search_text = ? WHERE license_id = 'MIT'",
+        (_half_text(con),),
+    )
+    con.execute(
+        "UPDATE db_metadata SET value = '2099-01-01 00:00:00'"
+        " WHERE key = 'last_update_datetime'"
+    )
+
+
 def _stamp(con: sqlite3.Connection) -> dict[str, object]:
     row = con.execute("SELECT value FROM db_metadata WHERE key = 'text_postings'")
     stamp: dict[str, object] = json.loads(row.fetchone()[0])
@@ -185,8 +236,18 @@ def _change_text_and_drop_codes(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM text_codes")
 
 
+def _edit_text_stamped_and_drop_codes(con: sqlite3.Connection) -> None:
+    """The stamped edit with no codes stored: they are built from the texts."""
+    _edit_text_stamped(con)
+    con.execute("DELETE FROM text_codes")
+
+
 #: The table of the word-gram postings (database build 8).
 POSTINGS: Final = "text_postings"
+#: The table of the checks of the coded texts (database build 9).
+CHECKS: Final = "text_code_checks"
+#: Kinds every lookup refuses (``DatabaseNotReadyError``) and never writes.
+NOT_READY: Final = frozenset({"no checks table", "checks table misshaped"})
 #: Name, damage, table it needs (empty: none beyond ``text_codes``).
 KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     (INTACT, lambda con: None, ""),
@@ -197,8 +258,17 @@ KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
     ("regions of one text changed", _move_regions, ""),
     ("patterns changed", _change_patterns, ""),
     ("check of the whole corpus changed", _change_corpus_check, ""),
-    ("check of BSD-3-Clause changed", _change_entry_check, "text_code_checks"),
-    ("no checks table", _drop_checks, "text_code_checks"),
+    ("check of BSD-3-Clause changed", _change_entry_check, CHECKS),
+    ("no checks table", _drop_checks, CHECKS),
+    ("checks table misshaped", _misshape_checks, CHECKS),
+    ("check of the head changed", _change_head_check, CHECKS),
+    ("check of MIT missing", _drop_entry_check, CHECKS),
+    ("codes of MIT a blob one byte short", _cut_codes, CHECKS),
+    (
+        "text of MIT edited, new update time, codes kept",
+        _edit_text_stamped,
+        "db_metadata",
+    ),
     ("postings stale against the texts", _stale_postings, POSTINGS),
     ("postings without a stamp", _no_stamp, POSTINGS),
     ("postings stamp: another gram size", _other_gram_size, POSTINGS),
@@ -214,6 +284,9 @@ KINDS: Final[tuple[tuple[str, Damage, str], ...]] = (
 #: the truth there, so they are judged against this reference copy.
 REFERENCES: Final[dict[str, Damage]] = {
     "text of MIT changed, codes kept": _change_text_and_drop_codes,
+    "text of MIT edited, new update time, codes kept": (
+        _edit_text_stamped_and_drop_codes
+    ),
 }
 
 
@@ -253,6 +326,8 @@ def make_copies(source: Path, folder: Path) -> dict[str, Path | None]:
             con.close()
         out[name] = target
     for name, damage in REFERENCES.items():
+        if out.get(name) is None:
+            continue  # the kind does not apply: nothing to judge it against
         target = folder / f"reference-{len(out)}.db"
         shutil.copy(source, target)
         con = sqlite3.connect(target)

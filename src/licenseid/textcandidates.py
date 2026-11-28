@@ -21,11 +21,15 @@ Past the bound on grams looked up (``gramselect.GRAM_LIMIT``) there is no
 search: ``TEXTS`` is None, never a partial list.
 
 One object per ``detect()`` or ``texts()`` call, never shared between calls
-or threads: it keeps the results of its searches. The corpus it cuts from is
-immutable (``licenseid.textcorpus``).
+or threads: it keeps the results of its searches. The texts come from a
+``TextSource`` (``licenseid.textentries.StoredTexts``), which reads the entries
+of the texts asked for only; each corpus it gives is immutable
+(``licenseid.textcorpus``). A caller that reads in one transaction asks for
+both sets first, inside it (:meth:`TextCandidates.prepare`).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Sequence
+from typing import Protocol
 
 from licenseid.gramselect import searched
 from licenseid.textcorpus import TextCorpus
@@ -33,49 +37,45 @@ from licenseid.textgrams import GramTable
 from licenseid.textnames import has_tokens
 from licenseid.wholetexts import Found, found_texts
 
-__all__ = ["TextCandidates", "cut"]
+__all__ = ["TextCandidates", "TextSource"]
 
 
-def cut(corpus: TextCorpus, ids: list[str]) -> TextCorpus:
-    """The corpus of the same-text groups of the licences *ids*, its entries
-    in *corpus*'s order (a tie of the search keeps the order the whole
-    corpus gives), with *corpus*'s vocabulary and names."""
-    names = {corpus.representative(license_id) for license_id in ids}
-    return TextCorpus(
-        vocabulary=corpus.vocabulary,
-        entries=tuple(e for e in corpus.entries if e.text.row_id in names),
-        representatives=corpus.representatives,
-    )
+class TextSource(Protocol):
+    """The List texts of one call, read where they are asked for."""
 
+    def core_grams(self, license_id: str) -> int | None:
+        """The distinct grams of the core of *license_id*'s text, None when
+        it has no core."""
 
-def _core_grams(corpus: TextCorpus) -> Callable[[str], int | None]:
-    """The distinct grams of the core of a licence's text in *corpus*, None
-    when it has no core."""
-
-    def grams(license_id: str) -> int | None:
-        entry = corpus.entry(license_id)
-        return None if entry is None or entry.core is None else entry.core.gram_count
-
-    return grams
+    def corpus(self, ids: Collection[str]) -> TextCorpus:
+        """The corpus of the same-text groups of the licences *ids*."""
 
 
 class TextCandidates:
     """The texts the whole-text search of the normalised input *norm_input*
-    reads, from its gram score table (*lookup*, made at the first use), cut
-    from the List's corpus (*corpus*, read at the first search)."""
+    reads, from its gram score table (*lookup*, made at the first use), and
+    the texts Tier 2 scores, from the List's texts (*source*, made at the
+    first search or score)."""
 
     def __init__(
         self,
         norm_input: str,
         lookup: Callable[[], GramTable],
-        corpus: Callable[[], TextCorpus],
+        source: Callable[[], TextSource],
     ) -> None:
         self.norm_input = norm_input
         self._lookup = lookup
-        self._corpus = corpus
+        self._make_source = source
+        self._source: TextSource | None = None
         self._table: GramTable | None = None
         self._cut: TextCorpus | None = None
+        self._scored: tuple[frozenset[str], TextCorpus] | None = None
         self._found: dict[str | None, Found | None] = {}
+
+    def _texts(self) -> TextSource:
+        if self._source is None:
+            self._source = self._make_source()
+        return self._source
 
     @property
     def table(self) -> GramTable:
@@ -87,17 +87,37 @@ class TextCandidates:
     def corpus(self) -> TextCorpus:
         """The texts of the set as a corpus, cut once."""
         if self._cut is None:
-            whole = self._corpus()
-            ids = searched(self.table.rows, _core_grams(whole))
-            self._cut = cut(whole, ids)
+            source = self._texts()
+            self._cut = source.corpus(searched(self.table.rows, source.core_grams))
         return self._cut
+
+    def scored(self, ids: Sequence[str]) -> TextCorpus:
+        """The texts of the candidates *ids* Tier 2 scores, as a corpus
+        (``licenseid.wordregion``): cut once for one set of IDs."""
+        key = frozenset(ids)
+        if self._scored is None or self._scored[0] != key:
+            self._scored = key, self._texts().corpus(key)
+        return self._scored[1]
+
+    def prepare(self, ids: Sequence[str]) -> None:
+        """Read now what a search of the input and Tier 2 on the candidates
+        *ids* will read: the set's texts, when a search can run, and the
+        candidates'. A caller that reads in one transaction calls it there."""
+        if self._searchable():
+            self.corpus()
+        self.scored(ids)
+
+    def _searchable(self) -> bool:
+        """Whether the input can hold a whole text (enough tokens, under the
+        bound on grams looked up)."""
+        return has_tokens(self.norm_input) and not self.table.bounded
 
     def found(self, answer_id: str) -> Found | None:
         """The whole texts the input holds among the set's
         (``wholetexts.found_texts``, *answer_id*'s group first of equals; ""
         for none), searched once per answer group. None when the input is
         too short to hold a text, or past the bound on grams looked up."""
-        if not has_tokens(self.norm_input) or self.table.bounded:
+        if not self._searchable():
             return None
         corpus = self.corpus()
         if not corpus.entries:  # no text shares a gram: none is held whole

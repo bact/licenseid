@@ -85,7 +85,9 @@ in another module.
   narrows to its group and three runner-ups, `ranking.under_found` leaves
   out one that scores as high), `textcandidates` (one candidate set an input
   for every reader of `wholetexts.found_texts`, unfiltered; a search an
-  answer group), `textcorpus` (word codes) and `textstore` (stored),
+  answer group; the texts it searches and scores), `textcorpus` (word codes),
+  `textstore` (the stored form and its checks: pure) and `textentries` (the
+  entries read per candidate: `TextStore`, one per `TableCache` generation),
   `textgrams` (tokens, word 3-grams and their hashes, the gram score) and
   `gramstore` (their postings: stored, checked, or built in memory),
   `textlocate` (5-gram votes, windows, count limits), `wholetexts` (key,
@@ -491,10 +493,19 @@ and `--json`) against these rules and checks the default output against the
   block and at every lookup outside one), and keeps no read made during a
   clear (`_generation`). A new write to `licenses` or `license_index` calls
   `self._tables.clear()`, as `_write_db_records` does.
-- `text_codes`: the coded texts and a `check` (SHA-256, with
-  `textstore.CODING_VERSION`). `textstore.restore` gives the corpus `build`
-  gives or None, then built in memory, never written back (a BLOB body too); a
-  row SQLite cannot decode is `unreadable`. A coding change bumps both.
+- `text_codes` and `text_code_checks`: the coded texts, read per candidate
+  (`textentries`), and their checks, which `update` writes in the same
+  transaction: one SHA-256 of the head (coding, `last_update_datetime`,
+  vocabulary, patterns, core gram counts) and one per entry (the head's, the
+  text, its core, its codes and regions). An entry is used only after its
+  check: a check that differs, a missing row, a row that does not read or a
+  blob body and the stored codes of that database are dropped, the corpus
+  built in memory (`TextCorpus.build`), never written back; the call that
+  found it goes on with that corpus. A row SQLite cannot decode is
+  `unreadable`. A call reads in one transaction (`TableCache.snapshot`), so
+  no `update` lands between its postings and its entries. A text edited
+  without a new `last_update_datetime` is seen only when its entry is read.
+  A coding change bumps `CODING_VERSION` and `BUILD_VERSION`.
 - `text_postings` and `text_posting_ids`: the word 3-gram postings of the
   texts, with a stamp `update` writes in the same transaction (gram spec,
   width, counts, a copy of `last_update_datetime`). Used only when they are

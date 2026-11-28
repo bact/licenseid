@@ -18,8 +18,8 @@ and this project adheres to
   update` once after upgrading
 - `detect()` on a declared value is about two fifths faster (462 PyPI values:
   1.39 s to 0.84 s); every answer, score and warning is unchanged
-- Database build 8 (3.4 MB more) stores the word 3-gram postings of every
-  licence text
+- Database build 9 (3.5 MB more) stores the word 3-gram postings of every
+  licence text and a check of each stored text
 - `import licenseid` and `licenseid --version` start in about a third of the
   time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
 - `detect()` on free text finds its candidates by the word 3-grams it shares
@@ -36,6 +36,9 @@ and this project adheres to
   sections searched one by one; the word grams find its texts whole
 - `detect --diff` shows the part of the licence text from a whole word to a
   whole word, no longer from inside one
+- `detect()` on free text reads only the stored licence texts it compares,
+  each checked on its own: one `licenseid detect` of an MIT file takes 156 ms
+  (836 ms in 0.9.4)
 
 ## [0.9.4] - 2026-11-27
 

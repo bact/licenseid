@@ -10,7 +10,7 @@ import statistics
 from typing import Any, Final, NamedTuple
 
 from benchmarks.speedgate.buildinputs import ONECALL_FILES
-from benchmarks.speedgate.damage import REFERENCE
+from benchmarks.speedgate.damage import NOT_READY, REFERENCE
 from benchmarks.speedgate.moved import (
     ANSWER_BAR,
     THRESHOLDS,
@@ -287,21 +287,42 @@ def grams_differ(result: dict[str, Any], expected: dict[str, Any]) -> bool:
     return "grams" in expected and result.get("grams") != expected["grams"]
 
 
+def refused(result: dict[str, Any]) -> bool:
+    """Whether a copy that is not of the side's build was refused as it must
+    be: the lookups stopped with ``DatabaseNotReadyError`` and the file's
+    bytes are the same."""
+    return (
+        "DatabaseNotReadyError" in str(result.get("error", ""))
+        and "cases" not in result
+        and result.get("bytes_same") is not False
+    )
+
+
+def _damage_differs(name: str, result: dict[str, Any], kinds: Sets) -> bool:
+    """Whether the damaged copy *name* answers otherwise than its reference
+    (the intact build, unless it has one of its own), or is not refused
+    where it must be."""
+    if name in NOT_READY:
+        return not refused(result)
+    reference = kinds.get(name + REFERENCE, kinds["none"])
+    expected = kinds.get(name + REFERENCE, {"cases": cases_of(kinds["none"])})
+    return bool(
+        moved_answers(name, cases_of(expected), cases_of(result))
+        or grams_differ(result, reference)
+    )
+
+
 def damage(cand: Sets) -> Gate:
-    """Damage: every case equals the intact build of the same side."""
+    """Damage: every case equals the intact build of the same side, and a
+    copy not of its build is refused."""
     kinds = (cand.get("damage") or {}).get("kinds")
     if not kinds or "none" not in kinds:
         return Gate("Damage", NA, "damage set missing")
-    intact = cases_of(kinds["none"])
     bad, skipped = [], []
     for name, result in kinds.items():
-        expected = kinds.get(name + REFERENCE, {"cases": intact})
         if not result.get("applicable", True):
             skipped.append(name)
-        elif not name.endswith(REFERENCE) and (
-            moved_answers(name, cases_of(expected), cases_of(result))
-            or grams_differ(result, kinds.get(name + REFERENCE, kinds["none"]))
-        ):
+        elif not name.endswith(REFERENCE) and _damage_differs(name, result, kinds):
             bad.append(name)
     note = f"; {len(skipped)} not applicable ({', '.join(skipped)})" if skipped else ""
     return _gate(

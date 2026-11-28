@@ -45,7 +45,11 @@ NORMALIZATION_VERSION = "2"
 # Version 8: ``text_postings`` and ``text_posting_ids`` hold the word 3-gram
 # postings of the List texts (``gramstore``), with their stamp; a change to
 # the gram spec (``textgrams``) bumps it too.
-BUILD_VERSION = "8"
+# Version 9: ``text_code_checks`` holds a check of the head of
+# ``text_codes`` and one of each entry (``textentries.write_checks``), so a
+# lookup reads the entries of its candidates only; ``text_codes`` holds the
+# gram counts of the cores and no check of the whole corpus.
+BUILD_VERSION = "9"
 
 # The flags of a licence: BOOLEAN columns, which SQLite stores as integers.
 LICENSE_FLAGS = (
@@ -84,11 +88,12 @@ TABLES: Mapping[str, tuple[str, ...]] = {
     "text_codes": ("kind", "owner_id", "body"),
     "text_postings": ("h", "ids"),
     "text_posting_ids": ("k", "id", "size"),
+    "text_code_checks": ("owner_id", "digest"),
 }
 INDEXES = ("idx_fp_ngram", "idx_licenses_name")
 SCHEMA_OBJECTS = (*TABLES, *INDEXES)
 # The tables made WITHOUT ROWID; every other one has a rowid.
-WITHOUT_ROWID = frozenset({"text_codes"})
+WITHOUT_ROWID = frozenset({"text_codes", "text_code_checks"})
 _WITHOUT_ROWID_SQL = re.compile(r"\bWITHOUT\s+ROWID\s*\Z", re.ASCII | re.IGNORECASE)
 
 
@@ -277,15 +282,22 @@ def _create_objects(conn: sqlite3.Connection) -> None:
             url          TEXT NOT NULL
         )
     """)
-    # The List texts as word codes (textstore.stored_rows), one row for the
-    # vocabulary and one for each text and core. Read whole, once per rebuild
-    # (dbcache.TableCache.text_corpus).
+    # The List texts as word codes (textstore.stored_rows): the head (the
+    # vocabulary, the patterns, the gram counts of the cores) and one row for
+    # each text and core, read per candidate (textentries), each under its
+    # check in text_code_checks (the head's has the owner '').
     conn.execute("""
         CREATE TABLE IF NOT EXISTS text_codes (
             kind     TEXT NOT NULL,
             owner_id TEXT NOT NULL,
             body     TEXT NOT NULL,
             PRIMARY KEY (kind, owner_id)
+        ) WITHOUT ROWID
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS text_code_checks (
+            owner_id TEXT PRIMARY KEY,
+            digest   TEXT
         ) WITHOUT ROWID
     """)
     # The word 3-gram postings of the texts (gramstore.write_postings): the

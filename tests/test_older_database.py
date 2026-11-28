@@ -85,8 +85,38 @@ NOT_OF_THIS_BUILD: dict[str, tuple[str, str]] = {
         ),
         OUTDATED.format("build v7", BUILD_VERSION),
     ),
+    # A file of build 8: no checks of the coded texts, and its stamp.
+    "build-8": (
+        (
+            "DROP TABLE text_code_checks;"
+            " UPDATE db_metadata SET value = '8' WHERE key = 'build_version'"
+        ),
+        OUTDATED.format("build v8", BUILD_VERSION),
+    ),
     # A stamp of this build on a file without a table: the stamp lies.
     "no-text_codes": ("DROP TABLE text_codes", EMPTY),
+    "no-text_code_checks": ("DROP TABLE text_code_checks", EMPTY),
+    "checks-view": (
+        (
+            "DROP TABLE text_code_checks;"
+            " CREATE VIEW text_code_checks AS SELECT '' AS owner_id, '' AS digest"
+        ),
+        EMPTY,
+    ),
+    "checks-with-rowid": (
+        (
+            "DROP TABLE text_code_checks; CREATE TABLE text_code_checks"
+            " (owner_id TEXT PRIMARY KEY, digest TEXT)"
+        ),
+        EMPTY,
+    ),
+    "checks-no-column": (
+        (
+            "DROP TABLE text_code_checks; CREATE TABLE text_code_checks"
+            " (owner_id TEXT PRIMARY KEY, hash TEXT) WITHOUT ROWID"
+        ),
+        EMPTY,
+    ),
     "no-text_postings": ("DROP TABLE text_postings", EMPTY),
     "no-text_posting_ids": ("DROP TABLE text_posting_ids", EMPTY),
     # A table of this build's name and another shape (roadmap item 66).
@@ -217,11 +247,16 @@ def test_resolve_reads_the_bundle_instead_as_for_an_empty_file(
 
 
 def _schema_and_rows(path: Path) -> tuple[object, ...]:
-    """What a build put in *path*, but the times it was built at."""
+    """What a build put in *path*, but the times it was built at, and the
+    checks of the coded texts, which are made with the time (their owners
+    are kept)."""
+    timed = {"db_metadata": "*", "text_code_checks": "owner_id"}
     with contextlib.closing(sqlite3.connect(path)) as conn:
         schema = sorted(conn.execute("SELECT type, name, sql FROM sqlite_master"))
         rows = [
-            sorted(conn.execute(f"SELECT * FROM {table}"), key=repr)
+            sorted(
+                conn.execute(f"SELECT {timed.get(table, '*')} FROM {table}"), key=repr
+            )
             for table in TABLES
             if table != "db_metadata"
         ]

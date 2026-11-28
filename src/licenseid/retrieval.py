@@ -20,7 +20,7 @@ from licenseid.database import (
     candidate_rows,
     gram_scores,
     list_flags,
-    text_corpus,
+    text_source,
 )
 from licenseid.exprflags import with_judged_flags
 from licenseid.gramselect import (
@@ -177,7 +177,7 @@ def text_candidates(
     return TextCandidates(
         normalize_text(text) if norm_input is None else norm_input,
         lambda: gram_scores(db, gram_text(text), GRAM_LIMIT),
-        lambda: text_corpus(db),
+        lambda: text_source(db),
     )
 
 

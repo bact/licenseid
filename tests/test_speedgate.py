@@ -457,6 +457,35 @@ def test_damage_is_judged_against_the_intact_build_or_its_reference() -> None:
     assert gate.status == gates.FAIL and "codes changed" in gate.detail
 
 
+NOT_READY = "exit 1: licenseid.errors.DatabaseNotReadyError: database: empty: x"
+
+
+@pytest.mark.parametrize(
+    ("result", "passed"),
+    [
+        ({"error": NOT_READY, "grams_error": "e", "bytes_same": True}, True),
+        ({"error": NOT_READY}, True),
+        ({"error": NOT_READY, "bytes_same": False}, False),
+        ({"error": "exit 1: ValueError: x", "bytes_same": True}, False),
+        ({"cases": {"damage:MIT": case(1, "MIT")}, "bytes_same": True}, False),
+        ({"error": NOT_READY, "cases": {}}, False),
+    ],
+    ids=["refused", "no-bytes", "written", "other-error", "answered", "with-cases"],
+)
+def test_a_copy_not_of_the_build_must_be_refused(
+    result: dict[str, Any], passed: bool
+) -> None:
+    intact = {"damage:MIT": case(1, "MIT")}
+    kinds = {
+        "none": {"applicable": True, "cases": intact},
+        "no checks table": {"applicable": True, **result},
+        "checks table misshaped": {"applicable": False},
+    }
+    gate = gates.damage({"damage": {"kinds": kinds}})
+    assert (gate.status == gates.PASS) is passed
+    assert passed or "no checks table" in gate.detail
+
+
 @pytest.mark.parametrize(
     ("change", "failed"),
     [

@@ -204,7 +204,7 @@ def test_a_row_with_no_id_is_skipped() -> None:
     ("read", "kept"),
     [
         (lambda t: t.license_id("MIT"), lambda t: t._license_ids),
-        (lambda t: t.index_row("MIT"), lambda t: t._index_rows),
+        (lambda t: t.index_rows(), lambda t: t._index_rows),
         (lambda t: t.names_and_ids(), lambda t: t._names_and_ids),
         (lambda t: t.deprecated(), lambda t: t._deprecated),
         (lambda t: t.names_by_key(str.lower), lambda t: t._keyed.names),
