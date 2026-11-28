@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-27
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -66,11 +66,16 @@ build.
   update'`, and writes nothing; `update` rebuilds it; `clear-cache` deletes
   it.
 - A damaged FTS5 table is never read. `update` drops it: SQLite drops an
-  FTS5 table without its `data`, `content`, `docsize` or `idx` shadow table.
+  FTS5 table without its `content`, `docsize` or `idx` shadow table.
   Without `config` the drop fails (`vtable constructor failed:
   license_index`), so `update` exits 1 with `database: update failed:
   ...`, one line, the file unchanged; `clear-cache` deletes the file. Not
   cured by `PRAGMA writable_schema`: that writes `sqlite_master` by hand.
+  Without `data` it depends on SQLite: 3.50.4 and later drop the table,
+  3.46.0 fails as without `config` (measured 2026-11-28; the SQLite of CI's
+  Ubuntu and Windows fails too, which the first full run of PR 249 showed).
+  The test asks SQLite itself whether it drops the table, then holds
+  `update` to that answer.
 - An FTS5 table left beside a build 10 file (a script's copy) does not stop
   a lookup; `update` rebuilds the file (`dbverdict.rebuild_refusal`) and
   drops it.

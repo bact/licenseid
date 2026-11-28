@@ -76,7 +76,7 @@ def test_the_real_files_are_picked_the_same_way_each_time(tmp_path: Path) -> Non
     big = tmp_path / "big" / "COPYING"
     big.parent.mkdir()
     big.write_bytes(b"x" * (corpusdir.MAX_BYTES + 1))
-    nul = tmp_path / "nul" / "NOTICE"
+    nul = tmp_path / "zero" / "NOTICE"  # not "nul": a device on Windows
     nul.parent.mkdir()
     nul.write_bytes(b"a\0b")
     paths += [str(tmp_path / "d0" / "README"), str(big), str(nul)]

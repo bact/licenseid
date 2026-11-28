@@ -89,7 +89,7 @@ def pick_readmes(paths: list[str], limit: int = README_LIMIT) -> list[tuple[str,
         body = text.partition("\n\n")[2]
         if "licens" not in body.lower() or not 200 <= len(body) <= 100_000:
             continue
-        seen.setdefault(sha1(body.encode()), (path.split("/")[-2], body))
+        seen.setdefault(sha1(body.encode()), (Path(path).parent.name, body))
     items = sorted(seen.items())
     random.Random(README_SEED).shuffle(items)
     return [(f"{name}:{h[:6]}", body) for h, (name, body) in items[:limit]]

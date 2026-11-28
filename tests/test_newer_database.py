@@ -112,6 +112,12 @@ def _newer(fresh: Path, path: Path, case: str) -> tuple[Path, str]:
     return _copy(fresh, path, _stamped(key, value), ALL_SHAPES[shape]), refusal
 
 
+def _field(path: Path) -> str:
+    """The path as a record prints it: a backslash, as every Windows
+    path has, doubled."""
+    return str(path).replace("\\", "\\\\")
+
+
 def _cli(path: Path, *args: str) -> tuple[int, str, str]:
     result = run_cli(str(path), list(args))
     return result.exit_code, result.stdout, result.stderr
@@ -189,10 +195,8 @@ def test_update_leaves_it_at_its_release(
     path, _ = _newer(fresh, tmp_path / "licenses.db", case)
     before = _digest(path)
     code, out, err = _update(monkeypatch, path)
-    assert (code, out) == (
-        0,
-        f"LIST=spdx-license-list\tVERSION=9.99\tSTATUS=unchanged\tPATH={path}\n",
-    )
+    done = f"VERSION=9.99\tSTATUS=unchanged\tPATH={_field(path)}"
+    assert (code, out) == (0, f"LIST=spdx-license-list\t{done}\n")
     assert "ERROR" not in err
     assert _digest(path) == before
 
@@ -240,7 +244,7 @@ def test_clear_cache_deletes_it_and_the_cache_beside_it(
     cache = path.parent / "licenses.json"
     cache.write_text("{}", encoding="utf-8")
     code, out, _ = _cli(path, "clear-cache")
-    assert (code, out) == (0, f"STATUS=cleared\tPATH={path}\n")
+    assert (code, out) == (0, f"STATUS=cleared\tPATH={_field(path)}\n")
     assert sorted(path.parent.iterdir()) == []
 
 

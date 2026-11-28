@@ -155,16 +155,30 @@ def test_a_damaged_fts_table_of_an_older_file_is_never_read(
     assert _state(path) == before
 
 
+def _sqlite_drops(path: Path, probe: Path) -> bool:
+    """Whether this SQLite drops the FTS5 table of a copy of the file."""
+    shutil.copy(path, probe)
+    with contextlib.closing(sqlite3.connect(probe)) as conn:
+        try:
+            conn.execute("DROP TABLE license_index")
+        except sqlite3.DatabaseError:
+            return False
+    return True
+
+
 @pytest.mark.parametrize("shadow", SHADOWS)
 def test_update_rebuilds_a_damaged_fts_table_or_says_why_not(
     fresh: Path, tmp_path: Path, shadow: str
 ) -> None:
-    """SQLite drops the FTS5 table without most shadow tables; the one
-    without its ``config`` cannot be dropped, and ``update`` says so in one
-    line and leaves the file as it was (``clear-cache`` deletes it)."""
+    """``update`` rebuilds the file wherever SQLite can drop the FTS5 table.
+    None drops one without its ``config``, and SQLite 3.46.0 none without its
+    ``data`` (3.50.4 does): ``update`` then says so in one line and leaves
+    the file as it was (``clear-cache`` deletes it)."""
     path = _copy(fresh, tmp_path / "licenses.db", BUILD_7)
     rename_shadow(path, shadow)
-    if shadow != "config":
+    drops = _sqlite_drops(path, tmp_path / "probe.db")
+    assert drops == (shadow != "config") or shadow == "data"
+    if drops:
         _update(path)
         assert _names(path) == _names(fresh)  # the renamed one gone too
         return

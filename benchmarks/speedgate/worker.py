@@ -17,7 +17,6 @@ import hashlib
 import json
 import os
 import platform
-import resource
 import sys
 import threading
 import time
@@ -135,7 +134,9 @@ def run_grams(args: argparse.Namespace, inputs: dict[str, Any]) -> dict[str, Any
 
 
 def peak_mb() -> float:
-    """Peak resident set size of this process in MB."""
+    """Peak resident set size of this process in MB (POSIX only)."""
+    import resource  # not on Windows: the module still imports there
+
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return peak / (1e6 if sys.platform == "darwin" else 1e3)
 
