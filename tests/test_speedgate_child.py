@@ -1,0 +1,194 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""The speed gate's processes and files: a child bound to its side by
+``PYTHONPATH``, a database built from cached files, damaged copies, a List
+tarball. POSIX only: the tool uses ``resource`` and ``os.getloadavg``."""
+
+import json
+import sqlite3
+import sys
+import tarfile
+from pathlib import Path
+from typing import Any
+
+import pytest
+from conftest import posix_only
+
+from benchmarks.speedgate import damage, runner, sets_roadmap, sidedb
+from benchmarks.speedgate.runner import Job, Side
+
+pytestmark = posix_only
+
+# pylint: disable=missing-function-docstring
+
+FAKE_DETECTOR = """
+class LicenseDetector:
+    def __init__(self, db):
+        self.db = db
+
+    def detect(self, text, **options):
+        if text == "boom":
+            raise ValueError("boom")
+        return [{"expression": "MIT", "score": 1.0, "method": "text",
+                 "exact": True, "texts": ["MIT"], "options": sorted(options)}]
+
+    def texts(self, text, **options):
+        return ["MIT"]
+"""
+
+
+def _fake_side(tmp_path: Path) -> Side:
+    package = tmp_path / "side" / "src" / "licenseid"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text('__version__ = "9.9.9"\n')
+    (package / "detector.py").write_text(FAKE_DETECTOR)
+    home = tmp_path / "home"
+    home.mkdir()
+    return Side(tmp_path / "side", tmp_path / "db.sqlite", home, sys.executable)
+
+
+def _job(tmp_path: Path, cases: list[dict[str, Any]]) -> Job:
+    inputs = tmp_path / "inputs.json"
+    inputs.write_text(json.dumps({"digest": "d", "sets": {"core": cases}}))
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    return Job(inputs, scratch)
+
+
+def test_a_child_imports_its_own_side_and_says_so(tmp_path: Path) -> None:
+    side = _fake_side(tmp_path)
+    cases: list[dict[str, Any]] = [
+        {"key": "a", "text": "x", "options": {"exclude": ["ISC"]}, "texts_call": True},
+        {"key": "b", "text": "boom"},
+    ]
+    out = runner.run_child(side, _job(tmp_path, cases), ["detect", "--set", "core"])
+    assert out["from_side"] is True
+    assert out["licenseid_file"] == str(
+        side.path.resolve() / "src/licenseid/__init__.py"
+    )
+    assert out["licenseid_version"] == "9.9.9"
+    assert out["cases"]["a"]["rows"] == [["MIT", 1.0, "text", True]]
+    assert out["cases"]["a"]["texts"] == ["MIT"] and out["cases"]["a"]["cpu_ms"] >= 0
+    assert out["cases"]["b"]["error"] == "ValueError: boom"
+
+
+def test_a_child_names_one_case_and_a_slow_one_is_cut(tmp_path: Path) -> None:
+    side = _fake_side(tmp_path)
+    job = _job(tmp_path, [{"key": "a", "text": "x"}, {"key": "b", "text": "y"}])
+    out = runner.run_child(side, job, ["detect", "--set", "core", "--only", "b"])
+    assert list(out["cases"]) == ["b"]
+    assert runner.run_child(side, job, ["detect", "--set", "none"])["error"].startswith(
+        "exit"
+    )
+
+
+def test_the_environment_of_a_child_is_its_side_and_a_scratch_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PYTHONHOME", "/elsewhere")
+    env = _fake_side(tmp_path).env()
+    assert env["PYTHONPATH"] == str(tmp_path / "side" / "src")
+    assert env["HOME"] == str(tmp_path / "home") and "PYTHONHOME" not in env
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "loaded"),
+    [
+        ([2.0, 0, 0], [2.0, 0, 0], False),
+        ([2.1, 0, 0], [0.1, 0, 0], True),
+        ([0.1, 0, 0], [3.0, 0, 0], True),
+    ],
+)
+def test_a_busy_machine_at_either_end_flags_a_run(
+    start: list[float], end: list[float], loaded: bool
+) -> None:
+    assert runner.is_loaded(start, end) is loaded
+
+
+def _database(path: Path) -> None:
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE text_codes (kind TEXT, owner_id TEXT, body TEXT)")
+    con.execute("CREATE TABLE license_index (license_id TEXT, search_text TEXT)")
+    rows = [
+        ("text", "MIT", "abcd"),
+        ("words", "", '["permission","warranty"]'),
+        ("textvars", "MIT", "[[1,5]]"),
+        ("patterns", "", "aaa"),
+        ("check", "", "c"),
+    ]
+    con.executemany("INSERT INTO text_codes VALUES (?, ?, ?)", rows)
+    con.execute("INSERT INTO text_codes VALUES ('text', 'Apache-2.0', 'zz')")
+    con.execute("INSERT INTO license_index VALUES ('MIT', 'permission is granted')")
+    con.commit()
+    con.close()
+
+
+def test_each_damage_changes_one_thing_and_the_intact_copy_nothing(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "src.db"
+    _database(source)
+    copies = damage.make_copies(source, tmp_path / "out")
+    assert copies["no checks table"] is None
+    assert copies["check of BSD-3-Clause changed"] is None
+
+    def body(name: str, kind: str, owner: str) -> str:
+        path = copies[name]
+        assert path is not None
+        got = (
+            sqlite3.connect(path)
+            .execute(
+                "SELECT body FROM text_codes WHERE kind = ? AND owner_id = ?",
+                (kind, owner),
+            )
+            .fetchone()
+        )
+        return str(got[0]) if got else "<gone>"
+
+    assert body(damage.INTACT, "text", "MIT") == "abcd"
+    assert body("codes of MIT changed", "text", "MIT") == "bacd"
+    assert body("codes of Apache-2.0 deleted", "text", "Apache-2.0") == "<gone>"
+    assert (
+        body("two words of the vocabulary swapped", "words", "")
+        == '["warranty","permission"]'
+    )
+    assert body("regions of one text changed", "textvars", "MIT") == "[[1,8]]"
+    assert body("patterns changed", "patterns", "") == "baa"
+    assert body("check of the whole corpus changed", "check", "") == "x"
+    reference = "text of MIT changed, codes kept" + damage.REFERENCE
+    assert body(reference, "text", "MIT") == "<gone>"
+    kept = copies["text of MIT changed, codes kept"]
+    assert (
+        kept is not None
+        and body("text of MIT changed, codes kept", "text", "MIT") == "abcd"
+    )
+
+
+def test_a_database_is_built_from_cached_files_or_not_at_all(tmp_path: Path) -> None:
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    with pytest.raises(sidedb.BuildError, match="no spdx-data tarball"):
+        sidedb.copy_cache(cache, tmp_path / "dest")
+    for name in ("latest.json", "licenses.json", "spdx-data-v3.29.0.tar.gz", "other"):
+        (cache / name).write_text("x")
+    assert sidedb.copy_cache(cache, tmp_path / "dest") == "3.29.0"
+    assert sorted(p.name for p in (tmp_path / "dest").iterdir()) == [
+        "latest.json",
+        "licenses.json",
+        "spdx-data-v3.29.0.tar.gz",
+    ]
+
+
+def test_a_list_text_is_read_from_the_tarball(tmp_path: Path) -> None:
+    source = tmp_path / "ISC.txt"
+    source.write_text("ISC License\nPermission to use")
+    tarball = tmp_path / "list.tar.gz"
+    with tarfile.open(tarball, "w:gz") as tar:
+        tar.add(source, arcname="license-list-data-3.29.0/text/ISC.txt")
+    assert sets_roadmap.list_text(tarball, "ISC").startswith("ISC License")
+    with pytest.raises(KeyError):
+        sets_roadmap.list_text(tarball, "MIT")
+    assert sets_roadmap.without_title("ISC License\n\nPermission") == "\nPermission"

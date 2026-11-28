@@ -68,6 +68,122 @@ Stats are nested `stats[input_type][sub_category]`, each tracking
 `InstrumentedMatcher`). `bench_compare.py` renders this into per-type
 Markdown tables in `summary.md`.
 
+## The speed gate (`speedgate/`)
+
+`python -m benchmarks.speedgate` compares two frozen source trees of
+licenseid. It records answers before time, and prints each gate of the
+0.10.0 speed plan that its sets can answer
+(`working-docs/design/speed-0-10-plan.md`, sections 6.1 and 6.2).
+
+Rules, each learnt from a wrong number:
+
+- A side is a frozen copy of a tree, named by path: `git archive <tag> | tar
+  -x -C <dir>`. Never the checkout, never the editable install. Each set runs
+  in a child process with `PYTHONPATH=<side>/src` (and a fixed
+  `PYTHONHASHSEED`, a scratch `HOME`). The result holds `licenseid.__file__`
+  of each set; `compare` prints it, and `WRONG IMPORT` if it is not the side's.
+- Each side has a database it built itself with its own `update` from the
+  cached List files, with a dead proxy, so no download is possible. The real
+  cache folder is only read.
+- The real files are a manifest of SHA-256 hashes over a local folder (the
+  corpus), not a scan of what is installed that day. Files and manifest are
+  other people's data and stay outside the repository.
+- Both sides read one `inputs.json`; `compare` says if their digests differ.
+- Time is CPU seconds (`time.process_time`), warm (one call first). The
+  first-call cost is the One call set. Every run records the 1-minute load
+  (`uptime`) at its start and end; a run above 2.0 is flagged `loaded`.
+- An A/A twin (the same side run twice) gives the noise floor: read it before
+  a ratio.
+
+### Running a comparison
+
+All paths below are outside the repository (here under
+`.claude/speed-0-10/`). Use Python 3.10 of the project environment, from the
+repository root, with the repository root on `PYTHONPATH`.
+
+```bash
+R=.claude/speed-0-10
+# 1. once: the corpus, then the inputs (fixtures of one side, a List tarball)
+python -m benchmarks.speedgate corpus $R/corpus --onecall onecall.json \
+    --labels labels.json --item68 item68.json
+python -m benchmarks.speedgate verify $R/corpus
+python -m benchmarks.speedgate inputs $R/corpus --side $R/sides/0.9.4 \
+    --tarball ~/.local/share/licenseid/spdx-data-v3.29.0.tar.gz
+# 2. for each side: a frozen copy, its database, its results
+git archive <tag> | tar -x -C $R/sides/<name>
+python -m benchmarks.speedgate db --side $R/sides/<name> \
+    --db $R/db/<name>/licenses.db --home $R/home
+python -m benchmarks.speedgate run --side $R/sides/<name> \
+    --db $R/db/<name>/licenses.db --home $R/home \
+    --inputs $R/corpus/inputs.json --out $R/baselines/<name>
+# 3. compare (--twin: a second run of the base; --inputs: for the labels)
+python -m benchmarks.speedgate compare $R/baselines/0.9.4 $R/runs/T3 \
+    --twin $R/baselines/0.9.4-aa --inputs $R/corpus/inputs.json
+```
+
+`run --sets core stress` runs some sets only; a set whose result file exists
+is skipped unless `--force`. Run a baseline alone on the machine, and run
+nothing else beside it. `compare` exits 1 when a gate fails; an answer that
+moved is listed first and read by a person, it is no gate by itself.
+
+`corpus` needs `labels.json` (weak labels by file key, from the METADATA of
+the package each file came with), `item68.json` (the keys of
+`item68.item68_keys` over a 0.9.4 core result) and `onecall.json` (the ten
+texts of the One call set). The README texts are the descriptions of the
+installed packages that hold "licens".
+
+### Sets
+
+| Set | Inputs | Records |
+| --- | --- | --- |
+| core | 868: 300 real licence files, 408 long and 160 short fixtures | Top 3 rows, `TEXTS` of the top row, CPU |
+| prose | 473: 300 READMEs, 96 notices, 77 mixed | Top 3 rows, `TEXTS` of the mixed (call) |
+| many | 183: 2 to 40 texts joined, clean, 2 %, 5 % (165); 18 of cores | Rows, `texts()` |
+| cjk | 24 re-wrapped Han and kana texts and fragments | Rows, `texts()` |
+| options | 6 whole texts, each under 6 option settings | Rows, `TEXTS` |
+| roadmap | Items 11, 61, 64, 68, 69, 70 (120) | Rows, `texts()`, CPU |
+| stress | 18 large or odd inputs, one process each, limit 180 s | Rows, CPU |
+| onecall | 8 files, 3 value commands, a fresh process, 11 runs | Milliseconds (minimum) |
+| memory | Peak RSS at import, 1, 300 and 868 inputs | MB |
+| threads | 4 threads on one detector, answers against one thread | Counts |
+| damage | 10 damaged copies of the side's database (stored codes) | Rows against the intact build |
+
+Labels are not a run: `compare --inputs` counts agree, other and none of the
+225 real files with one declared ID, at 0.85, 0.7 and 0.5, from the core
+result. The roadmap set holds the real files of item 68 (the 23 that the
+0.9.4 core run gives, with the 2 files of Pillow), the inputs of items 11 and
+61 (a slice of Apache-2.0, MIT and HPND under copyright lines, six licences
+under two copyright lines among them `RHeCos-1.1` and `BSD-ask-to-endorse`,
+HPND's core), the licence files of wcwidth, mypy_extensions, certifi, numpy,
+sympy and Pillow, and the HPND family of item 64. Item 62 (100,000 `License:`
+lines) is a test of its own, not here. The 18 many-text inputs of cores are in
+addition to the 165 of the plan.
+
+Not built yet, and added by the task that makes them: damage of the postings
+(task T2), the per-entry checks table of the stored codes (T6: two damage kinds
+are recorded as not applicable until then), and the Versions set (T7). Not
+measured by this tool, so `compare` prints them as not measured: the 462 PyPI
+values, the accuracy test, the golden answers, `--diff`, storage alone and the
+platforms.
+
+### Gates that `compare` prints
+
+Core CPU (12 times), real file median (15 ms), One call (0.3 s; MIT and
+BSD-3-Clause 0.15 s), no class slower (1.2 times, per input kind and per stress
+input, kinds under 0.05 s are not judged), labels (agree 190, other 16),
+fixtures (right not lower, wrong not higher), prose (top answer the same),
+`TEXTS` (many texts; options where the answer is the same), roadmap inputs
+(0.2 s), item 68 (no new answer on an HPND-family fragment), damage (equal to
+the intact build, or to its reference where the text itself changed), threads,
+memory (no peak over the base, 1 MB of slack), database size (under 20 MB).
+
+### Tests
+
+`tests/test_speedgate.py` (manifest, builders, comparison and gates on made-up
+results, no corpus or database needed) and `tests/test_speedgate_child.py`
+(child process on a fake side, damaged copies, tarball; POSIX only, listed in
+`tests/platform_files.py`, which skips it on Windows).
+
 ## Other paths worth knowing
 
 - Real (non-benchmark) on-disk DB: `~/.local/share/licenseid/licenses.db`,
@@ -78,5 +194,5 @@ Markdown tables in `summary.md`.
 ## Also in this directory
 
 - `bench_fts5_recall.py` — standalone FTS5 pool-recall probe, not part of
-  the main/current comparison flow above.
+  the main/current comparison flow above (a later task removes it).
 - `summary.md` — output of the most recent `bench_compare.py` run.

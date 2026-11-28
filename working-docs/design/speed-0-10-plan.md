@@ -394,6 +394,11 @@ T2 to T7 land on the integration branch of Q8.
 | T8 | Faster start-up | Package `__init__` and commands loaded at use, with a name table for help and "did you mean"; `--version` 86 to about 50 ms; same output; to `main` | Sonnet | medium |
 | R1 | Review and release gates | One independent review of T1 to T8 together; section 6.2 against 0.9.4; hold-out set; item 68's 25 files measured again; docs; then the merge to `main` | **Opus** | **high** |
 
+Build note, 2026-11-27: the rule of D6 and the removal of the code for
+older files are built before T2, as a layer of their own ("T2a"), so that
+no later task carries dead code; T2 then adds its tables to one shape, and
+T7 is the FTS5 table alone.
+
 Order: T1 and T8 are independent. T3 needs T2. T4 and T5 need T3; T5 is
 easier after T4. T6 needs T5. T7 comes last of the engine tasks: after T3
 no code runs an FTS5 query, and after T6 every reader of the texts is one
