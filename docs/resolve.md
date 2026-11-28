@@ -590,8 +590,11 @@ A value with both IDs of a pair that is one licence under a name with a `/`
 is refused, in any order and place (`MIT/X11/ISC`, `X11/MIT`), by a table
 (`resolveslash.REFUSED_PAIRS`, with its reasons in
 [the lists page](lists.md#ids-joined-by-a-slash)); another pair needs a
-measured count. The value is also refused when its `OR` form is over 2,000
-characters.
+measured count. A value of two IDs that is also one List ID with a `/` for
+its `-` is refused too, as either may be meant: `HPND/DOC` (`HPND-doc`) and
+`HPND/Intel` (`HPND-Intel`) are `character dropped: U+002F`, while
+`DOC/HPND` is `DOC OR HPND`. The value is also refused when its `OR` form is
+over 2,000 characters.
 
 ## Steps and categories
 
