@@ -304,7 +304,9 @@ sigstore-rekor-types). Same on 0.10.0 for rfc8785's file: `Apache-2.0`
 1.0000, `Pixar` 0.9947, `ImageMagick` 0.9871, and `TEXTS=Apache-2.0` on
 each row, the evidence item 68 reads. Done when an unmodified Apache 2.0
 text is decisively `Apache-2.0` (Pixar's clause is absent), with that file
-as a fixture, and a real Pixar text still answers `Pixar`.
+as a fixture, and a real Pixar text still answers `Pixar`. Decided
+2026-11-28: a runner-up that `TEXTS` does not name is not listed beside a
+text found whole, so that file answers `Apache-2.0` alone.
 
 - Impact 3, Risk 2, Effort 3.
 

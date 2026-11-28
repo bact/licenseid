@@ -468,6 +468,10 @@ answer (now), `DOC OR HPND` (both orders alike, as above), or the one ID
 (`HPND-doc`). The PyPI sample holds no such value: count real ones before
 choosing.
 
+Decided 2026-11-28: no answer stands until real values are counted (the
+registry entries of the sbomminbench project are one place). The item
+stays open as that measurement.
+
 Impact 2, Risk 2, Effort 3.
 
 ## 79. Licence families and the relation of two licences — Priority 14
@@ -494,6 +498,40 @@ whether it follows `TROVE_CLASSIFIERS_VERSION`; what a licence with no
 family answers; how `-only`, `-or-later`, `AND` and `OR` map onto narrowing
 and widening; whether free-text short names (`BSD`, `Expat license`) are
 read; how a narrowing is reported.
+
+Decided by the maintainer, 2026-11-28 (the working note starts here):
+
+- **Name.** A family is named by its trove classifier (`BSD License`); no
+  names of ours. `family_of("BSD-3-Clause")` gives that name.
+- **Data.** A table of ours beside `TROVE_NAMES`: each row with its source
+  and a measured count of real packages, on the generated lists page,
+  pinned to `TROVE_CLASSIFIERS_VERSION`. The List has no family field. Its
+  ID prefixes (`BSD-` 43 IDs, `GPL-` 19, `LGPL-` 12, `Artistic-` 5,
+  `Apache-` 3, `ZPL-` 3) and names may propose rows and never answer alone:
+  they take in `GPL-2.0-with-GCC-exception` and `BSD-Protection`, miss
+  `0BSD`, and `AMPAS` has "BSD" in its name.
+- **No classifier.** A family that no classifier names (Creative Commons,
+  EUPL, CeCILL) answers nothing until a consumer shows packages that need
+  it, with a count.
+- **Scope.** `in_family()` and `family_of()` first; `relation()` waits, and
+  with it the rules for narrowing and widening of `-only`, `-or-later`,
+  `AND` and `OR`, and how a narrowing is reported.
+- **Many or none.** `family_of()` gives a tuple, empty for none. Several is
+  real: `GPL-3.0-only` is under `GNU General Public License (GPL)` and
+  under `GNU General Public License v3 (GPLv3)`, as is every GPL and LGPL
+  version. Still to decide by a count, row by row: `0BSD` under `BSD
+  License` (it has a classifier of its own), `Python-2.0` under which
+  Python classifier. `MIT-0` has its own and is not `MIT License`.
+- **Short names.** Free-text names of a `License` header (`BSD`, `Expat
+  license`, `PSFL`) are not read: classifiers only. In Pitloom's 15
+  packages each such header has a classifier that answers.
+- **Input.** One licence only: an ID, its `-only`, `-or-later` or `+` form
+  read as that licence's family. An `AND` or `OR` expression answers None.
+
+Of the 35 classifiers that name no ID today, 10 are not licences
+(`Freeware`, `OSI Approved`, `Public Domain`, ...) and 25 name a licence or
+a family (`BSD License`, `Artistic License`, `GUST Font License 1.0`):
+which of the 25 are families is the table's first job.
 
 Done when: the note is agreed, the functions answer Pitloom's cases with
 tests, `docs/python-api.md` describes them, and Pitloom can drop its table.
@@ -526,6 +564,26 @@ intended, or say why not, and list the workaround Pitloom could then drop.
 
 Only finding 3 was run again here; the rest wait for the work itself.
 
+Decided by the maintainer, 2026-11-28, each to be checked against the
+reproducer on the current release first:
+
+- 3: the public result caps `coverage` at 1, as it caps the score; ranking
+  keeps the raw value. No key changes.
+- 4: one message for the CLI and the API, and its action names the offline
+  form too (`--source packaged`); a hint raised to an API caller names
+  `db_path`, not `--db`.
+- 6: a deprecated ID's List name is read as that ID is read: same category
+  and candidates.
+- 7: no new key. A short table in `docs/resolve.md` says what to do with
+  each `trust` value (record, record with a note, do not record).
+- 8: document the rule: a component is named only when it took part in the
+  reading. No value moves.
+- 9: document a small read API of the database as stable (the List's
+  version, its IDs and names, one licence's details) and say the rest may
+  change. No rename.
+
+Findings 2, 5 and 10 have no decision yet.
+
 Impact 3, Risk 2, Effort 3.
 
 ## 81. A licence file that is one `SPDX-License-Identifier` line — Priority 15
@@ -537,5 +595,11 @@ SPDX-License-Identifier line in a licence file is read as text" of its
 line and return its expression? Pitloom records such a file as custom text.
 Answer first whether this belongs in licenseid or in Pitloom; no code
 unless the maintainer agrees.
+
+Answered 2026-11-28: in Pitloom. `detect()` already reads such a file: one
+line `SPDX-License-Identifier: MIT OR Apache-2.0` answers `Apache-2.0 OR
+MIT`, method `tag`, exact (0.10.0); `read_license_text` is Pitloom's own
+function. Pitloom can take an answer whose method is `tag` as the stated
+expression. Left here: an example of that case in `docs/python-api.md`.
 
 Impact 2, Risk 1, Effort 1.
