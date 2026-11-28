@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-11-27
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -10,7 +10,8 @@ SPDX-License-Identifier: Apache-2.0
 # Database readiness gate (PR #55)
 
 What shipped is in `CHANGELOG.md`; the open items are in
-[`../design/tech-debt-roadmap.md`](../design/tech-debt-roadmap.md) item 10.
+[`../design/tech-debt-roadmap-data.md`](../design/tech-debt-roadmap-data.md)
+item 10.
 This file records what was counter-intuitive, what took several rounds to
 find, and the habits that produced or caught those findings.
 

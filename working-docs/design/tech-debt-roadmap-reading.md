@@ -13,12 +13,12 @@ The open items on reading a declared value or a name: `resolve()` and its
 parser, the name tier (Tier 0), `--variant` and `EXACT`, and the lists page.
 Split from [`tech-debt-roadmap.md`](tech-debt-roadmap.md) on 2026-11-24 at
 the size limit; that file explains the priority score and the item numbers
-(shared by both files, never reused) and links the resolved items.
+(shared by the three files, never reused) and links the resolved items.
 
 Items 79 to 81 are what Pitloom, which reads licences through licenseid,
 reported on 2026-11-28 (its notes are in the repository `bact/pitloom`,
-under `working-docs/`). They run after or beside items 68 to 70 of the
-other file; Pitloom's own order is 79, item 13 there, 80, 81. Rules for all
+under `working-docs/`). They run after or beside items 68 to 70 of that
+file; Pitloom's own order is 79, item 13 there, 80, 81. Rules for all
 of them: run each reproducer again on the current release first and drop
 what no longer shows, saying which release Pitloom last checked; ask the
 maintainer before a public name or a return shape changes (an addition is

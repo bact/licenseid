@@ -1,6 +1,6 @@
 ---
 Created: 2026-11-17
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -257,7 +257,7 @@ Tier 0 (`shorttext.match_name_tier`) that the rest of the input doubts.
 - **Not verified**: Windows and Python 3.14 (no run in this session; CI
   decides).
 - **Open leftovers**: listed once, with their counts, under item 47 of
-  [`../design/tech-debt-roadmap.md`](../design/tech-debt-roadmap.md).
+  [`../design/tech-debt-roadmap-reading.md`](../design/tech-debt-roadmap-reading.md).
 
 ## Grant reader refusals (items 20, 46, 50, 52, 54; PR #221, 2026-11-17)
 
