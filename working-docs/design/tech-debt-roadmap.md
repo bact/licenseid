@@ -96,10 +96,10 @@ the en dash `–` in `Data licence Germany – attribution – version 2.0`).
   tag with one ID and a predicate on one ID answer; `MIT OR Apache-2.0`,
   `MIT AND ISC` and a tag with `OR` die with the same traceback, exit 1.
   `docs/installation.md` says so.
-- The CLI matrix flags of this item are `E2-082` to `E2-090` (bash) in
-  `tools/cli_matrix/baseline.txt`. On 0.10.0 they no longer flag (`--check`
-  reports them FIXED): none of the nine commands parses an `AND` or `OR`,
-  so the matrix does not see this item until a locale cell does.
+- The CLI matrix flag of this item is `E2-109` (bash) in
+  `tools/cli_matrix/baseline.txt`: `resolve 'MIT OR Apache-2.0'` under the
+  eucJP locale, a cell added for 0.10.0. `E2-082` to `E2-090`, its flags up
+  to 0.9.4, parse no `AND` or `OR` and pass now.
 - Impact 2, Risk 3, Effort 2.
 
 ## 28. A two- or three-word phrase from a licence text scores 1.0 — Priority 10

@@ -5,15 +5,7 @@
 # it: it is an open finding, not an accepted behaviour. Remove the
 # line when the defect is fixed; `--check` then reports it as FIXED.
 #
-# Generated: 2026-09-19 on Darwin arm64
-# Run: 2504 executions, 924 PASS, 1533 OBSERVE, 47 FLAG
+# Generated: 2026-11-28 on Darwin arm64
+# Run: 2934 executions, 1686 PASS, 1246 OBSERVE, 2 FLAG
 #
-E2-082 bash
-E2-083 bash
-E2-084 bash
-E2-085 bash
-E2-086 bash
-E2-087 bash
-E2-088 bash
-E2-089 bash
-E2-090 bash
+E2-109 bash
