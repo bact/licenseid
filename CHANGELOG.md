@@ -17,6 +17,7 @@ and this project adheres to
   `detect` no longer lists a look-alike that nothing names (`Pixar` 0.99
   under a verbatim Apache 2.0 file): the results are the licences of that
   text and any a marker or `hint` names; the first result is unchanged
+  ([#256])
 
 ## [0.10.0] - 2026-11-28
 
@@ -304,6 +305,7 @@ and this project adheres to
 [#246]: https://github.com/bact/licenseid/pull/246
 [#247]: https://github.com/bact/licenseid/pull/247
 [#249]: https://github.com/bact/licenseid/pull/249
+[#256]: https://github.com/bact/licenseid/pull/256
 
 ## [0.8.4] - 2026-11-09
 
