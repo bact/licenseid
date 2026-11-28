@@ -7,7 +7,7 @@
 SPDX License ID detection package.
 """
 
-__version__ = "0.9.4"
+__version__ = "0.10.0"
 
 import importlib
 import typing

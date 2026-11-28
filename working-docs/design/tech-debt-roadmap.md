@@ -23,11 +23,11 @@ and pinned, 2026-11-17), 53 (a known limit, 2026-11-18), 56 (a hang in the
 CLI matrix, found 2026-11-16), 35 and 67 (the marker floor, 2026-11-25) are
 resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
-Item 2 waits on an upstream release. Next, after release 0.9.4 (PR #246,
-PR #247): the new detection engine of release 0.10.0, then item 68, then
-items 69 and 70 (decided 2026-11-27). Items 71 to 75 were found while
-that engine was built; 72 waits on 71. Items 76 to 78 (2026-11-28) are
-for after 0.10.0. The open items
+Item 2 waits on an upstream release. Release 0.10.0 (2026-11-28) is the
+new detection engine (PR #249). Next: item 68, then items 69 and 70
+(decided 2026-11-27). Items 71 to 75 were found while that engine was
+built; 72 waits on 71. Items 76 to 78 (2026-11-28) are for after 0.10.0.
+The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
