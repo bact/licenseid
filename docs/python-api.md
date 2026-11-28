@@ -89,7 +89,7 @@ detector.texts(file_path="LICENSE.txt")
 flag must be a `bool`, and `exclude` and `hint` a list, tuple, set or
 frozenset of `str`: any other value raises `TypeError` (a bare `"MIT"`, a
 dict, a generator). Every call checks them. All but `variant` (below) act
-only where licence text is matched (Tiers 1 and 2): `exclude`,
+only where licence text is matched: `exclude`,
 `only_common` and `only_spdx` drop candidates, `hint` adds candidates (and
 those three drop them too; a hinted licence not among the texts of a file of
 several licences is dropped where a marker's floor is taken back), and
@@ -153,7 +153,8 @@ excluded: a near name is not the name the input holds. `exclude=["GPL-2.0-only"]
 on "licensed under the GNU General Public License v2.0 only" answers no name
 (not `GPL-1.0-only`), and from 10 words on the word search reads the rest. A
 text under 10 words with nothing left answers `[]` and warns `too few words
-for text`. A short text never uses `hint`: Tier 0 adds no candidates.
+for text`. A short text never uses `hint`: the lookup of names and IDs
+adds no candidates.
 
 `hint` adds each ID it finds in the database as a candidate, after the
 others (the word search, a heading or title), so a hint never takes the place
@@ -203,8 +204,8 @@ A hinted candidate has its own text, so it ranks on its similarity to the
 input, as any candidate does, for the first 50 entries of `hint` (a set in
 sorted order; a bare deprecated ID counts as its two twins; an ID given
 twice, with no row, or dropped by `exclude`, `only_spdx` or `only_common`
-uses no place). Each costs a pass of the
-second tier: on the full List the MIT text takes 0.007 s with no hint, 0.1 s
+uses no place). Each costs one more text
+to score: on the full List the MIT text takes 0.007 s with no hint, 0.1 s
 with 10 and 0.4 s with 50 (on one laptop), about 8 ms for each hinted text.
 No entry beyond the fiftieth adds to it: it is added with no text and scores
 0, last (0.4 s with 200 hints, and with all of the List's IDs). A deprecated row

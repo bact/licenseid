@@ -115,8 +115,8 @@ declares, as an SBOM tool does.
   form, rule by rule.
 - [Lists][doc-lists]: the lists `resolve()` reads (BSD names, titles,
   classifier names, licence URLs) and its named rules, with their sources.
-- [How it works][doc-how-it-works]: ID normalisation, expressions and the
-  matching tiers.
+- [How it works][doc-how-it-works]: ID normalisation, expressions and how
+  a text is matched.
 - [Development][doc-development]: running the tests.
 
 [doc-installation]: https://github.com/bact/licenseid/blob/main/docs/installation.md
