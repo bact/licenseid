@@ -57,10 +57,9 @@ fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 import os
 import threading
 import weakref
-from typing import NamedTuple, get_args
+from typing import TYPE_CHECKING, NamedTuple, Union, get_args
 
 from licenseid import listindex
-from licenseid.database import LicenseDatabase, is_current_build
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, one_line
@@ -68,6 +67,11 @@ from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import ListSource, Source
 from licenseid.spdxdata import PACKAGED_NAME, is_older
 from licenseid.warning import once, parts, warn
+
+if TYPE_CHECKING:
+    # Imported where used: the module loads RapidFuzz and the rest of the
+    # detector, which a run that reads the packaged list never needs (start-up).
+    from licenseid.database import LicenseDatabase
 
 SOURCES: tuple[Source, ...] = get_args(Source)
 
@@ -97,11 +101,12 @@ _checked: "weakref.WeakKeyDictionary[LicenseDatabase, tuple[int, ...] | None]" =
     weakref.WeakKeyDictionary()
 )
 _KEPT_PATHS = 8
-_paths: dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]] = {}
+_paths: "dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]]" = {}
 
 
 #: What ``resolve(db=...)`` takes: a database, or the path of one.
-GivenDatabase = str | os.PathLike[str] | LicenseDatabase
+# Union, not "|": the class is only imported for type checking.
+GivenDatabase = Union[str, os.PathLike[str], "LicenseDatabase"]
 
 
 def choose_list(
@@ -129,7 +134,7 @@ def choose_list(
     return _kept_choice(source)
 
 
-def given_database(db: GivenDatabase) -> LicenseDatabase:
+def given_database(db: GivenDatabase) -> "LicenseDatabase":
     """The database *db* is or names, ready to read. A path opens without
     ``create``, after the check, so a missing file is ``not found`` and none
     is made; every database, given or opened, passes
@@ -138,6 +143,8 @@ def given_database(db: GivenDatabase) -> LicenseDatabase:
     The check costs more than a lookup, so a verdict is kept while the file
     keeps its stamp (:func:`file_stamp`), per handle and per path, as the
     choice of ``auto`` is: a value resolved in a loop is checked once."""
+    from licenseid.database import LicenseDatabase  # start-up
+
     if isinstance(db, LicenseDatabase):
         stamp = file_stamp(str(db.db_path))
         with _CHOICE_LOCK:
@@ -158,7 +165,7 @@ def given_database(db: GivenDatabase) -> LicenseDatabase:
     return _opened(path)
 
 
-def _opened(path: str) -> LicenseDatabase:
+def _opened(path: str) -> "LicenseDatabase":
     """The database at *path*, checked and opened, kept while its file keeps
     its stamp (the last few paths only)."""
     stamp = file_stamp(path)
@@ -167,6 +174,8 @@ def _opened(path: str) -> LicenseDatabase:
     if kept is not None and kept[0] == stamp:
         return kept[1]
     check_database_ready(path)
+    from licenseid.database import LicenseDatabase  # start-up
+
     with once():
         database = LicenseDatabase(path, create=False)
     if not isinstance(stamp, Exception):
@@ -248,6 +257,8 @@ def _choose(mode: Source, path: str | None) -> tuple[ListLookup, ListSource, boo
     if mode == "database":
         path = get_default_db_path() if path is None else path
         check_database_ready(path)  # what auto calls unusable, this refuses
+        from licenseid.database import LicenseDatabase  # start-up
+
         with once():
             database = LicenseDatabase(path, create=False)
         return database, "database", True
@@ -260,6 +271,8 @@ def _auto(path: str | None) -> tuple[ListLookup, ListSource, bool]:
     try:
         path = get_default_db_path() if path is None else path
         check_database_ready(path)
+        from licenseid.database import LicenseDatabase, is_current_build  # start-up
+
         with once():
             database = LicenseDatabase(path, create=False)
         metadata = database.get_metadata()

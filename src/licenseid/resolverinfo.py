@@ -10,7 +10,6 @@ Apart from ``licenseid.resolver`` so that the entry point stays small.
 """
 
 import importlib
-import importlib.metadata
 
 from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import (
@@ -82,7 +81,9 @@ def resolver_info() -> ToolInfo:
 def parser_info() -> ToolInfo:
     """The expression parser, ``py-spdx-license``, as a component: named in an
     answer whose expression it parsed. Its version is the installed one."""
-    version = importlib.metadata.version(_PARSER)
+    from importlib import metadata  # start-up: 8 ms, not every answer names it
+
+    version = metadata.version(_PARSER)
     return {
         "name": _PARSER,
         "version": version,

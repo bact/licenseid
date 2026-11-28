@@ -121,7 +121,8 @@ in another module.
   `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
   `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
   setup.cfg; a TOML basic string decoded, a literal one not).
-- CLI: `cli` (group, `main`), `cliinput` (one of file, value, `--text`, `--id`,
+- CLI: `cli` (group, `main`), `clicommands` (the command table, loaded at use),
+  `cliinput` (one of file, value, `--text`, `--id`,
   `-`), `clidetect` (`detect`, `is-*`), `cliupdate` (`update`, `clear-cache`),
   `cliresolve`, `clicommon`, `output`, `console`, `usage`, `errors`, `warning`.
 
@@ -566,6 +567,14 @@ and `--json`) against these rules and checks the default output against the
   candidate costs a Tier 1/2 score) against `main`, with distinct values and
   balanced payloads; report a case over 2x `main`, do not judge it fine. Keep
   deep nesting away from the parser.
+- Start-up: `import licenseid`, `--version` and `--help` load no detector,
+  RapidFuzz, SQLite or `requests`; `resolve` of a value loads no detector or
+  RapidFuzz.
+  A public name goes in the `_HOME` table of `__init__` (with `__all__` and its
+  `TYPE_CHECKING` import), a command in `clicommands.COMMANDS` with the first
+  paragraph of its help. An import moved into a function, or under
+  `TYPE_CHECKING`, for start-up carries a comment saying so.
+  `tests/test_startup.py` lists what must stay unloaded.
 - Timing tests: 10x headroom; a bound is `slack(seconds)`
   (`tests/timing.py`, scales for `coverage` and `-n`), never for a ratio of
   sizes. A large input or tight bound is `@pytest.mark.benchmark`

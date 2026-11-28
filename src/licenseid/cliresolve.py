@@ -26,7 +26,7 @@ written (``output.echo``).
 """
 
 import os
-from typing import get_args
+from typing import TYPE_CHECKING, get_args
 
 import click
 
@@ -39,13 +39,15 @@ from licenseid.clicommon import (
     verbose_option,
 )
 from licenseid.cliinput import STDIN_ARGUMENT
-from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import check_database_ready
 from licenseid.errors import one_line
 from licenseid.output import echo, echo_json
 from licenseid.resolver import MAX_EXPRESSION_CHARS, read_length, resolve
 from licenseid.resolvertypes import Resolution, Source
 from licenseid.result import json_line, resolution_lines
+
+if TYPE_CHECKING:
+    from licenseid.database import LicenseDatabase
 
 #: The ACTION of every refusal: the value is for ``detect``.
 TO_DETECT = "; run 'licenseid detect'"
@@ -100,7 +102,7 @@ def reject_a_path(ctx: click.Context, value: str, resolution: Resolution) -> Non
         exit_bad_input(ctx, f"invalid: path: {one_line(value)}{TO_DETECT}")
 
 
-def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None:
+def given_database(ctx: click.Context, source: Source) -> "LicenseDatabase | None":
     """The database ``--db`` names, opened as ``resolve(value, db)`` reads it,
     or None when it names none (the list ``--source`` names is read). An
     unready one raises ``DatabaseNotReadyError``, which the group words."""
@@ -113,6 +115,9 @@ def given_database(ctx: click.Context, source: Source) -> LicenseDatabase | None
         )
     db_path = ctx.obj["db_path"]
     check_database_ready(db_path)
+    # Imported here: the module loads RapidFuzz (start-up).
+    from licenseid.database import LicenseDatabase
+
     return LicenseDatabase(db_path, create=False)
 
 
@@ -167,3 +172,7 @@ def resolve_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     else:  # the expression alone; an empty line for none
         echo(resolution["expression"] or "")
     ctx.exit(0 if resolution["expression"] is not None else 1)
+
+
+# What `licenseid.clicommands` loads when this name is asked for.
+COMMANDS: tuple[click.Command, ...] = (resolve_command,)

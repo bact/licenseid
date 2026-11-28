@@ -20,6 +20,8 @@ and this project adheres to
   1.39 s to 1.06 s); every answer, score and warning is unchanged
 - Database build 8 (3.4 MB more) stores the word 3-gram postings of every
   licence text, for the faster text search to come; nothing reads them yet
+- `import licenseid` and `licenseid --version` start in about a third of the
+  time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
 
 ## [0.9.4] - 2026-11-27
 

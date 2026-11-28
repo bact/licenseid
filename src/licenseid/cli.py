@@ -7,20 +7,15 @@
 Command-line interface for the licenseid tool.
 """
 
-import sqlite3
 import sys
 from typing import Any
 
 import click
 
 from licenseid import __version__
+from licenseid.clicommands import LazyCommands, short_help
 from licenseid.clicommon import LicenseIdCommand, exit_usage_error, printed_warnings
-from licenseid.clidetect import PREDICATE_COMMANDS, detect_command
-from licenseid.cliresolve import resolve_command
-from licenseid.cliupdate import clear_cache_command, update_command
 from licenseid.console import end_line, write
-from licenseid.datadir import get_default_db_path
-from licenseid.dbcheck import unreadable_error
 from licenseid.errors import DatabaseNotReadyError
 from licenseid.output import EchoHelpCommand, OutputError, echo, output_failed
 from licenseid.usage import UsageLineError, UsageLineGroup
@@ -46,6 +41,17 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
 
     command_class = LicenseIdCommand
 
+    def format_commands(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
+        """The command list click writes, from the table of
+        ``licenseid.clicommands``: no command module is imported for it."""
+        names = self.list_commands(ctx)
+        limit = formatter.width - 6 - max(len(name) for name in names)
+        rows = [(name, short_help(name, limit)) for name in names]
+        with formatter.section("Commands"):
+            formatter.write_dl(rows)
+
     def main(self, *args: Any, **kwargs: Any) -> Any:
         """Run the command with the library's warnings printed as
         ``WARNING:`` lines (``clicommon.printed_warnings``): in click's
@@ -63,7 +69,14 @@ class DatabaseErrorGroup(UsageLineGroup, EchoHelpCommand):
             raise click.exceptions.Exit(output_failed(exc)) from exc
         except DatabaseNotReadyError as exc:
             exit_usage_error(ctx, str(exc))
-        except sqlite3.Error as exc:
+        except Exception as exc:
+            # An sqlite3.Error exists only once sqlite3 is imported, so a run
+            # that never loaded it (`--help`) need not (start-up).
+            sqlite3 = sys.modules.get("sqlite3")
+            if sqlite3 is None or not isinstance(exc, sqlite3.Error):
+                raise
+            from licenseid.dbcheck import unreadable_error
+
             exit_usage_error(ctx, str(unreadable_error(ctx.obj["db_path"], exc)))
 
 
@@ -78,6 +91,14 @@ class _WithoutDatabase(dict[str, Any]):
 
     def __missing__(self, key: str) -> Any:
         raise self.cause
+
+
+def get_default_db_path() -> str:
+    """``licenseid.datadir.get_default_db_path``, imported at the call: its
+    module loads SQLite, which `--version` and `--help` never need."""
+    from licenseid.datadir import get_default_db_path as default
+
+    return default()
 
 
 def show_version(ctx: click.Context, _param: click.Parameter, value: bool) -> None:
@@ -120,10 +141,8 @@ def cli(ctx: click.Context, db: str | None) -> None:
         ctx.exit(2)
 
 
-for _command in (detect_command, resolve_command, *PREDICATE_COMMANDS):
-    cli.add_command(_command)
-cli.add_command(update_command)
-cli.add_command(clear_cache_command)
+# A command's module is imported when its name is asked for (start-up).
+cli.commands = LazyCommands()
 
 
 def main() -> None:

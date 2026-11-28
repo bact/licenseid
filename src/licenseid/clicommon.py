@@ -15,7 +15,7 @@ import contextlib
 import sys
 import warnings
 from collections.abc import Iterator
-from typing import NoReturn, TextIO
+from typing import TYPE_CHECKING, NoReturn, TextIO
 
 import click
 
@@ -23,10 +23,11 @@ from licenseid.console import error, warn
 from licenseid.errors import InvalidInputError
 from licenseid.exprtokens import WHITE_SPACE
 from licenseid.output import EchoHelpCommand, echo, echo_json
-from licenseid.result import FieldValue, fields_line, record_json
-from licenseid.textinput import reject_binary, reject_lone_surrogate
 from licenseid.usage import UsageLineCommand
 from licenseid.warning import LicenseIdWarning
+
+if TYPE_CHECKING:
+    from licenseid.result import FieldValue
 
 
 class LicenseIdCommand(UsageLineCommand, EchoHelpCommand):
@@ -55,10 +56,13 @@ verbose_option = click.option(
 )
 
 
-def echo_record(json_output: bool, **values: FieldValue) -> None:
+def echo_record(json_output: bool, **values: "FieldValue") -> None:
     """Print one result record: ``KEY=VALUE`` fields (``result.fields_line``)
     or, with *json_output*, the same record as one JSON object with the keys
     in lower case (``result.record_json``)."""
+    # Imported here: `result` pulls in the whole resolver (start-up).
+    from licenseid.result import fields_line, record_json
+
     if json_output:
         echo_json(record_json(**values))
     else:
@@ -93,6 +97,9 @@ def reject_unencodable(
     """Exit with a usage error (2) if text from the command line has a lone
     surrogate (an argument of invalid UTF-8 decodes to one) or, given
     *binary_source*, a NUL."""
+    # Imported here: `textinput` is not needed by `--help` (start-up).
+    from licenseid.textinput import reject_binary, reject_lone_surrogate
+
     try:
         if binary_source is not None:
             reject_binary(content, binary_source)

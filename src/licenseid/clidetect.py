@@ -368,3 +368,6 @@ PREDICATE_COMMANDS: tuple[click.Command, ...] = (
         lambda record: record["is_spdx"],
     ),
 )
+
+# What `licenseid.clicommands` loads when one of these names is asked for.
+COMMANDS: tuple[click.Command, ...] = (detect_command, *PREDICATE_COMMANDS)
