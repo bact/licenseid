@@ -16,7 +16,6 @@ import os
 import shutil
 import sqlite3
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -93,53 +92,24 @@ def test_lookup_does_not_recreate_a_deleted_database(
         LicenseDetector(db_path=str(path))
 
 
-def _null_norm_columns(path: Path) -> None:
-    with writer(path) as conn:
-        conn.execute("UPDATE licenses SET norm_license_id = NULL, norm_name = NULL")
-
-
 def _fingerprint(path: Path) -> tuple[bytes, int]:
     return path.read_bytes(), path.stat().st_mtime_ns
 
 
-def test_rows_without_norm_columns_are_normalised_not_written(
-    tmp_path: Path, connects: list[bool]
+@pytest.mark.parametrize("column", ["norm_license_id", "norm_name"])
+def test_rows_without_norm_columns_are_not_ready_and_not_written(
+    tmp_path: Path, column: str
 ) -> None:
-    """A lookup never writes: a row that lacks its normalised columns is
-    normalised in memory."""
+    """A lookup never writes and fills nothing in memory: a row without its
+    normalised columns, which ``update`` always writes, is ``empty``."""
     path = make_ready_file_db(tmp_path / "e.db")
-    _null_norm_columns(path)
+    with writer(path) as conn:
+        conn.execute(f"UPDATE licenses SET {column} = NULL")
     before = _fingerprint(path)
-    db = LicenseDatabase(str(path), create=False)
-    connects.clear()
-    names = db.get_all_names_and_ids()
-    assert names
-    assert all(n["norm_license_id"] and isinstance(n["norm_name"], str) for n in names)
-    assert connects == [False] * len(connects), connects
+    for opener in (LicenseDetector, lambda p: LicenseDatabase(p, create=False)):
+        with pytest.raises(DatabaseNotReadyError, match="^database: empty: "):
+            opener(str(path))
     assert _fingerprint(path) == before, "the lookup wrote to the database"
-
-
-@posix_only  # chmod only sets a read-only flag on Windows
-@pytest.mark.skipif(IS_ROOT, reason="root ignores file permissions")
-def test_a_read_only_database_without_norm_columns_still_answers(
-    tmp_path: Path,
-) -> None:
-    path = make_ready_file_db(tmp_path / "ro.db")
-    _null_norm_columns(path)
-    path.chmod(0o444)
-    matcher = LicenseDetector(db_path=str(path))
-    assert matcher.detect("MIT")[0]["expression"] == "MIT"
-
-
-def test_concurrent_lookups_on_rows_without_norm_columns(tmp_path: Path) -> None:
-    path = make_ready_file_db(tmp_path / "g.db")
-    _null_norm_columns(path)
-    before = _fingerprint(path)
-    matcher = LicenseDetector(db_path=str(path))
-    with ThreadPoolExecutor(4) as pool:
-        results = list(pool.map(lambda _: matcher.detect("MIT"), range(8)))
-    assert all(r and r[0]["expression"] == "MIT" for r in results)
-    assert _fingerprint(path) == before
 
 
 def test_a_read_failing_during_update_is_an_update_failure(

@@ -21,10 +21,10 @@ from packaged_list import database_of, synthetic_bundle
 
 from licenseid import database as database_module
 from licenseid.database import LicenseDatabase
-from licenseid.dbschema import SCHEMA_OBJECTS
+from licenseid.dbschema import BUILD_VERSION, SCHEMA_OBJECTS
 from licenseid.listlookup import ListedUrl, UrlRow, index_urls
 from licenseid.listrules import listed_urls
-from licenseid.records import BUILD_VERSION, Records, build_records
+from licenseid.records import Records, build_records
 from licenseid.spdxdata import SpdxData
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 

@@ -6,12 +6,13 @@
 """
 Check that a license database is ready to answer, before anything opens it.
 
-``LicenseDatabase`` creates the tables a file lacks (unless made with
-``create=False``), so an unready file opened through it could be written to,
-and a partly built database would answer that it knows no such licence as if
-it were complete. The check here opens the file read-only and never writes to
-it. Another program's file is refused by :func:`reject_foreign_database`,
-which the handle itself calls before it writes.
+Ready is the one shape of this build (``dbschema``): a partly built
+database would answer that it knows no such licence as if it were complete,
+and one of older rules or an older shape is not read at all (``build vN
+outdated``; ``update`` builds it again). The check here opens the file
+read-only and never writes to it. Another program's file is refused by
+:func:`reject_foreign_database`, which the handle itself calls before it
+writes.
 
 Standard library, ``dbschema`` and ``errors`` only, so importing it does
 not pull in ``requests``.
@@ -27,7 +28,7 @@ from pathlib import Path, PurePath, PureWindowsPath
 from typing import cast
 from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
-from licenseid.dbschema import SCHEMA_OBJECTS
+from licenseid.dbschema import SCHEMA_OBJECTS, has_shape, stamped_rules
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, fold, shown
 
 _IS_WINDOWS = os.name == "nt"
@@ -333,11 +334,6 @@ def unreadable_error(db_path: str, exc: Exception) -> DatabaseNotReadyError:
     return refused("unreadable", _unreadable_detail(db_path, exc))
 
 
-def empty_error(db_path: str) -> DatabaseNotReadyError:
-    """The refusal for a file with none of licenseid's tables."""
-    return refused("empty", shown(db_path), _ACTION)
-
-
 def invalid_error(db_path: str) -> DatabaseNotReadyError:
     """The refusal for a file licenseid did not build and must not write to.
 
@@ -382,6 +378,15 @@ def _foreign_schema(conn: sqlite3.Connection, tables: dict[str, str]) -> bool:
         return True
     # A plain table of that name cannot be searched with MATCH.
     return "license_index" in tables and "fts5" not in tables["license_index"].lower()
+
+
+# A row whose normalised id or name, which ``update`` always writes and a
+# lookup reads as stored, is not text (NULL in a row a script inserted).
+_NORM_NOT_TEXT = """
+    SELECT 1 FROM licenses NOT INDEXED
+    WHERE typeof(norm_license_id) != 'text' OR typeof(norm_name) != 'text'
+    LIMIT 1
+"""
 
 
 def _has_content(conn: sqlite3.Connection) -> bool:
@@ -511,21 +516,47 @@ def reject_blocking_file(db_path: str) -> None:
             raise refusal[1]
 
 
+def connection_refusal(conn: sqlite3.Connection, db_path: str) -> Refusal | None:
+    """The refusal the contents of the file open on *conn* call for, or None
+    when it can answer. Reads only.
+
+    ``invalid`` is another program's file and ``empty`` one with too few
+    tables or rows (as :func:`_not_ready` says). A file licenseid built is
+    then judged by its stamps: one of older rules is ``outdated`` (``database:
+    build v6 outdated: current v7; run 'licenseid update'``, normalisation
+    first). Last, a file that lacks a table, index or column of this build,
+    whatever its stamp says, is ``empty``: a lookup has no second way to read
+    an older shape, and ``update`` builds it again. So is one with a row
+    whose normalised id or name is not text."""
+    condition = _not_ready(conn)
+    if condition == "invalid":
+        return condition, invalid_error(db_path)
+    if condition is not None:
+        return condition, refused(condition, shown(db_path), _ACTION)
+    stamps = dict(
+        conn.execute(
+            "SELECT key, value FROM db_metadata"
+            " WHERE key IN ('normalization_version', 'build_version')"
+        )
+    )
+    older = stamped_rules(stamps, newer=False)
+    if older:
+        return "outdated", refused(*older[0], _ACTION)
+    if not has_shape(conn) or conn.execute(_NORM_NOT_TEXT).fetchone():
+        return "empty", refused("empty", shown(db_path), _ACTION)
+    return None
+
+
 def _open_condition(db_path: str) -> Refusal | None:
     """The refusal the file's own contents call for, or None."""
     try:
         with contextlib.closing(
             sqlite3.connect(open_uri(db_path), uri=True, timeout=_BUSY_WAIT)
         ) as conn:
-            condition = _not_ready(conn)
+            return connection_refusal(conn, db_path)
     except (sqlite3.Error, UnicodeError, ValueError) as exc:
         failure = _open_failure(exc)
         return (failure, unreadable_error(db_path, exc)) if failure else None
-    if condition is None:
-        return None
-    if condition == "invalid":
-        return condition, invalid_error(db_path)
-    return condition, refused(condition, shown(db_path), _ACTION)
 
 
 def _refusal(db_path: str) -> Refusal | None:
@@ -659,11 +690,13 @@ def reject_blank_path(
         raise InvalidInputError(f"database: missing: {name}; {action}")
 
 
-def is_ready(db_path: str) -> bool:
-    """Whether *db_path* is a ready database, judged fail-closed: a file the
-    check could not read (``unknown``) is not, where
-    :func:`check_database_ready` lets a read go ahead."""
-    return _refusal(db_path) is None
+def is_built(db_path: str) -> bool:
+    """Whether *db_path* is a database licenseid built: ready, or of older
+    rules (``outdated``). Judged fail-closed: a file the check could not read
+    (``unknown``) is not, where :func:`check_database_ready` lets a read go
+    ahead."""
+    refusal = _refusal(db_path)
+    return refusal is None or refusal[0] == "outdated"
 
 
 def check_database_ready(db_path: str | os.PathLike[str]) -> None:
@@ -676,7 +709,9 @@ def check_database_ready(db_path: str | os.PathLike[str]) -> None:
     counts as not ready, because normalising one raises). ``update`` clears
     the version with the old rows and stamps it after the fingerprints, so a
     version marks a finished update, and the fingerprints themselves are
-    not checked.
+    not checked. The build and normalisation stamps are not older than this
+    licenseid's, and every table, index and column of this build is there
+    (:func:`connection_refusal`).
 
     The file is opened read-only and is never created or written. A
     write-ahead-log file may get -shm and -wal files beside it, which stay

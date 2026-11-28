@@ -247,17 +247,19 @@ refuses, and for a tag or a manifest field.
 `licenseid.LicenseIdError` (a `RuntimeError`) is the base of
 `licenseid.InvalidInputError` and `licenseid.DatabaseNotReadyError`. The
 `LicenseDetector` constructor raises `DatabaseNotReadyError` when the
-database is missing, empty, invalid (another program's file) or unreadable,
-for example before the first `licenseid update`; its `condition` (`not found`,
-`empty`, `invalid`, `unreadable`) and `detail` say which, apart from the
-message, and are `None` when nothing was said. A `file_path` or `db_path`
-takes a `str` or an `os.PathLike[str]`; any other type raises `TypeError`.
+database is missing, empty, invalid (another program's file), unreadable,
+or built by an older licenseid, for example before the first `licenseid
+update` or after an upgrade; its `condition` (`not found`, `empty`,
+`invalid`, `unreadable`, `build v6 outdated`) and `detail` say which, apart
+from the message, and are `None` when nothing was said. A `file_path` or
+`db_path` takes a `str` or an `os.PathLike[str]`; any other type raises
+`TypeError`.
 Any later call, such as `detect()`, raises `DatabaseNotReadyError` too if the
 file is deleted, truncated or damaged in the meantime; then the `sqlite3`
-error is its `__cause__`. A lookup creates nothing and writes nothing, except
-that the constructor adds what a database of an earlier version lacks. A
-database that an earlier version built is in WAL mode, and SQLite then leaves
-`-shm` and `-wal` files beside it until the next `licenseid update`.
+error is its `__cause__`. A lookup creates nothing and writes nothing: it
+reads only a database of this version's build, so a program that upgrades
+licenseid runs `licenseid update` (or
+`LicenseDatabase(path).update_from_remote()`) once before its first lookup.
 
 `licenseid.get_default_db_path()` returns the path used when none is given
 (or raises `DatabaseNotReadyError` for an account with no home directory).
@@ -304,11 +306,12 @@ the database's SPDX License List, its `version`, `source` `"database"`. For
 
 licenseid warns through Python's `warnings` module, never by writing to
 standard error: a guess said aloud (`input: variant not stated: GPL-2.0;
-using GPL-2.0-only`), an outdated database, Latin-1 input, a fallback to the
-shipped list or a cached file. Each is a `licenseid.LicenseIdWarning` (a
-`UserWarning`), its text the line the CLI prints after `WARNING:`, its
-parts the attributes `subject`, `condition`, `detail` and `action` (`None`
-when not stated). Record, silence or raise them as any warning:
+using GPL-2.0-only`), a database of a newer build, Latin-1 input, a
+fallback to the shipped list or a cached file. Each is a
+`licenseid.LicenseIdWarning` (a `UserWarning`), its text the line the CLI
+prints after `WARNING:`, its parts the attributes `subject`, `condition`,
+`detail` and `action` (`None` when not stated). Record, silence or raise
+them as any warning:
 
 ```python
 import warnings

@@ -22,6 +22,7 @@ from typing import Any
 
 import pytest
 from conftest import make_memory_db_path
+from seed_sql import fill_norm_columns
 
 from licenseid import retrieval
 from licenseid.detector import LicenseDetector
@@ -67,6 +68,7 @@ def _seed(db_path: str, license_id: str, search_text: str, **flags: bool) -> Non
             (license_id, search_text),
         )
         conn.commit()
+        fill_norm_columns(conn)
 
 
 def _words(n: int, prefix: str = "term") -> str:

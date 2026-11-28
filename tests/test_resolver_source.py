@@ -22,8 +22,8 @@ from release_fakes import release_bundle, ship
 from licenseid import LicenseDatabase, listsource, resolve
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready
+from licenseid.dbschema import BUILD_VERSION
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError
-from licenseid.records import BUILD_VERSION
 
 DB_VERSION = "3.30"
 
@@ -83,11 +83,14 @@ def test_a_database_version_that_is_no_number_is_a_tie(
     assert _read()[0] == "database"
 
 
+FALLBACK = f"; using packaged data v{DB_VERSION}"
+
+
 @pytest.mark.parametrize(
     ("build", "warning"),
     [
-        ("1", f"build v1 outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
-        ("x", f"build vx outdated: current v{BUILD_VERSION}; run 'licenseid update'"),
+        ("1", f"build v1 outdated: current v{BUILD_VERSION}{FALLBACK}"),
+        ("x", f"build vx outdated: current v{BUILD_VERSION}{FALLBACK}"),
         ("99", f"build v99 newer: current v{BUILD_VERSION}"),
     ],
 )
@@ -97,7 +100,8 @@ def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
     build: str,
     warning: str,
 ) -> None:
-    """The database still warns as it opens; the answer is the bundle's."""
+    """An older build is not read (the bundle, after its refusal); a newer
+    one warns as it opens, and the answer is the bundle's."""
     ship(monkeypatch, release_bundle(DB_VERSION))
     _default_db(build=build)
     assert _read() == ("packaged", DB_VERSION)
@@ -105,15 +109,24 @@ def test_a_tie_goes_to_the_bundle_unless_the_build_is_current(
 
 
 @pytest.mark.parametrize("build", ["1", "3"])
-def test_a_newer_list_wins_whatever_its_build(
+def test_an_older_build_is_not_read_whatever_its_list(
     monkeypatch: pytest.MonkeyPatch,
     build: str,
     given: GivenWarnings,
 ) -> None:
     ship(monkeypatch, release_bundle("3.29"))
     _default_db(build=build)
+    assert _read() == ("packaged", "3.29")
+    assert given.conditions() == {f"build v{build} outdated"}
+
+
+def test_a_newer_list_of_a_newer_build_is_read(
+    monkeypatch: pytest.MonkeyPatch, given: GivenWarnings
+) -> None:
+    ship(monkeypatch, release_bundle("3.29"))
+    _default_db(build="99")
     assert _read() == ("database", DB_VERSION)
-    assert given.conditions() <= {f"build v{build} outdated"}
+    assert given.conditions() == {"build v99 newer"}
 
 
 @pytest.mark.parametrize("build", [f"0{BUILD_VERSION}", BUILD_VERSION])

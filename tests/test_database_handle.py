@@ -41,7 +41,7 @@ from licenseid import (
     detect,
     resolve,
 )
-from licenseid.dbcheck import check_database_ready, is_ready
+from licenseid.dbcheck import check_database_ready, is_built
 from licenseid.errors import InvalidInputError
 
 # --- 1. LicenseDatabase(path): another program's file, and a missing one ---
@@ -220,7 +220,7 @@ def test_update_creates_a_missing_database(
     ship(monkeypatch, release_bundle(VERSION))
     path = tmp_path / "licenses.db"
     database = database_of(release_bundle(VERSION), path)
-    assert is_ready(str(path))
+    assert is_built(str(path))
     assert database.get_metadata()["license_list_version"] == VERSION
 
 

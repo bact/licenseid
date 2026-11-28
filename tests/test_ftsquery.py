@@ -106,7 +106,7 @@ def test_a_quote_at_the_cut_leaves_a_valid_query(db_path: str, position: int) ->
     word = "a" * (position - 1) + '"' + "b" * 10
     query = match_query(word)
     assert query.count('"') % 2 == 0
-    db = database.LicenseDatabase(db_path, create=False)
+    db = database.LicenseDatabase(db_path)  # tables, no rows: not ready to read
     assert db.search_candidates(word, already_normalized=True) == []
 
 

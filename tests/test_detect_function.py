@@ -18,7 +18,7 @@ from conftest import GivenWarnings, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 from matcher_db import Lic, seeded_db
-from resolve_states import OUTDATED_WARNING
+from resolve_states import NEWER_BUILD_WARNING
 
 import licenseid
 from licenseid import detector, keptdetector, warning
@@ -258,16 +258,16 @@ def test_a_failed_build_is_never_kept(
     assert len(built.made) == 1
 
 
-def test_an_outdated_database_warns_once(
+def test_a_newer_database_warns_once(
     built: _Built,
     file_db: Callable[[str], Path],
     given: GivenWarnings,
 ) -> None:
-    """``build vN outdated`` is said once per process, as ``resolve()`` says it,
+    """``build vN newer`` is said once per process, as ``resolve()`` says it,
     also when the file changes and a detector is built again."""
     path = file_db("a.db")
     with writer(path) as conn:
-        conn.execute("UPDATE db_metadata SET value = '1' WHERE key = 'build_version'")
+        conn.execute("UPDATE db_metadata SET value = '99' WHERE key = 'build_version'")
     given.take()
     licenseid.detect(license_id="MIT")
     licenseid.detect(license_id="MIT")
@@ -275,7 +275,7 @@ def test_an_outdated_database_warns_once(
         conn.execute("INSERT OR REPLACE INTO db_metadata VALUES ('k', 'v')")
     licenseid.detect(license_id="MIT")
     assert len(built.made) == 2
-    assert given.lines() == OUTDATED_WARNING
+    assert given.lines() == NEWER_BUILD_WARNING
 
 
 @pytest.mark.parametrize(

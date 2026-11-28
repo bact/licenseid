@@ -14,9 +14,6 @@ Companion to ``test_lookup_database_errors.py``.
 import contextlib
 import os
 import sqlite3
-import subprocess
-import sys
-import time
 from collections.abc import Callable
 from pathlib import Path, PureWindowsPath
 from typing import Any
@@ -251,16 +248,6 @@ def test_a_current_database_is_opened_without_a_write(
     LicenseDatabase(str(path), create=False)
     assert connects
     assert not any(connects), connects
-
-
-def test_an_older_schema_is_migrated_in_place_without_create(tmp_path: Path) -> None:
-    path = make_ready_file_db(tmp_path / "o.db")
-    with writer(path) as conn:
-        conn.execute("DROP INDEX idx_licenses_name")
-    LicenseDatabase(str(path), create=False)
-    with contextlib.closing(sqlite3.connect(path)) as conn:
-        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
-    assert "idx_licenses_name" in names
 
 
 # ---- files a lookup leaves, and paths that move or block --------------------
@@ -537,44 +524,6 @@ def test_a_relative_file_uri_with_a_non_utf8_byte_names_that_byte(
 
 
 # ---- races and limits -------------------------------------------------------
-
-_OPEN_OLDER = """
-import sys, time
-from licenseid.database import LicenseDatabase
-while time.time() < float(sys.argv[2]):
-    pass
-try:
-    LicenseDatabase(sys.argv[1], create=False)
-    print("ok")
-except Exception as exc:
-    print(type(exc).__name__, exc)
-"""
-
-
-@pytest.mark.parametrize("column", ["norm_license_id", "norm_name"])
-def test_processes_migrating_an_older_database_at_once_all_succeed(
-    tmp_path: Path, column: str
-) -> None:
-    if sqlite3.sqlite_version_info < (3, 35):
-        pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
-    for trial in range(2):
-        path = make_ready_file_db(tmp_path / f"m{trial}.db")
-        with writer(path) as conn:
-            conn.execute(f"ALTER TABLE licenses DROP COLUMN {column}")
-        start = time.time() + 1.5
-        with contextlib.ExitStack() as stack:
-            procs = [
-                stack.enter_context(
-                    subprocess.Popen(
-                        [sys.executable, "-c", _OPEN_OLDER, str(path), str(start)],
-                        stdout=subprocess.PIPE,
-                        text=True,
-                    )
-                )
-                for _ in range(4)
-            ]
-            outputs = [p.communicate(timeout=60)[0].strip() for p in procs]
-        assert outputs == ["ok"] * 4, outputs
 
 
 def test_a_huge_input_does_not_exceed_the_sql_variable_limit(

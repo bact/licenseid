@@ -19,6 +19,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from licenseid.dbconnection import Connections
+from licenseid.dbschema import LICENSE_FLAGS
 from licenseid.listlookup import ListedUrl, UrlRow, fold_case, index_urls
 from licenseid.normalize import normalize_text
 from licenseid.types import LicenseDetails, LicenseNameId, TextParts
@@ -34,13 +35,7 @@ _V = TypeVar("_V", str, int)
 def cast_license_details(row: sqlite3.Row) -> LicenseDetails:
     """A ``licenses`` row as LicenseDetails, its flags made bool."""
     details = dict(row)
-    for key in (
-        "is_spdx",
-        "is_osi_approved",
-        "is_fsf_libre",
-        "is_high_usage",
-        "is_deprecated",
-    ):
+    for key in LICENSE_FLAGS:
         if key in details:
             details[key] = bool(details[key])
     return cast(LicenseDetails, details)
@@ -174,18 +169,9 @@ class TableCache:
                     " FROM licenses"
                 ).fetchall()
             # The same columns as LicenseNameId, with its flags made bool.
-            records = [dict(cast_license_details(row)) for row in rows]
-            # A row without its normalised columns (a database of an earlier
-            # version, or one a script filled directly) is normalised here
-            # and not written back: a lookup never writes.
-            for record in records:
-                if record["norm_license_id"] is None:
-                    record["norm_license_id"] = normalize_text(
-                        str(record["license_id"])
-                    )
-                if record["norm_name"] is None:
-                    record["norm_name"] = normalize_text(str(record["name"] or ""))
-            names = cast(list[LicenseNameId], records)
+            names = [
+                cast(LicenseNameId, dict(cast_license_details(row))) for row in rows
+            ]
             if generation == self._generation:
                 self._names_and_ids = names
         return names
@@ -193,10 +179,7 @@ class TableCache:
     def text_parts(self) -> dict[str, TextParts]:
         """The core and the twins of each licence's text, by ID (exact
         case), read once per rebuild: only the licences with a core or a
-        twin are in it, so a licence that is not has no entry. A database
-        built before build 5 has none of the columns, or NULL in them, and
-        gives an empty map: it is read as it is, never written (a lookup
-        never writes; ``update`` fills them)."""
+        twin are in it, so a licence that is not has no entry."""
         self._check_stamp()
         generation, holder = self._generation, self._keyed
         parts = holder.text_parts
@@ -209,9 +192,6 @@ class TableCache:
     def _read_text_parts(self) -> dict[str, TextParts]:
         """The rows of ``licenses`` that have a core or a twin."""
         with self._connections.connection() as conn:
-            columns = {row[1] for row in conn.execute("PRAGMA table_info(licenses)")}
-            if not {"core_text", "core_word_count", "same_text"} <= columns:
-                return {}
             rows: list[tuple[str, str | None, int | None, str | None]] = conn.execute(
                 "SELECT license_id, core_text, core_word_count, same_text"
                 " FROM licenses ORDER BY rowid"
@@ -271,21 +251,15 @@ class TableCache:
             core = part.core if part else None
             group = (part.same_text if part else ()) or (license_id,)
             built.append(TextRow(license_id, text, core, group))
-        # The codes the build stored, when they are those of these rows: a
-        # database of build 5 has none, and one damaged or edited since has
-        # others; both are coded here and not written back (a lookup never
-        # writes; ``update`` stores them).
+        # The codes the build stored, when they are those of these rows: one
+        # damaged or edited since has others, which are coded here and not
+        # written back (a lookup never writes; ``update`` stores them).
         stored = restore(built, self._stored_texts())
         return TextCorpus.build(built) if stored is None else stored
 
     def _stored_texts(self) -> "list[StoredRow]":
-        """The rows of ``text_codes``, or none when the table is missing."""
+        """The rows of ``text_codes``."""
         with self._connections.connection() as conn:
-            if not conn.execute(
-                "SELECT 1 FROM sqlite_master"
-                " WHERE type = 'table' AND name = 'text_codes'"
-            ).fetchone():
-                return []
             rows: list[StoredRow] = conn.execute(
                 "SELECT kind, owner_id, body FROM text_codes"
             ).fetchall()
@@ -328,16 +302,8 @@ class TableCache:
         return keyed[1]
 
     def _url_rows(self) -> list[UrlRow]:
-        """The rows of ``license_urls`` in table order, or none when the
-        table is missing: a database built before it (build 3) is read as
-        it is, as a missing norm column is filled in memory, never written
-        (a lookup never writes; ``update`` makes the table)."""
+        """The rows of ``license_urls`` in table order."""
         with self._connections.connection() as conn:
-            if not conn.execute(
-                "SELECT 1 FROM sqlite_master"
-                " WHERE type = 'table' AND name = 'license_urls'"
-            ).fetchone():
-                return []
             rows: list[UrlRow] = conn.execute(
                 "SELECT owner_id, is_exception, url FROM license_urls ORDER BY rowid"
             ).fetchall()

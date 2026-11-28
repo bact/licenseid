@@ -27,8 +27,9 @@ from typing import Any
 import pytest
 from conftest import insert_mit_license, make_ready_db_path
 
-from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
-from licenseid.records import BUILD_VERSION, Records
+from licenseid.database import LicenseDatabase
+from licenseid.dbschema import BUILD_VERSION, NORMALIZATION_VERSION
+from licenseid.records import Records
 
 # The rows of a release with nothing in it, for a test that writes them
 # (``LicenseDatabase._write_db_records``) to reach a write path.

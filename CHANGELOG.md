@@ -13,6 +13,9 @@ and this project adheres to
 
 ### Changed
 
+- **Breaking:** licenseid reads only a database of its own build; an older
+  one exits 2 with `database: build vN outdated`. Migration: run `licenseid
+  update` once after upgrading
 - `detect()` on a declared value is about a quarter faster (462 PyPI values:
   1.39 s to 1.06 s); every answer, score and warning is unchanged
 
@@ -1159,6 +1162,7 @@ materials (SBOM) embedded in the wheel.
 
 [#3]: https://github.com/bact/licenseid/pull/3
 
+[Unreleased]: https://github.com/bact/licenseid/compare/v0.9.4...HEAD
 [0.9.4]: https://github.com/bact/licenseid/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/bact/licenseid/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/bact/licenseid/compare/v0.9.1...v0.9.2

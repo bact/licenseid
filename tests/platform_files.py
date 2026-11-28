@@ -16,8 +16,8 @@ from typing import Final
 PLATFORM_FILES: Final[frozenset[str]] = frozenset(
     {
         "test_answer_paths.py",
+        "test_older_database.py",
         "test_build_bundle.py",
-        "test_build4_database.py",
         "test_bundle_source.py",
         "test_clear_cache.py",
         "test_cli_errors.py",
@@ -57,7 +57,6 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_hatch_build.py",
         "test_housekeeping_home.py",
         "test_library_warnings.py",
-        "test_license_urls_build3.py",
         "test_license_urls_db.py",
         "test_listindex.py",
         "test_listlookup.py",

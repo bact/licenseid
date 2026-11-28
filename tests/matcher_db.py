@@ -21,6 +21,7 @@ from seed_sql import (
     INSERT_LICENSE,
     INSERT_METADATA,
     INSERT_URL,
+    fill_norm_columns,
 )
 
 # Prose long enough to push an input over the 30-word threshold, so
@@ -87,6 +88,7 @@ def seeded_db(
         for exception_id in exception_ids:
             conn.execute(INSERT_EXCEPTION, (exception_id, exception_id, False, None))
         conn.executemany(INSERT_URL, urls)
+        fill_norm_columns(conn)
         conn.execute(INSERT_METADATA, ("last_check_datetime", "2026-01-01T00:00:00"))
     yield db_path
     keep_alive.close()

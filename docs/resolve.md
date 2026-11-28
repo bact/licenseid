@@ -31,8 +31,8 @@ page](lists.md):
 
 - with no database it reads the SPDX License List shipped in the wheel, in
   memory, and gives the answer a database built from that list gives;
-  with both, the newer List wins, and a tie goes to the database only if
-  this licenseid's build rules made its rows (`source=` picks one);
+  with both, the newer List wins, and a tie goes to the database unless a
+  newer licenseid built it (`source=` picks one);
 - exact and case-folded IDs; loosely written IDs (`Apache2`, `GPLv3`,
   `GPLv2 or any later version`); a bare major the List has another minor
   of names none of them and is refused, `version ambiguous` (`Apache-1`,
@@ -286,11 +286,13 @@ page](lists.md):
 
 With no database given (`source="auto"`, the default), `resolve()` reads the
 database at the default path or the SPDX License List shipped in the wheel,
-whichever holds the newer List; a tie goes to the database only if this
-licenseid's build rules made its rows (not those of an older or a newer
-licenseid). With no database file it reads the shipped list; with a
+whichever holds the newer List; a tie goes to the database unless a newer
+licenseid built it. With no database file it reads the shipped list; with a
 database that is there but unusable, the shipped list after one warning,
-`database: <condition>: <detail>; using packaged data v<version>`.
+`database: <condition>: <detail>; using packaged data v<version>`. A
+database an older licenseid built is unusable, whatever List it holds
+(`database: build v6 outdated: current v7; using packaged data v3.29.0`),
+as an empty one is, until `licenseid update` builds it again.
 `source="database"` reads only the database (and raises for one that
 cannot answer, as `auto` would call it unusable) and `source="packaged"`
 only the shipped list. The answer is the same from either, and
@@ -306,14 +308,11 @@ one tick.
 
 A warning is a `licenseid.LicenseIdWarning` given through Python's
 `warnings` (see [the Python API](python-api.md#warnings)), never a line written
-to standard error: the fallback above, a database built by an older or a
-newer licenseid (`database: build v2 outdated: current v7; run 'licenseid
-update'`) and an unusable shipped list (`spdx-bundle.json.gz: invalid:
-...`). Each is given once per process, not once per value; `licenseid
-resolve` prints each as a `WARNING:` line. A database of build 3 or older
-has no pages of the List: it still reads an ID page (`spdx:MIT`), but no
-other licence URL until `licenseid update` rebuilds it; opening it writes
-nothing.
+to standard error: the fallback above, a database built by a newer
+licenseid (`database: build v8 newer: current v7`) and an unusable shipped
+list (`spdx-bundle.json.gz: invalid: ...`). Each is given once per process,
+not once per value; `licenseid resolve` prints each as a `WARNING:` line.
+Opening a database writes nothing.
 
 ## The whole result
 

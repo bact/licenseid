@@ -113,7 +113,8 @@ in another module.
 - Lists: `listlookup` (a Protocol; `fold_case`), `listindex` (the shipped
   bundle in memory), `listsource` (database or packaged), `listrules`
   (entries kept, deprecated targets).
-- Data: `database`, `dbconnection`, `dbcache`, `dbschema`, `dbcheck`, `datadir`,
+- Data: `database`, `dbconnection`, `dbcache`, `dbschema` (the one shape,
+  its stamps), `dbcheck`, `datadir`,
   `records` (rows), `spdxdata` (a release as data; no `requests`, `click` or
   `rapidfuzz`), `releasesource`, `spdx_source`, `textinput` (bytes to text),
   `manifest` (the `license` field of package.json, pyproject.toml, Cargo.toml,
@@ -240,10 +241,11 @@ and `--json`) against these rules and checks the default output against the
 - Raise a failure as `licenseid.errors.LicenseIdError` (`SUBJECT: CONDITION…`,
   no prefix): the CLI prints it after `ERROR:` and exits 1, or 2 for
   `InvalidInputError`. `DatabaseNotReadyError` (missing, empty, invalid,
-  unreadable) exits 2 in `detect`, `resolve`, `is-*`. `update` and `clear-cache`
-  refuse only an `invalid` database (not built by licenseid) or an `unreadable`
-  symlink loop: they exist to fix the rest. Any other exception in `update`,
-  RuntimeError subclasses such as RecursionError included, becomes
+  unreadable, outdated) exits 2 in `detect`, `resolve`, `is-*`. `update` and
+  `clear-cache` refuse only an `invalid` database (not built by licenseid) or
+  an `unreadable` symlink loop: they exist to fix the rest. Any other
+  exception in `update`, RuntimeError subclasses such as RecursionError
+  included, becomes
   `SUBJECT: update failed: <Type>: <text>`. A default directory `update` cannot
   make is `directory: write failed: <dir>: <reason>; pass --db`.
 - A step printing partial progress (`status(..., end="")`) that can fail
@@ -427,7 +429,7 @@ and `--json`) against these rules and checks the default output against the
 - Licence URL: one key, `urlkey.url_key` (ASCII only; scheme, `www.`, fragment,
   trailing `/`, one page suffix dropped; query kept; decodes nothing); key both
   a declared URL and the List's with it. The List's pages (`seeAlso`) are the
-  `license_urls` table (`records.BUILD_VERSION` 4), indexed by
+  `license_urls` table (`dbschema.BUILD_VERSION` 4), indexed by
   `resolveurl.list_url_key` (skips a URL with a fragment). A page naming several
   unrelated licences or only an exception is refused. `URL_ALIASES` and
   `SCANCODE_NOT_SPDX` grow only with a measured package count
@@ -441,14 +443,22 @@ and `--json`) against these rules and checks the default output against the
 
 ## Database
 
+- One shape: licenseid reads only a database of its own build
+  (`dbschema`: `TABLES`, `INDEXES`, the stamps). An older stamp (build or
+  normalisation; missing or no number counts as older) is not ready,
+  `build vN outdated`; a missing table, index or column, or a row whose norm
+  columns are not text, is `empty` (`dbcheck.connection_refusal`, the one
+  verdict of `check_database_ready` and `LicenseDatabase(path,
+  create=False)`). Every caller treats both as it treats `empty`: no caller
+  gets a rule of its own. Never write a reader of an older shape: a new
+  table or column joins `dbschema.TABLES` and bumps `BUILD_VERSION`.
 - A lookup never creates or writes. `Connections.connect` opens read-only
-  (`dbcheck.open_uri`); the detector uses `LicenseDatabase(path,
-  create=False)`, whose writes open `mode=rw` and happen only for an older
-  schema of licenseid's own file (`dbschema.schema_state`).
-  `LicenseDatabase(path)` makes the file at the first write
-  (`_ensure_schema`) and refuses a file licenseid did not build, whatever
-  `create` is. A missing norm column is filled in memory
-  (`dbcache.TableCache.names_and_ids`), never written back.
+  (`dbcheck.open_uri`); `LicenseDatabase(path, create=False)` only reads
+  (but `Connections.recover` for a hot journal). `LicenseDatabase(path)`
+  makes the tables of a file with none, makes a missing file at the first
+  write (`_ensure_schema`), and refuses a file licenseid did not build,
+  whatever `create` is. `update` drops licenseid's tables and builds this
+  shape in the transaction that fills it (`dbschema.replace_schema`).
   No WAL mode: `update` leaves it (`Connections.leave_wal`).
 - Every `sqlite3.Error` of a read becomes `DatabaseNotReadyError` in
   `Connections.connection` (`dbcheck.lookup_error`): never wrap per method or
@@ -465,7 +475,7 @@ and `--json`) against these rules and checks the default output against the
   block and at every lookup outside one), and keeps no read made during a
   clear (`_generation`). A new write to `licenses` or `license_index` calls
   `self._tables.clear()`, as `_write_db_records` does.
-- `text_codes` (optional): the coded texts and a `check` (SHA-256, with
+- `text_codes`: the coded texts and a `check` (SHA-256, with
   `textstore.CODING_VERSION`). `textstore.restore` gives the corpus `build`
   gives or None, then built in memory, never written back (a BLOB body too); a
   row SQLite cannot decode is `unreadable`. A coding change bumps both.
@@ -474,11 +484,11 @@ and `--json`) against these rules and checks the default output against the
 - Never build `LIKE` or `GLOB` patterns from input (over 50,000 bytes SQLite
   refuses, read as a broken database); compare in memory.
   `search_candidates` quotes its words.
-- A change to the rows `records` builds bumps `records.BUILD_VERSION`; to
-  `normalize_text`, `database.NORMALIZATION_VERSION`. Stamps compare as
-  numbers; older warns (`build vN outdated`) and `update` rebuilds; newer
-  warns `build vN newer`, never rebuilt; a non-number is older. Only a
-  database opened without `create` warns.
+- A change to the rows `records` builds or to the shape bumps
+  `dbschema.BUILD_VERSION`; to `normalize_text`,
+  `dbschema.NORMALIZATION_VERSION`. Stamps compare as numbers; older is not
+  ready (exit 2) and `update` rebuilds it; newer warns `build vN newer`, is
+  read, never rebuilt. Only a database opened without `create` warns.
 - `--db` can block or lie: check `stat.S_ISREG`/`S_ISDIR` before opening (a
   FIFO hangs a read-only open; test it in a child with a timeout,
   `db_asserts.probe_check_does_not_hang`). `file::memory:NAME` is a file on
@@ -657,7 +667,10 @@ A `working-docs/` file carries these tags in its YAML front matter, with
 - A negative test on a seeded database passes trivially if its rows have no
   `search_text`. Seed the real near neighbours with text
   (`Lic(..., search_text=...)`, as `tests/test_qualified_plus.py`), mutate
-  the fix to see it fail, and probe a full database too.
+  the fix to see it fail, and probe a full database too. A test database
+  has every table of this build (`make_memory_db_path`, `create_database` or
+  `packaged_list.database_of`); rows a test inserts by its own SQL get their
+  norm columns from `seed_sql.fill_norm_columns`, else the file is `empty`.
 - Mutation-check new tests: break a line, rerun; clear `__pycache__`
   between mutants; run a mutated copy (`src`, `tests`, `tools`,
   `pyproject.toml`) or a git worktree with `PYTHONPATH` set as in

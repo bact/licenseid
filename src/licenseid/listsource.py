@@ -10,16 +10,17 @@ bundle shipped in the wheel (:func:`licenseid.listindex.packaged_index`).
 
 - a usable database at the default path and a bundle: the newer list
   version wins (:func:`licenseid.spdxdata.is_older`; a version that is not
-  all numbers is never older). A tie goes to the database only if its rows
-  were built by this licenseid's rules (``build vN outdated`` still warns
-  when it opens, once per process), else to the bundle: the two then give
-  the same answer;
+  all numbers is never older). A tie goes to the database unless a later
+  licenseid built it (``build vN newer`` warns when it opens, once per
+  process), else to the bundle: the two then give the same answer;
 - no database file (``not found``, an account with no home directory
   included): the bundle, silently;
-- a database that is there but cannot answer: the bundle, after
-  the warning ``database: <condition>: <detail>; using packaged data
-  v<ver>`` (a :class:`licenseid.LicenseIdWarning`), given once per process
-  (not once per value);
+- a database that is there but cannot answer (``empty``, ``invalid``,
+  ``unreadable``, or built by older rules or in an older shape: ``build vN
+  outdated``): the bundle, after the warning ``database: <condition>:
+  <detail>; using packaged data v<ver>`` (a
+  :class:`licenseid.LicenseIdWarning`), given once per process (not once per
+  value);
 - no bundle either: the database's own error.
 
 ``source="database"`` reads the database at the default path, and raises
@@ -37,9 +38,10 @@ directory changed) or another packaged index chooses again, and so does a
 ``stat`` that fails for any reason but "not found". A choice that raised
 is not kept, nor is a fallback to the packaged list for a condition that
 can pass by itself (``unreadable``: a lock held elsewhere, an I/O error,
-permissions); ``not found``, ``empty`` and ``invalid`` change only with the
-file, so they are kept. The stamp is read before the choice is made, so a
-file that changes meanwhile is chosen again.
+permissions); ``not found``, ``empty``, ``invalid`` and ``build vN
+outdated`` change only with the file, so they are kept. The stamp is read
+before the choice is made, so a file that changes meanwhile is chosen
+again.
 
 The stamp is as fine as the file system's clock: on a coarse one (FAT, 2 s;
 HFS+ and ext3, 1 s) an in-place update that keeps the size can pass for
@@ -83,7 +85,7 @@ class _Kept(NamedTuple):
 # The last choice of each mode ("auto", "database"), under its own lock, held
 # to look it up and to store it, never while choosing: a choice can wait on
 # SQLite, and the choice itself warns (``licenseid.warning.once``: a
-# fallback's warning or an opened database's, ``build vN outdated``, is
+# fallback's warning or an opened database's, ``build vN newer``, is
 # given once per process, not once per value resolved), which takes a lock
 # of its own.
 _CHOICE_LOCK = threading.Lock()

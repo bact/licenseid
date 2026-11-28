@@ -3,22 +3,19 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The coded List texts of build 6 and later (``text_codes``): ``update`` stores them,
-a read restores the corpus from them instead of coding every text again, and
-a database without them, or with a damaged table, is coded in memory and never
-written (a lookup never writes). The corpus read from the table is the one
-``TextCorpus.build`` gives."""
+"""The coded List texts of build 6 and later (``text_codes``): ``update``
+stores them, a read restores the corpus from them instead of coding every
+text again, and a damaged table is coded in memory and never written (a
+lookup never writes). ``update`` rebuilds a file of build 5, which has none.
+The corpus read from the table is the one ``TextCorpus.build`` gives."""
 # pylint: disable=missing-function-docstring,protected-access
 
 import hashlib
-import os
-import stat
 from collections.abc import Generator, Iterable
 from pathlib import Path
 from types import MappingProxyType
 
 import pytest
-from conftest import GivenWarnings, posix_only
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import writer
 from list_entries import lic_entry
@@ -27,10 +24,9 @@ from texts_db import texts_database
 
 from licenseid import textstore
 from licenseid.database import LicenseDatabase, text_corpus
-from licenseid.dbconnection import Connections
-from licenseid.dbschema import schema_state
+from licenseid.dbschema import BUILD_VERSION
 from licenseid.errors import DatabaseNotReadyError
-from licenseid.records import BUILD_VERSION, Records
+from licenseid.records import Records
 from licenseid.spdxdata import SpdxData, to_bundle
 from licenseid.textcorpus import TextCorpus, TextRow
 from licenseid.textstore import CHECK, CORE, PATTERNS, TEXT, WORDS, stored_rows
@@ -56,7 +52,6 @@ RAW = to_bundle(
         MappingProxyType(TEMPLATES),
     )
 )
-OUTDATED = "build v5 outdated"
 
 
 def _kinds(path: Path) -> list[tuple[str, str]]:
@@ -149,50 +144,6 @@ def test_the_rows_of_the_build_are_those_of_the_corpus(build_now: Path) -> None:
     with writer(build_now) as conn:
         stored = conn.execute("SELECT kind, owner_id, body FROM text_codes").fetchall()
     assert sorted(stored) == sorted(stored_rows(_corpus(build_now)))
-
-
-def test_a_database_of_build_5_is_current_and_codes_in_memory(
-    build_5: Path, builds: Builds, given: GivenWarnings
-) -> None:
-    location = str(build_5)
-    assert schema_state(Connections(location, False, location, False)) == "current"
-    before = _digest(build_5)
-    corpus = _corpus(build_5)
-    assert builds.count == 1
-    assert given.conditions() == {OUTDATED}
-    assert _digest(build_5) == before  # a lookup never writes
-    assert len(corpus.entries) == 3 and corpus.entries[0].core is not None
-    with writer(build_5) as conn:
-        names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
-    assert "text_codes" not in names
-
-
-@posix_only
-def test_a_read_only_database_of_build_5_gives_its_corpus(
-    build_5: Path, builds: Builds, given: GivenWarnings
-) -> None:
-    build_5.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-    try:
-        if os.access(build_5, os.W_OK):  # root writes whatever the mode says
-            pytest.skip("this user writes to a mode-444 file")
-        before = _digest(build_5)
-        assert len(_corpus(build_5).entries) == 3
-        assert builds.count == 1
-        assert _digest(build_5) == before
-        assert given.conditions() == {OUTDATED}
-    finally:
-        build_5.chmod(stat.S_IRUSR | stat.S_IWUSR)
-
-
-def test_a_database_of_build_5_corpus_is_the_one_of_this_build(
-    build_now: Path, tmp_path: Path
-) -> None:
-    stored = _corpus(build_now)
-    older = tmp_path / "older.db"
-    older.write_bytes(build_now.read_bytes())
-    with writer(older) as conn:
-        conn.execute("DROP TABLE text_codes")
-    assert _corpus(older) == stored
 
 
 def test_update_gives_a_database_of_build_5_its_table(

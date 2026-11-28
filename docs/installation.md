@@ -20,6 +20,11 @@ Or using `uv`:
 uv tool install licenseid
 ```
 
+Then build the licence database with `licenseid update`, and build it again
+after each upgrade of licenseid: a lookup reads only a database its own
+version built, and refuses an older one with `database: build vN outdated`
+(exit 2) until then. See [the command line reference](cli.md).
+
 ## Non-UTF-8 locales
 
 A dependency, `py-spdx-license` 0.0.1, reads its bundled licence data with

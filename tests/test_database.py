@@ -11,18 +11,20 @@ import sqlite3
 import tarfile
 import uuid
 from collections.abc import Generator
+from functools import partial
 from pathlib import Path
 from unittest import mock
 
 import pytest
 from click.testing import CliRunner
 from conftest import GivenWarnings, assert_cached_tarball_removed, is_closed
-from db_variants import create_database
+from db_variants import create_database, make_ready_file_db, writer
 
 from licenseid.cli import cli
-from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
-from licenseid.errors import LicenseIdError
-from licenseid.records import BUILD_VERSION
+from licenseid.database import LicenseDatabase
+from licenseid.dbcheck import check_database_ready
+from licenseid.dbschema import BUILD_VERSION, NORMALIZATION_VERSION
+from licenseid.errors import DatabaseNotReadyError, LicenseIdError
 
 
 @pytest.fixture()
@@ -121,14 +123,6 @@ CURRENT = {
     "normalization_version": NORMALIZATION_VERSION,
     "build_version": BUILD_VERSION,
 }
-NORM_OLD = (
-    f"WARNING: database: normalization v1 outdated: current v{NORMALIZATION_VERSION}"
-    "; run 'licenseid update'"
-)
-BUILD_OLD = (
-    f"WARNING: database: build v1 outdated: current v{BUILD_VERSION}"
-    "; run 'licenseid update'"
-)
 
 
 def newer(rules: str, stamp: str, current: str) -> str:
@@ -137,41 +131,49 @@ def newer(rules: str, stamp: str, current: str) -> str:
 
 def outdated(rules: str, stamp: str, current: str) -> str:
     return (
-        f"WARNING: database: {rules} v{stamp} outdated: current v{current}"
+        f"database: {rules} v{stamp} outdated: current v{current}"
         "; run 'licenseid update'"
     )
+
+
+NEXT = str(int(BUILD_VERSION) + 1)  # the build after this one
+NORM_OLD = outdated("normalization", "1", NORMALIZATION_VERSION)
+BUILD_OLD = outdated("build", "1", BUILD_VERSION)
 
 
 @pytest.mark.parametrize(
     ("stamps", "expected"),
     [
         (CURRENT, []),
-        ({**CURRENT, "normalization_version": "1"}, [NORM_OLD]),
-        ({**CURRENT, "build_version": "1"}, [BUILD_OLD]),
-        ({}, [NORM_OLD, BUILD_OLD]),  # a database from before either stamp
-        ({"normalization_version": "1", "build_version": "1"}, [NORM_OLD, BUILD_OLD]),
+        ({**CURRENT, "normalization_version": "1"}, NORM_OLD),
+        ({**CURRENT, "build_version": "1"}, BUILD_OLD),
+        ({}, NORM_OLD),  # a database from before either stamp
+        ({"normalization_version": "1", "build_version": "1"}, NORM_OLD),
         # a later licenseid built it: newer, not outdated, and nothing to run
-        ({**CURRENT, "build_version": "8"}, [newer("build", "8", BUILD_VERSION)]),
+        (
+            {**CURRENT, "build_version": NEXT},
+            [newer("build", NEXT, BUILD_VERSION)],
+        ),
         (
             {**CURRENT, "normalization_version": "10"},  # 10 > 2, not "10" < "2"
             [newer("normalization", "10", NORMALIZATION_VERSION)],
         ),
-        ({**CURRENT, "build_version": f"0{BUILD_VERSION}"}, []),  # the same number
+        ({**CURRENT, "build_version": f"0{BUILD_VERSION}"}, []),  # same number
         # a stamp that is no number: no licenseid wrote it, so it is older
-        ({**CURRENT, "build_version": "x"}, [outdated("build", "x", BUILD_VERSION)]),
-        ({**CURRENT, "build_version": "-3"}, [outdated("build", "-3", BUILD_VERSION)]),
+        ({**CURRENT, "build_version": "x"}, outdated("build", "x", BUILD_VERSION)),
+        (
+            {**CURRENT, "build_version": "-3"},
+            outdated("build", "-3", BUILD_VERSION),
+        ),
         (
             {**CURRENT, "build_version": "\u0664"},  # an Arabic-Indic 4
-            [outdated("build", "\u0664", BUILD_VERSION)],
+            outdated("build", "\u0664", BUILD_VERSION),
         ),
         (
             {**CURRENT, "build_version": "9" * 5000},  # past int()'s digit limit
-            [outdated("build", "9" * 5000, BUILD_VERSION)],
+            outdated("build", "9" * 5000, BUILD_VERSION),
         ),
-        (
-            {"normalization_version": "1", "build_version": "8"},
-            [NORM_OLD, newer("build", "8", BUILD_VERSION)],
-        ),
+        ({"normalization_version": "1", "build_version": NEXT}, NORM_OLD),
     ],
     ids=[
         "current",
@@ -189,39 +191,51 @@ def outdated(rules: str, stamp: str, current: str) -> str:
         "older-and-newer",
     ],
 )
-def test_older_build_rules_warn(
-    db: LicenseDatabase,
+def test_older_build_rules_are_not_ready_and_newer_warn(
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     given: GivenWarnings,
     stamps: dict[str, str],
-    expected: list[str],
+    expected: str | list[str],
 ) -> None:
-    with db._connection(write=True) as conn:
+    """An older stamp (a missing one, or one that is no number, counts as
+    older) is not ready, normalisation first (*expected*: the refusal); a
+    newer one warns (*expected*: the warnings)."""
+    path = make_ready_file_db(tmp_path / "stamped.db")
+    with writer(path) as conn:
         conn.execute(
             "DELETE FROM db_metadata"
             " WHERE key IN ('normalization_version', 'build_version')"
         )
         conn.executemany(
-            "INSERT OR REPLACE INTO db_metadata (key, value) VALUES (?, ?)",
-            [("license_list_version", "9.99"), *stamps.items()],
+            "INSERT INTO db_metadata (key, value) VALUES (?, ?)", stamps.items()
         )
-        conn.commit()
-    capsys.readouterr()
-
-    LicenseDatabase(str(db.db_path), create=False)
-    assert given.lines().splitlines() == expected
+    before = path.read_bytes()
+    warned = expected if isinstance(expected, list) else []
+    if isinstance(expected, list):
+        check_database_ready(str(path))
+        LicenseDatabase(str(path), create=False)
+    else:
+        for opener in (check_database_ready, partial(LicenseDatabase, create=False)):
+            with pytest.raises(DatabaseNotReadyError) as raised:
+                opener(str(path))
+            assert str(raised.value) == expected
+    assert given.lines().splitlines() == warned
     assert capsys.readouterr() == ("", "")  # given, never printed
+    assert path.read_bytes() == before
 
     # Opened to build, as update does: it is about to fix what it would say.
-    LicenseDatabase(str(db.db_path))
+    LicenseDatabase(str(path))
     assert given.take() == []
+    assert path.read_bytes() == before
 
 
-def test_an_empty_database_has_no_build_rules_to_warn_about(
+def test_a_database_with_no_rows_is_empty_not_stamped(
     db: LicenseDatabase, capsys: pytest.CaptureFixture[str], given: GivenWarnings
 ) -> None:
     capsys.readouterr()
-    LicenseDatabase(str(db.db_path), create=False)
+    with pytest.raises(DatabaseNotReadyError, match="^database: empty: "):
+        LicenseDatabase(str(db.db_path), create=False)
     assert (capsys.readouterr().err, given.take()) == ("", [])
 
 

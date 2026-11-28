@@ -22,6 +22,7 @@ from db_variants import create_database
 from release_fakes import tarball
 from test_database_update import _serve
 
+from licenseid import dbschema
 from licenseid.database import LicenseDatabase
 from licenseid.errors import LicenseIdError
 
@@ -285,11 +286,19 @@ def test_a_failed_insert_rolls_back_and_names_the_database(
 ) -> None:
     path = tmp_path / "licenses.db"
     create_database(path)
-    with contextlib.closing(sqlite3.connect(path)) as conn:
+    replace = dbschema.replace_schema
+
+    def replace_then_fail(conn: sqlite3.Connection) -> None:
+        """The tables made new, then an insert that fails, in the same
+        transaction: the rollback takes back both."""
+        replace(conn)
         conn.execute(
             "CREATE TRIGGER no_exceptions BEFORE INSERT ON exceptions "
             "BEGIN SELECT RAISE(ABORT, 'boom'); END"
         )
+
+    monkeypatch.setattr("licenseid.database.replace_schema", replace_then_fail)
+    before = path.read_bytes()
     with pytest.raises(LicenseIdError, match=r"^database: update failed: boom"):
         _update(
             tmp_path,
@@ -304,6 +313,7 @@ def test_a_failed_insert_rolls_back_and_names_the_database(
         )
     with contextlib.closing(sqlite3.connect(path)) as conn:
         assert _rows(conn, "SELECT license_id FROM licenses") == []
+    assert path.read_bytes() == before
 
 
 def test_a_failed_vacuum_is_a_warning(

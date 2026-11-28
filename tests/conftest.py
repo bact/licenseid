@@ -27,6 +27,7 @@ from click.testing import CliRunner, Result
 from packaged_list import database_of, fixture_bundle
 from platform_files import PLATFORM_FILES
 from resolver_corpus import corpus_db_path
+from seed_sql import fill_norm_columns
 
 from licenseid import (
     console,
@@ -41,11 +42,11 @@ from licenseid import (
 )
 from licenseid.cli import cli
 from licenseid.clicommon import printed_warnings
-from licenseid.database import NORMALIZATION_VERSION, LicenseDatabase
+from licenseid.database import LicenseDatabase
 from licenseid.dbconnection import Connections
+from licenseid.dbschema import BUILD_VERSION, NORMALIZATION_VERSION
 from licenseid.detector import LicenseDetector
 from licenseid.errors import LicenseIdError
-from licenseid.records import BUILD_VERSION
 from licenseid.resolverinfo import list_info
 from licenseid.resolvertypes import ListInfo
 from licenseid.result import FieldValue, fields_line, read_text_field, record_json
@@ -291,6 +292,7 @@ def insert_mit_license(conn: sqlite3.Connection) -> None:
         "INSERT INTO license_index (license_id, search_text) VALUES (?, ?)",
         ("MIT", MIT_SEARCH_TEXT),
     )
+    fill_norm_columns(conn)
 
 
 def make_mit_db_path(

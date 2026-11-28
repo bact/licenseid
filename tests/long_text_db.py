@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from conftest import seed_ready_metadata
-from seed_sql import INSERT_INDEX
+from seed_sql import INSERT_INDEX, fill_norm_columns
 
 from licenseid.database import LicenseDatabase
 from licenseid.detector import LicenseDetector
@@ -113,6 +113,7 @@ def long_text_detector() -> LicenseDetector:
     with sqlite3.connect(DB_PATH, uri=True) as conn:
         conn.executemany(_LICENSE_SQL, licenses)
         conn.executemany(INSERT_INDEX, index)
+        fill_norm_columns(conn)
     store_fingerprints(manager._connections)  # pylint: disable=protected-access
     seed_ready_metadata(DB_PATH)
     return LicenseDetector(DB_PATH)

@@ -13,6 +13,7 @@ from typing import NamedTuple
 
 import pytest
 from conftest import GivenWarnings, make_memory_db_path
+from seed_sql import fill_norm_columns
 
 from licenseid.detector import LicenseDetector
 from licenseid.errors import InvalidInputError
@@ -57,6 +58,7 @@ def test_db() -> Generator[str, None, None]:
             ("last_check_datetime", "2026-01-01T00:00:00"),
         )
         conn.commit()
+        fill_norm_columns(conn)
 
     yield db_path
     keep_alive.close()

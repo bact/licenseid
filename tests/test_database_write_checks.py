@@ -25,7 +25,7 @@ from db_variants import NO_RECORDS, create_database, make_ready_file_db, writer
 from release_fakes import VERSION, online, release_bundle, serve, ship
 
 from licenseid import DatabaseNotReadyError, LicenseDatabase, LicenseIdError
-from licenseid.records import BUILD_VERSION
+from licenseid.dbschema import BUILD_VERSION
 from licenseid.types import UpdateSource
 
 

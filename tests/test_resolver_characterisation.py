@@ -48,7 +48,13 @@ from typing import Any
 import pytest
 from conftest import make_memory_db_path
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
-from seed_sql import INSERT_EXCEPTION, INSERT_INDEX, INSERT_LICENSE, SET_METADATA
+from seed_sql import (
+    INSERT_EXCEPTION,
+    INSERT_INDEX,
+    INSERT_LICENSE,
+    SET_METADATA,
+    fill_norm_columns,
+)
 
 import licenseid
 from licenseid import LicenseDatabase
@@ -73,6 +79,7 @@ def seed(db_path: str, spec: dict[str, Any]) -> None:
             conn.execute(INSERT_INDEX, (lid, f"stub text of {lid}"))
         for row in spec["exceptions"]:
             conn.execute(INSERT_EXCEPTION, tuple(row))
+        fill_norm_columns(conn)
         conn.execute(
             SET_METADATA,
             ("license_list_version", spec["list_version"]),

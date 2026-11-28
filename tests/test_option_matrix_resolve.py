@@ -24,9 +24,9 @@ from packaged_list import fixture_bundle
 from release_fakes import release_bundle, ship
 from resolve_states import MISSING as NO_DATABASE
 from resolve_states import (
+    NEWER_BUILD,
+    NEWER_BUILD_WARNING,
     NO_HOME,
-    OUTDATED,
-    OUTDATED_WARNING,
     STATES,
     VERSION,
     build,
@@ -68,7 +68,7 @@ def _resolve_outcome(source: str, state: str, bundle: str) -> tuple[str, str, st
     if source == "database" or bundle != "shipped":
         if refused:
             return "raise", refused[0] + re.escape(refused[1]), re.escape(loaded)
-        opened = OUTDATED_WARNING if state == OUTDATED else ""
+        opened = NEWER_BUILD_WARNING if state == NEWER_BUILD else ""
         return "database", "", re.escape(opened + loaded)
     return _auto_with_a_bundle(state, refused)
 
@@ -78,8 +78,8 @@ def _auto_with_a_bundle(
 ) -> tuple[str, str, str]:
     """``auto`` with the bundle shipped: the database, the bundle silently,
     or the bundle after a warning."""
-    if state == OUTDATED:
-        return "packaged", "", re.escape(OUTDATED_WARNING)
+    if state == NEWER_BUILD:  # a tie goes to the bundle
+        return "packaged", "", re.escape(NEWER_BUILD_WARNING)
     if refused is None:
         return "database", "", ""
     if state in (NO_DATABASE, NO_HOME):  # no database file: silent

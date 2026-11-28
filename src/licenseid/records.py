@@ -30,23 +30,8 @@ from licenseid.textcorpus import TextCorpus, TextRow, VarRegion
 from licenseid.textstore import StoredRow, stored_rows
 from licenseid.types import SpdxExceptionEntry, SpdxLicenseEntry
 
-# Version of the rules that turn a release into rows. A database stores the
-# version it was built with; `update` rebuilds one built with older rules.
-# Version 2: a renamed deprecated ID records its successor (StandardML-NJ).
-# Version 3: a deprecated ID without a text keeps the OSI and FSF flags the
-# List gives it (wxWindows, eCos-2.0); they were both False.
-# Version 4: the pages of each kept licence and every exception (``seeAlso``)
-# go to ``license_urls``, so that a licence URL can be read as its licence.
-# Version 5: ``core_text``, ``core_word_count`` (the template without its
-# optional parts, when that is shorter) and ``same_text`` (the licences whose
-# text is the same) are stored.
-# Version 6: ``text_codes`` holds the List texts as word codes
-# (``textstore.stored_rows``), so the search of whole texts reads
-# them instead of coding every text again at its first use.
-# Version 7: ``text_codes`` holds the regions of each text's variable parts
-# (``templatevars``) and their patterns, so the search of whole texts leaves
-# a copy's own copyright holder or project name out of its fit.
-BUILD_VERSION = "7"
+# A change to the rows built here bumps ``dbschema.BUILD_VERSION``, which
+# holds the history of these rules.
 
 # The regions of a text and of its core.
 _Regions = tuple[tuple[VarRegion, ...], tuple[VarRegion, ...]]

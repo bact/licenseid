@@ -13,7 +13,9 @@ format of what they print is in [output.md](output.md). The
 
 ## Update the licence database
 
-Before matching, you need to build the local licence index:
+Before matching, you need to build the local licence index, and to build
+it again after each upgrade of licenseid: a lookup reads only a database
+its own version built.
 
 ```bash
 licenseid update
@@ -30,7 +32,9 @@ LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/
 
 `LIST` is the list, by the ID `resolve()` gives it in `lists[*].id`;
 `VERSION` is the release the database now holds; `STATUS` is `updated`, or
-`unchanged` when the database already had that release.
+`unchanged` when the database already had that release. A database an
+older licenseid built is built again from nothing, even at the release it
+holds; one a newer licenseid built is left as it is.
 
 Advanced update options:
 
@@ -381,10 +385,15 @@ A `WARNING` about the input or the database can still come with it, as with
 an answer: `detect "Not a licence at all"` says `too few words for text`
 and finds no match.
 
-A database is not ready when it is missing, empty (no licences), invalid
-(another program's file) or unreadable (a symlink loop included). `detect` and
-the `is-*` commands refuse to answer from one, rather than exiting 1 for no
-licence or `false`; `resolve` reads the list shipped with licenseid instead,
-unless `--db` or `--source database` asks for the database.
+A database is not ready when it is missing, empty (no licences, or a table
+of this version's database missing), invalid (another program's file),
+unreadable (a symlink loop included), or built by an older licenseid
+(`database: build v6 outdated: current v7; run 'licenseid update'`, or
+`normalization vN outdated`). `detect` and the `is-*` commands refuse to
+answer from one, rather than exiting 1 for no licence or `false`; `resolve`
+reads the list shipped with licenseid instead, unless `--db` or `--source
+database` asks for the database. After an upgrade of licenseid, run
+`licenseid update` once. A database a newer licenseid built is read, with
+the warning `database: build vN newer: current vM`.
 
 `licenseid --version` prints `licenseid <version>`.

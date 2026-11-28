@@ -13,9 +13,7 @@ Companion to ``test_lookup_database_hardening.py``.
 import contextlib
 import os
 import sqlite3
-from collections.abc import Iterator
 from pathlib import Path
-from unittest import mock
 
 import pytest
 from conftest import posix_only
@@ -26,7 +24,6 @@ from db_asserts import (  # noqa: F401  # pylint: disable=unused-import
 from db_variants import make_ready_file_db, writer
 
 from licenseid import DatabaseNotReadyError
-from licenseid import database as database_module
 from licenseid.database import LicenseDatabase
 from licenseid.dbcheck import (
     check_database_ready,
@@ -34,34 +31,9 @@ from licenseid.dbcheck import (
     needs_writing,
     unreadable_error,
 )
-from licenseid.dbschema import schema_state
 from licenseid.errors import typed
 from licenseid.fingerprint import extract_ngrams
 from licenseid.fingerprintstore import store_fingerprints
-
-
-def _columns(path: Path) -> set[str]:
-    with contextlib.closing(sqlite3.connect(path)) as conn:
-        return {r[1] for r in conn.execute("PRAGMA table_info(licenses)")}
-
-
-def test_a_write_without_create_never_makes_the_file(tmp_path: Path) -> None:
-    path = make_ready_file_db(tmp_path / "gone.db")
-    with writer(path) as conn:
-        conn.execute("DROP INDEX idx_licenses_name")
-    real = schema_state
-
-    def state_then_vanish(connections: object) -> str:
-        state = real(connections)  # type: ignore[arg-type]
-        path.unlink()  # the file goes between the read and the write
-        return state
-
-    with (
-        mock.patch.object(database_module, "schema_state", state_then_vanish),
-        pytest.raises(DatabaseNotReadyError),
-    ):
-        LicenseDatabase(str(path), create=False)
-    assert not path.exists(), "a write without create made the file"
 
 
 def test_a_write_inside_a_reading_block_has_its_own_connection(
@@ -119,36 +91,6 @@ def test_a_fifo_behind_a_vfs_uri_does_not_hang(tmp_path: Path, suffix: str) -> N
     os.mkfifo(f"{path}{suffix}")
     out = probe_does_not_hang(f"file://{path}?vfs=unix")
     assert "DatabaseNotReadyError" in out, out
-
-
-@pytest.fixture(name="old_column")
-def _old_column(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Path]:
-    if sqlite3.sqlite_version_info < (3, 35):
-        pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
-    path = make_ready_file_db(tmp_path / "old.db")
-    with writer(path) as conn:
-        conn.execute(f"ALTER TABLE licenses DROP COLUMN {request.param}")
-    yield path
-
-
-@pytest.mark.parametrize("old_column", ["norm_license_id", "norm_name"], indirect=True)
-def test_a_database_without_a_norm_column_gets_it(
-    old_column: Path, request: pytest.FixtureRequest
-) -> None:
-    column = request.node.callspec.params["old_column"]
-    assert column not in _columns(old_column)
-    LicenseDatabase(str(old_column), create=False)
-    assert column in _columns(old_column)
-
-
-def test_a_row_without_a_name_is_normalised_to_empty_not_none(
-    tmp_path: Path,
-) -> None:
-    path = make_ready_file_db(tmp_path / "n.db")
-    with writer(path) as conn:
-        conn.execute("UPDATE licenses SET name = NULL, norm_name = NULL")
-    names = LicenseDatabase(str(path), create=False).get_all_names_and_ids()
-    assert [n["norm_name"] for n in names] == [""]
 
 
 def test_stored_norm_columns_are_kept_not_recomputed(tmp_path: Path) -> None:

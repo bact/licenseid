@@ -4,8 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The core text and the same-text group of a licence (build 5): the rows
-``build_records`` makes, the columns, the schema upgrade of an older file and
-the read ``text_parts`` keeps."""
+``build_records`` makes, the columns and the read ``text_parts`` keeps."""
 # pylint: disable=missing-function-docstring,protected-access
 
 import json
@@ -14,17 +13,16 @@ from pathlib import Path
 from types import MappingProxyType
 
 import pytest
-from conftest import GivenWarnings
 from db_asserts import safe_home  # noqa: F401  # pylint: disable=unused-import
 from db_variants import writer
 from list_entries import lic_entry
 from packaged_list import database_of
 
 from licenseid.database import LicenseDatabase, text_parts
-from licenseid.dbschema import schema_state
+from licenseid.dbschema import BUILD_VERSION
+from licenseid.errors import DatabaseNotReadyError
 from licenseid.normalize import normalize_text
 from licenseid.records import (
-    BUILD_VERSION,
     LicenseInsertRecord,
     build_records,
     uneven_cores,
@@ -310,56 +308,9 @@ def test_the_columns_are_in_the_table_and_the_schema(tmp_path: Path) -> None:
     assert stored[2] is None
 
 
-def _build_4_file(path: Path) -> None:
-    """A database of build 4: the build-5 columns are gone."""
-    _database(path, _real())
-    with writer(path) as conn:
-        for name in COLUMNS:
-            conn.execute(f"ALTER TABLE licenses DROP COLUMN {name}")
-        conn.execute("UPDATE db_metadata SET value = '4' WHERE key = 'build_version'")
-
-
-def _columns_of(path: Path) -> set[str]:
-    with writer(path) as conn:
-        return {r[1] for r in conn.execute("PRAGMA table_info(licenses)")}
-
-
-@pytest.mark.parametrize("column", COLUMNS)
-def test_a_file_without_a_column_reads_no_parts_and_is_not_written(
-    tmp_path: Path, column: str, given: GivenWarnings
-) -> None:
-    """Build 4 had none of the columns: a lookup never adds them."""
-    if sqlite3.sqlite_version_info < (3, 35):
-        pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
-    path = tmp_path / "licenses.db"
-    _build_4_file(path)
-    before = path.read_bytes()
-    given.take()
-    db = LicenseDatabase(str(path), create=False)
-    assert given.conditions() == {"build v4 outdated"}
-    assert text_parts(db) == {}  # NULL: no core and no twin until update
-    assert column not in _columns_of(path)
-    assert path.read_bytes() == before
-
-
-def test_a_write_adds_the_columns_of_an_older_file(
-    tmp_path: Path, given: GivenWarnings
-) -> None:
-    if sqlite3.sqlite_version_info < (3, 35):
-        pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
-    path = tmp_path / "licenses.db"
-    _build_4_file(path)
-    given.take()
-    db = LicenseDatabase(str(path), create=False)
-    assert text_parts(db) == {}
-    db._write_db_records(build_records(_real(), {}), None)
-    assert set(COLUMNS) <= _columns_of(path)
-    db._tables.clear()
-    assert set(text_parts(db)) == {"Apache-2.0", "LGPL-3.0-only"}
-
-
-def test_a_lookup_reads_a_file_whose_columns_are_gone(tmp_path: Path) -> None:
-    """Dropped under an open handle: a missing column is no error."""
+def test_a_lookup_refuses_a_file_whose_columns_are_gone(tmp_path: Path) -> None:
+    """Dropped under an open handle: the read fails as the database's own,
+    with no second way to read an older shape."""
     if sqlite3.sqlite_version_info < (3, 35):
         pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
     path = tmp_path / "licenses.db"
@@ -369,22 +320,8 @@ def test_a_lookup_reads_a_file_whose_columns_are_gone(tmp_path: Path) -> None:
         for name in COLUMNS:
             conn.execute(f"ALTER TABLE licenses DROP COLUMN {name}")
     db._tables.clear()
-    assert text_parts(db) == {}
-
-
-def test_a_file_without_the_build_columns_is_still_current(tmp_path: Path) -> None:
-    """The columns of build 5 are no reason to write on a lookup."""
-    if sqlite3.sqlite_version_info < (3, 35):
-        pytest.skip("ALTER TABLE DROP COLUMN needs SQLite 3.35")
-    path = tmp_path / "licenses.db"
-    db = _database(path, _real())
-    assert schema_state(db._connections) == "current"
-    with writer(path) as conn:
-        conn.execute("ALTER TABLE licenses DROP COLUMN same_text")
-    assert schema_state(db._connections) == "current"
-    with writer(path) as conn:
-        conn.execute("ALTER TABLE licenses DROP COLUMN norm_name")
-    assert schema_state(db._connections) == "older"
+    with pytest.raises(DatabaseNotReadyError, match="no such column"):
+        text_parts(db)
 
 
 def test_the_parts_are_read_once_and_follow_a_rebuild(tmp_path: Path) -> None:
