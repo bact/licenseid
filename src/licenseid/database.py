@@ -29,6 +29,7 @@ from licenseid.dbcheck import (
 )
 from licenseid.dbclear import clear_database
 from licenseid.dbconnection import Connections, QueryConnection
+from licenseid.dbhandle import DatabaseHandle
 from licenseid.dbschema import (
     BUILD_VERSION,
     NORMALIZATION_VERSION,
@@ -38,7 +39,12 @@ from licenseid.dbschema import (
     stamp,
     stamped_rules,
 )
-from licenseid.dbverdict import Refusal, connection_refusal, rebuild_refusal
+from licenseid.dbverdict import (
+    NEWER,
+    Refusal,
+    connection_refusal,
+    rebuild_refusal,
+)
 from licenseid.errors import DatabaseNotReadyError, LicenseIdError, fold, typed
 from licenseid.fingerprintstore import fingerprint_hits, store_fingerprints
 from licenseid.gramselect import ListFlags
@@ -72,7 +78,7 @@ def is_current_build(metadata: DatabaseMetadata) -> bool:
     return stamp(metadata.get("build_version", "1")) == stamp(BUILD_VERSION)
 
 
-class LicenseDatabase:
+class LicenseDatabase(DatabaseHandle):
     """
     Handles SQLite database operations for storing and searching SPDX licenses.
     """
@@ -271,9 +277,10 @@ class LicenseDatabase:
 
         A file made since opening (another process's update) is judged as at
         opening: refused, completed, or found current, with the rules it was
-        built by (never rebuilt over a newer build). A file that is not
-        licenseid's is refused before ``leave_wal`` writes its journal mode.
-        A name in a directory that is not there fails now, as it does when
+        built by (a newer licenseid's file is never written but with
+        *force*: ``_update_from_remote``). A file that is not licenseid's is
+        refused before ``leave_wal`` writes its journal mode. A name in a
+        directory that is not there fails now, as it does when
         the file is made, not after a download."""
         if self._schema_pending and not self._is_missing():
             self._schema_pending = False
@@ -297,8 +304,15 @@ class LicenseDatabase:
         target_version, release_date, ds_licenses = chain.target()
         status(f"Target SPDX License List version: {target_version}")
         # A file of older rules, or of another shape, needs the same release
-        # built again.
-        force = request.force or (not pending and self._refusal() is not None)
+        # built again. One a newer licenseid built (``newer``, readable or
+        # not) is never written but with --force: left as it is at its
+        # release, else refused.
+        refusal = None if pending else self._refusal()
+        if refusal is not None and refusal[0] == NEWER and not request.force:
+            if current == target_version:
+                return _skip(target_version)
+            raise refusal[1]
+        force = request.force or refusal is not None
         if current == target_version and not force:
             return _skip(target_version)
 

@@ -15,8 +15,8 @@ A corpus is built once (``TextCorpus.build``) and never changed after: a
 search reads it from any thread. Cores are coded at build time. The database
 stores it (``licenseid.textstore``).
 
-Standard library only, apart from ``licenseid.similarity``'s list of
-critical words and the tokens of ``licenseid.textgrams``.
+Standard library only, apart from the tokens and critical words of
+``licenseid.textgrams``.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -26,8 +26,7 @@ from itertools import accumulate
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
-from licenseid.similarity import CRITICAL_TOKENS
-from licenseid.textgrams import GRAM_SIZE, TOKEN, split_words
+from licenseid.textgrams import CRITICAL_TOKENS, GRAM_SIZE, TOKEN, split_words
 
 #: The code of an input word that no List text holds: it matches nothing.
 UNKNOWN: Final = "\0"

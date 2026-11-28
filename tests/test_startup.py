@@ -107,6 +107,20 @@ def test_what_resolve_does_not_load(loaded: Loaded, heavy: str) -> None:
     assert heavy not in loaded(_CLI, ("resolve", "MIT"))
 
 
+@pytest.mark.parametrize(
+    "heavy",
+    ["rapidfuzz", "requests", "licenseid.detector", "tarfile"],
+)
+def test_what_resolve_with_a_database_does_not_load(
+    loaded: Loaded, bundle_db: LicenseDatabase, heavy: str
+) -> None:
+    """A ready database is opened to read its list, never its texts: the
+    modules of the database (``licenseid.database``) load no RapidFuzz."""
+    modules = loaded(_CLI, ("--db", str(bundle_db.db_path), "resolve", "MIT"))
+    assert "licenseid.database" in modules  # the database was opened
+    assert heavy not in modules
+
+
 def test_a_database_is_loaded_when_it_is_opened(loaded: Loaded) -> None:
     """The control: the heavy names above are what a detection loads."""
     modules = loaded(_CLI, ("detect", "--text", "MIT"))
@@ -122,7 +136,12 @@ def _type_checking_imports() -> dict[str, str]:
     tree = ast.parse(Path(licenseid.__file__ or "").read_text(encoding="utf-8"))
     found: dict[str, str] = {}
     for node in tree.body:
-        if isinstance(node, ast.If) and "TYPE_CHECKING" in ast.dump(node.test):
+        # `if TYPE_CHECKING:` only; `if not TYPE_CHECKING:` holds __getattr__.
+        if (
+            isinstance(node, ast.If)
+            and "TYPE_CHECKING" in ast.dump(node.test)
+            and not isinstance(node.test, ast.UnaryOp)
+        ):
             for item in node.body:
                 assert isinstance(item, ast.ImportFrom) and item.module
                 for alias in item.names:
@@ -155,9 +174,12 @@ def test_dir_holds_every_public_name_before_any_is_used() -> None:
     assert done.returncode == 0, done.stderr
 
 
+NO_SUCH = "nope"
+
+
 def test_an_unknown_name_is_an_attribute_error() -> None:
     with pytest.raises(AttributeError, match="has no attribute 'nope'") as raised:
-        _ = licenseid.nope
+        _ = getattr(licenseid, NO_SUCH)  # the type checker would flag the dot
     assert str(raised.value) == "module 'licenseid' has no attribute 'nope'"
     assert not hasattr(licenseid, "nope")
     assert getattr(licenseid, "nope", 7) == 7
@@ -165,7 +187,7 @@ def test_an_unknown_name_is_an_attribute_error() -> None:
 
 def test_a_private_name_is_not_a_public_one() -> None:
     with pytest.raises(AttributeError):
-        _ = licenseid.__wrapped__
+        _ = getattr(licenseid, "__wrapped" + "__")
 
 
 @pytest.mark.parametrize("name", ["InvalidInputError", "LicenseIdError", "Variant"])

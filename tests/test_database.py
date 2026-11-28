@@ -171,7 +171,7 @@ BUILD_OLD = outdated("build", "1", BUILD_VERSION)
         ),
         (
             {**CURRENT, "build_version": "9" * 5000},  # past int()'s digit limit
-            outdated("build", "9" * 5000, BUILD_VERSION),
+            outdated("build", "9" * 60 + "...", BUILD_VERSION),  # one_line
         ),
         ({"normalization_version": "1", "build_version": NEXT}, NORM_OLD),
     ],

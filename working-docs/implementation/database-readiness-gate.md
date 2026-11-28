@@ -223,7 +223,20 @@ of its own build, and keeps no code that reads or migrates an older one.
   packaged list after the warning `database: build vN outdated: current vM;
   using packaged data v<ver>`, whatever List the database holds (until then
   an older build still won when its List was newer). A newer stamp still
-  warns (`build vN newer`) and is read.
+  warns (`build vN newer`) and is read. A newer stamp on a file this build
+  cannot read (a missing table, index or column, or no text) is not
+  `empty` but its own tag, `newer` (0.10.0): a read refuses it as
+  `build vN newer: current vM` with no action, `clear-cache` deletes it
+  with its cache. One rule for `update`: without `--force` it never writes
+  a file with a newer stamp, readable or not (`dbverdict.rebuild_refusal`
+  calls a readable one `newer` before it judges a retired table or a norm
+  row): `unchanged` at the release it holds, the `newer` refusal (exit 1)
+  at another, where it used to build a readable one again as this build.
+  Else a 0.10 and a later version sharing a data directory would build each
+  other's file in turn. A newer file that fails `_not_ready` (no list
+  version, no licence rows: an interrupted update) is still `empty` and
+  rebuilt. A stamp is shown through `errors.one_line`: the file may hold
+  any text there.
 - **Rebuilt from nothing.** `update` drops licenseid's tables and makes the
   shape inside the transaction that fills it (`dbschema.replace_schema`), so
   a failed rebuild leaves the old file as it was. It rebuilds any file the

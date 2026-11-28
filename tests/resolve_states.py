@@ -35,6 +35,8 @@ NO_ROWS = "no_rows"
 UNREADABLE = "unreadable"
 OUTDATED = "outdated"
 NEWER_BUILD = "newer_build"
+# A newer build in a shape this one cannot read.
+NEWER_SHAPE = "newer_shape"
 NO_HOME = "no_home"
 STATES = [
     USABLE,
@@ -45,6 +47,7 @@ STATES = [
     UNREADABLE,
     OUTDATED,
     NEWER_BUILD,
+    NEWER_SHAPE,
     NO_HOME,
 ]
 
@@ -88,7 +91,9 @@ def _unreadable(_: pytest.MonkeyPatch) -> None:
     _default_path().mkdir()
 
 
-def _stamped(build_version: str) -> Callable[[pytest.MonkeyPatch], None]:
+def _stamped(build_version: str, *more: str) -> Callable[[pytest.MonkeyPatch], None]:
+    """A ready file stamped *build_version*, then changed by *more*."""
+
     def stamp(_: pytest.MonkeyPatch) -> None:
         path = make_ready_file_db(_default_path())
         with writer(path) as conn:
@@ -96,6 +101,8 @@ def _stamped(build_version: str) -> Callable[[pytest.MonkeyPatch], None]:
                 "UPDATE db_metadata SET value = ? WHERE key = 'build_version'",
                 (build_version,),
             )
+            for statement in more:
+                conn.execute(statement)
 
     return stamp
 
@@ -115,6 +122,9 @@ BUILDERS: dict[str, Callable[[pytest.MonkeyPatch], None]] = {
     UNREADABLE: _unreadable,
     OUTDATED: _stamped("1"),
     NEWER_BUILD: _stamped("99"),
+    NEWER_SHAPE: _stamped(
+        "99", "ALTER TABLE text_code_checks RENAME TO text_code_checks_v99"
+    ),
     NO_HOME: _no_home,
 }
 
@@ -134,6 +144,7 @@ def refusal(state: str) -> tuple[str, str] | None:
         EMPTY: (f"database: empty: {path}", action),
         NO_ROWS: (f"database: empty: {path}", action),
         OUTDATED: (f"database: build v1 outdated: current v{BUILD_VERSION}", action),
+        NEWER_SHAPE: (f"database: build v99 newer: current v{BUILD_VERSION}", ""),
     }.get(state)
     if state == UNREADABLE:
         return re.escape(f"database: unreadable: {path}: ") + "[^;]+", ""

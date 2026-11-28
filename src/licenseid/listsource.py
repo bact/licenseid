@@ -57,11 +57,12 @@ fail-open, as the detector reads it: a lock held elsewhere is no verdict.
 import os
 import threading
 import weakref
-from typing import TYPE_CHECKING, NamedTuple, Union, get_args
+from typing import TYPE_CHECKING, NamedTuple, get_args
 
 from licenseid import listindex
 from licenseid.datadir import get_default_db_path
 from licenseid.dbcheck import check_database_ready, reject_blank_path
+from licenseid.dbhandle import DatabaseHandle
 from licenseid.errors import DatabaseNotReadyError, InvalidInputError, one_line
 from licenseid.listlookup import ListLookup
 from licenseid.resolvertypes import ListSource, Source
@@ -105,8 +106,7 @@ _paths: "dict[str, tuple[tuple[int, ...] | None, LicenseDatabase]]" = {}
 
 
 #: What ``resolve(db=...)`` takes: a database, or the path of one.
-# Union, not "|": the class is only imported for type checking.
-GivenDatabase = Union[str, os.PathLike[str], "LicenseDatabase"]
+GivenDatabase = str | os.PathLike[str] | DatabaseHandle
 
 
 def choose_list(

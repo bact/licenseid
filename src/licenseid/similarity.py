@@ -19,7 +19,7 @@ from unicodedata import east_asian_width
 from rapidfuzz import fuzz
 
 from licenseid import regionalign
-from licenseid.textgrams import whole_tokens
+from licenseid.textgrams import CRITICAL_TOKENS, whole_tokens
 from licenseid.types import CandidateMatch, InternalMatch, TextParts
 
 # Probe-gate settings for fragment ranking (query shorter than candidate).
@@ -79,10 +79,6 @@ EVIDENCE_COLUMNS: int = 40
 # more than the core (the optional parts, which the whole text has), and
 # scoring it twice would double the cost of a long input for nothing.
 CORE_MIN_SHARE: float = 0.8
-
-# Words whose presence on one side only turns a grant around: a similarity
-# above 0.9 loses 5 % for each (calculate_base_similarity).
-CRITICAL_TOKENS: Final = frozenset({"not", "except", "unless", "irrevocable"})
 
 
 class Regions(Protocol):  # pylint: disable=too-few-public-methods

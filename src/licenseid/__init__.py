@@ -69,17 +69,21 @@ _HOME = {
 }
 
 
-def __getattr__(name: str) -> object:
-    """PEP 562: import a public name's module at its first use and keep the
-    name on this module, so the next lookup never comes here. Two threads
-    may both come here: both read the same object from a module Python
-    imports once, so the assignment is safe."""
-    home = _HOME.get(name)
-    if home is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    value: object = getattr(importlib.import_module(f"licenseid.{home}"), name)
-    globals()[name] = value
-    return value
+if not typing.TYPE_CHECKING:
+    # Hidden from type checkers: they read the imports above, so a misspelt
+    # public name is an error there, not an `object`.
+
+    def __getattr__(name: str) -> object:
+        """PEP 562: import a public name's module at its first use and keep
+        the name on this module, so the next lookup never comes here. Two
+        threads may both come here: both read the same object from a module
+        Python imports once, so the assignment is safe."""
+        home = _HOME.get(name)
+        if home is None:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        value: object = getattr(importlib.import_module(f"licenseid.{home}"), name)
+        globals()[name] = value
+        return value
 
 
 def __dir__() -> list[str]:

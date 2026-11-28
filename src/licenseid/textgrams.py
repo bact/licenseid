@@ -22,7 +22,7 @@ inside a long input both score high.
 
 Standard library only: ``licenseid.gramstore`` builds an index from it at
 ``update`` and at a lookup, and ``licenseid.textcorpus`` takes its tokens
-from here.
+and its critical words from here.
 """
 
 import hashlib
@@ -36,6 +36,10 @@ from typing import Final, NamedTuple
 GRAM_SIZE: Final = 3
 #: The hash of a gram, as named in the stamp of the stored postings.
 HASH_NAME: Final = "blake2b-64"
+#: Words whose presence on one side only turns a grant around: a similarity
+#: above 0.9 loses 5 % for each (``licenseid.similarity``), and the corpus
+#: keeps their codes (``licenseid.textcorpus``).
+CRITICAL_TOKENS: Final = frozenset({"not", "except", "unless", "irrevocable"})
 #: Raised on a change to what a token is (:data:`TOKEN`, :func:`split_words`).
 TOKEN_RULE: Final = 1
 

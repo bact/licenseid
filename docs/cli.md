@@ -34,7 +34,9 @@ LIST=spdx-license-list	VERSION=3.29.0	STATUS=updated	PATH=/home/me/.local/share/
 `VERSION` is the release the database now holds; `STATUS` is `updated`, or
 `unchanged` when the database already had that release. A database an
 older licenseid built is built again from nothing, even at the release it
-holds; one a newer licenseid built is left as it is.
+holds; one a newer licenseid built is left as it is: `unchanged` at the
+release it holds, else `ERROR: database: build v11 newer: current v10`
+(exit 1). `--force` builds it again.
 
 Advanced update options:
 
@@ -400,6 +402,8 @@ answer from one, rather than exiting 1 for no licence or `false`; `resolve`
 reads the list shipped with licenseid instead, unless `--db` or `--source
 database` asks for the database. After an upgrade of licenseid, run
 `licenseid update` once. A database a newer licenseid built is read, with
-the warning `database: build vN newer: current vM`.
+the warning `database: build vN newer: current vM`; one in a shape this
+version cannot read is not ready, with that line as an `ERROR` (or
+`normalization vN newer`), and no `update` to run: use the newer licenseid.
 
 `licenseid --version` prints `licenseid <version>`.

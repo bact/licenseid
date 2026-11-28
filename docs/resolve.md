@@ -292,7 +292,9 @@ database that is there but unusable, the shipped list after one warning,
 `database: <condition>: <detail>; using packaged data v<version>`. A
 database an older licenseid built is unusable, whatever List it holds
 (`database: build v7 outdated: current v10; using packaged data v3.29.0`),
-as an empty one is, until `licenseid update` builds it again.
+as an empty one is, until `licenseid update` builds it again. So is one a
+newer licenseid built in a shape this version cannot read
+(`database: build v11 newer: current v10; using packaged data v3.29.0`).
 `source="database"` reads only the database (and raises for one that
 cannot answer, as `auto` would call it unusable) and `source="packaged"`
 only the shipped list. The answer is the same from either, and

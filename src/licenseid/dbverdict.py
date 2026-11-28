@@ -9,7 +9,8 @@ what ``update`` builds again (``rebuild_refusal``).
 
 ``invalid`` is another program's file, ``empty`` one licenseid built with
 too few tables or rows, ``outdated`` one of older rules or of 0.9.x's shape
-(the texts in the FTS5 table, never read). Each refusal keeps its condition
+(the texts in the FTS5 table, never read), ``newer`` one a newer licenseid
+built in a shape this one cannot read. Each refusal keeps its condition
 tag (:data:`Refusal`), so a read (fail-open) and a write or delete
 (fail-closed) apply their own policy to it. Reads only. Standard library,
 ``dbschema`` and ``errors`` only.
@@ -28,6 +29,8 @@ from licenseid.dbschema import (
 from licenseid.errors import DatabaseNotReadyError, shown
 
 ACTION = "; run 'licenseid update'"
+# The tag of a newer licenseid's file this one cannot read.
+NEWER = "newer"
 
 _REQUIRED_TABLES = {"licenses", "db_metadata"}
 # The table of the texts: this build's, or the FTS5 one of 0.9.x, which only
@@ -172,9 +175,12 @@ def connection_refusal(conn: sqlite3.Connection, db_path: str) -> Refusal | None
     build v7 outdated: current v10; run 'licenseid update'``, normalisation
     first), a file of 0.9.x too, whose texts are in the FTS5 table this build
     never reads. Last, a file that lacks a table, index or column of this
-    build, whatever its stamp says, is ``empty``: a lookup has no second way
-    to read an older shape, and ``update`` builds it again. So is one with
-    no text. A row whose normalised id or name is not text is found where the
+    build, or has no text, cannot be read: with a newer stamp it is
+    ``newer`` (``database: build v11 newer: current v10``, no action:
+    ``update`` never builds a newer licenseid's file again), else ``empty``,
+    as a lookup has no second way to read an older shape and ``update``
+    builds it again. The stamps are read before the shape: no query more. A
+    row whose normalised id or name is not text is found where the
     names are read (``dbcache``), not here: that pass cost every opening a
     scan of the licences."""
     condition = _not_ready(conn)
@@ -182,18 +188,30 @@ def connection_refusal(conn: sqlite3.Connection, db_path: str) -> Refusal | None
         return condition, invalid_error(db_path)
     if condition is not None:
         return empty_refusal(db_path)
-    stamps = dict(
+    stamps = _stamps(conn)
+    older = stamped_rules(stamps, newer=False)
+    if older:
+        return "outdated", refused(*older[0], ACTION)
+    if not has_shape(conn) or not conn.execute(_ANY_TEXT).fetchone():
+        return _newer_refusal(stamps) or empty_refusal(db_path)
+    return None
+
+
+def _stamps(conn: sqlite3.Connection) -> dict[str, object]:
+    """The build and normalisation stamps of the file, by key."""
+    return dict(
         conn.execute(
             "SELECT key, value FROM db_metadata"
             " WHERE key IN ('normalization_version', 'build_version')"
         )
     )
-    older = stamped_rules(stamps, newer=False)
-    if older:
-        return "outdated", refused(*older[0], ACTION)
-    if not has_shape(conn) or not conn.execute(_ANY_TEXT).fetchone():
-        return empty_refusal(db_path)
-    return None
+
+
+def _newer_refusal(stamps: dict[str, object]) -> Refusal | None:
+    """``newer`` for *stamps* newer than this licenseid's (``database:
+    build v11 newer: current v10``, no action), else None."""
+    newer = stamped_rules(stamps, newer=True)
+    return (NEWER, refused(*newer[0])) if newer else None
 
 
 # The texts are what a text match reads: none answers "no licence".
@@ -207,15 +225,23 @@ def empty_refusal(db_path: str) -> Refusal:
 
 
 def rebuild_refusal(conn: sqlite3.Connection, db_path: str) -> Refusal | None:
-    """:func:`connection_refusal`, and ``empty`` for a row whose normalised id
-    or name is not text, which the lookups refuse only where they read the
-    names, or for a table of an older build left beside this one's, which
-    they never read: what ``update`` builds again although it holds the
-    release asked for. Reads only."""
+    """:func:`connection_refusal`, for ``update``. A file it can read whose
+    stamp is newer is ``newer`` too: ``update`` never writes a newer
+    licenseid's file but with ``--force``, and judges nothing more in it.
+    Else ``empty`` for a row whose normalised id or name is not text, which
+    the lookups refuse only where they read the names, or for a table of an
+    older build left beside this one's, which they never read: what
+    ``update`` builds again although it holds the release asked for. Reads
+    only."""
     refusal = connection_refusal(conn, db_path)
-    if refusal is None and (
+    if refusal is not None:
+        return refusal
+    newer = _newer_refusal(_stamps(conn))
+    if newer is not None:
+        return newer
+    if (
         conn.execute(_NORM_NOT_TEXT).fetchone()
         or conn.execute(_RETIRED_OBJECT).fetchone()
     ):
         return empty_refusal(db_path)
-    return refusal
+    return None

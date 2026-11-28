@@ -10,13 +10,15 @@ licenseid reads only a file of its own build: one with an older stamp, or
 without a table or column of this shape, is not ready (``dbcheck``), and
 ``update`` builds it again from nothing (:func:`replace_schema`).
 
-Stdlib only, so ``dbcheck`` can judge a file without importing a connection
-or the builder.
+Standard library and ``errors`` only, so ``dbcheck`` can judge a file
+without importing a connection or the builder.
 """
 
 import re
 import sqlite3
 from collections.abc import Mapping
+
+from licenseid.errors import one_line
 
 # Version of the normalize_text() rule set used to build the stored
 # search_text and fingerprints. Bump whenever normalization rules change: a
@@ -172,7 +174,8 @@ def stamped_rules(metadata: Mapping[str, object], newer: bool) -> list[tuple[str
     (``normalization v1 outdated``, ``current v2``), normalisation first; a
     stamp that is missing or no number counts as older. With *newer*, the
     newer ones (``build v8 newer``): a later licenseid built it, and
-    rebuilding would downgrade it.
+    rebuilding would downgrade it. A stored stamp is shown as one line
+    (``errors.one_line``): the file may hold any text there.
 
     Stored search_text and fingerprints are normalised at build time; if the
     normalize_text() rules changed since, query-side normalisation no longer
@@ -191,7 +194,8 @@ def stamped_rules(metadata: Mapping[str, object], newer: bool) -> list[tuple[str
     for rules, stored, current in built:
         ahead = stamp(stored) - stamp(current)
         if (ahead > 0) if newer else (ahead < 0):
-            found.append((f"{rules} v{stored} {condition}", f"current v{current}"))
+            shown = one_line(str(stored))
+            found.append((f"{rules} v{shown} {condition}", f"current v{current}"))
     return found
 
 

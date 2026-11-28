@@ -30,6 +30,7 @@ from urllib.parse import parse_qsl, quote, unquote_to_bytes, urlencode
 
 from licenseid.dbverdict import (
     ACTION,
+    NEWER,
     Refusal,
     connection_refusal,
     invalid_error,
@@ -553,12 +554,12 @@ def reject_blank_path(
 
 
 def is_built(db_path: str) -> bool:
-    """Whether *db_path* is a database licenseid built: ready, or of older
-    rules (``outdated``). Judged fail-closed: a file the check could not read
-    (``unknown``) is not, where :func:`check_database_ready` lets a read go
-    ahead."""
+    """Whether *db_path* is a database licenseid built: ready, of older
+    rules (``outdated``), or of a newer licenseid (``newer``). Judged
+    fail-closed: a file the check could not read (``unknown``) is not, where
+    :func:`check_database_ready` lets a read go ahead."""
     refusal = _refusal(db_path)
-    return refusal is None or refusal[0] == "outdated"
+    return refusal is None or refusal[0] in ("outdated", NEWER)
 
 
 def check_database_ready(db_path: str | os.PathLike[str]) -> None:
@@ -573,7 +574,8 @@ def check_database_ready(db_path: str | os.PathLike[str]) -> None:
     update, and the fingerprints themselves are not checked. The build and
     normalisation stamps are not older than this licenseid's, every table,
     index and column of this build is there, and ``license_texts`` has a
-    row (:func:`connection_refusal`).
+    row (:func:`connection_refusal`); a file without them whose stamp is
+    newer is ``build vN newer``.
 
     The file is opened read-only and is never created or written. A
     write-ahead-log file may get -shm and -wal files beside it, which stay
