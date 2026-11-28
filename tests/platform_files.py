@@ -94,6 +94,8 @@ PLATFORM_FILES: Final[frozenset[str]] = frozenset(
         "test_spdxdata.py",
         "test_spdxdata_templates.py",
         "test_speedgate_child.py",
+        "test_speedgate_headers.py",
+        "test_speedgate_warmup.py",
         "test_startup.py",
         "test_stray_plus_paths.py",
         "test_template_texts.py",

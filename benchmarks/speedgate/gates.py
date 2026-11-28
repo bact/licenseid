@@ -11,6 +11,7 @@ from typing import Any, Final, NamedTuple
 
 from benchmarks.speedgate.buildinputs import ONECALL_FILES
 from benchmarks.speedgate.damage import NOT_READY, REFERENCE
+from benchmarks.speedgate.model import DETECT_SETS
 from benchmarks.speedgate.moved import (
     ANSWER_BAR,
     THRESHOLDS,
@@ -45,7 +46,7 @@ LABEL_OTHER_MAX: Final = 16
 DB_LIMIT_BYTES: Final = 20_000_000
 MEMORY_SLACK_MB: Final = 1.0
 TEXTS_CALL_SETS: Final = ("many", "cjk", "roadmap")
-TIMED_SETS: Final = ("core", "prose", "many", "cjk", "options", "roadmap", "stress")
+TIMED_SETS: Final = (*DETECT_SETS, "stress")
 NOT_HERE: Final = (
     ("Values", "462 PyPI values: tools/pypi_licence_sample"),
     ("Accuracy test", "tests/test_accuracy.py"),

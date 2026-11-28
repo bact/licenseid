@@ -10,7 +10,15 @@ import json
 from typing import Any, Final, TypedDict
 
 #: Sets that run ``detect()`` over cases, in the order they are run.
-DETECT_SETS: Final = ("core", "prose", "many", "cjk", "options", "roadmap")
+DETECT_SETS: Final = (
+    "core",
+    "prose",
+    "many",
+    "cjk",
+    "options",
+    "roadmap",
+    "headers",
+)
 
 #: The width of a rounded score in a result: the public score has 4 places.
 SCORE_PLACES: Final = 4

@@ -78,15 +78,27 @@ def measure(det: Any, case: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def warm_up(det: Any, cases: list[dict[str, Any]]) -> None:
+    """One untimed pass over the cases of a set: the same inputs and options
+    as the timed pass, the results discarded. Whatever a side reads lazily on
+    a first use (a stored text, a table) is read here, not in a timed case."""
+    for case in cases:
+        measure(det, case)
+
+
 def run_detect(args: argparse.Namespace, inputs: dict[str, Any]) -> dict[str, Any]:
-    """Every case of a set (or the one named by ``--only``)."""
+    """Every case of a set, after one untimed pass over the same cases. The
+    one named by ``--only`` (the stress set: a process a case) gets one small
+    call before it instead, as a pass would double a case of minutes."""
     from licenseid.detector import LicenseDetector
 
     det = LicenseDetector(args.db)
-    det.detect(WARM)
     cases = inputs["sets"][args.set]
     if args.only:
         cases = [c for c in cases if c["key"] == args.only]
+        det.detect(WARM)
+    else:
+        warm_up(det, cases)
     done: dict[str, Any] = {}
     for number, case in enumerate(cases, 1):
         done[case["key"]] = measure(det, case)

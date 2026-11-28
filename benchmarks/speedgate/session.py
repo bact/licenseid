@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Final
 
-from benchmarks.speedgate import damage
+from benchmarks.speedgate import damage, headerclasses
 from benchmarks.speedgate.buildinputs import read_inputs
 from benchmarks.speedgate.model import DETECT_SETS
 from benchmarks.speedgate.runner import (
@@ -107,7 +107,10 @@ def run_one(side: Side, name: str, job: Job) -> dict[str, Any]:
         return timed(side, core_job(job), ["memory"])
     if name == "threads":
         return timed(side, core_job(job), ["threads", "--items", str(job.items)])
-    return timed(side, job, ["detect", "--set", name])
+    result = timed(side, job, ["detect", "--set", name])
+    if name == "headers":
+        headerclasses.attach(result, side.db)
+    return result
 
 
 def run_side(
@@ -117,7 +120,8 @@ def run_side(
     A set whose file exists is skipped unless *force*."""
     out.mkdir(parents=True, exist_ok=True)
     job.scratch.mkdir(parents=True, exist_ok=True)
-    digest = read_inputs(job.inputs)["digest"]
+    inputs = read_inputs(job.inputs)
+    digest = inputs["digest"]
     meta = {
         "side": str(side.path),
         "db": str(side.db),
@@ -129,6 +133,9 @@ def run_side(
     for name in sets:
         target = out / f"{name}.json"
         if target.exists() and not force:
+            continue
+        if name in DETECT_SETS and name not in inputs["sets"]:
+            print(f"{name}: skipped, not in the inputs file", flush=True)
             continue
         result = run_one(side, name, job)
         result.update(set=name, side=str(side.path), inputs_digest=digest)

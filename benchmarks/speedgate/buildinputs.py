@@ -16,6 +16,7 @@ from typing import Any, Final
 from benchmarks.speedgate import (
     corpusdir,
     sets_core,
+    sets_headers,
     sets_mixed,
     sets_roadmap,
     sets_synth,
@@ -64,10 +65,15 @@ def onecall_spec(texts: dict[str, str]) -> dict[str, Any]:
 
 
 def build_inputs(
-    folder: Path, fixtures: Path, tarball: Path, coretext: Path
+    folder: Path,
+    fixtures: Path,
+    tarball: Path,
+    coretext: Path,
+    headers: Path | None = None,
 ) -> dict[str, Any]:
     """Every set of the benchmark from the corpus *folder*, the *fixtures* of a
-    tree, a SPDX list tarball and a ``coretext.py``."""
+    tree, a SPDX list tarball and a ``coretext.py``; the headers set too when
+    the data archive *headers* is given."""
     manifest = corpusdir.load_manifest(folder)
     core_of = load_core_text(coretext)
     real = corpusdir.read_entries(folder, "real")
@@ -91,6 +97,8 @@ def build_inputs(
         "stress": sets_synth.stress_cases(fixtures),
         "damage": sets_synth.damage_cases(fixtures),
     }
+    if headers is not None:
+        sets["headers"] = sets_headers.header_cases(headers)
     labels = {
         str(e["key"]): e.get("ids") for e in manifest["files"] if e["kind"] == "real"
     }
@@ -105,9 +113,9 @@ def build_inputs(
     return inputs
 
 
-def write_inputs(folder: Path, inputs: dict[str, Any]) -> Path:
-    """Write the inputs file into the corpus folder."""
-    target = folder / INPUTS
+def write_inputs(folder: Path, inputs: dict[str, Any], name: str = INPUTS) -> Path:
+    """Write the inputs file (*name*) into the corpus folder."""
+    target = folder / name
     target.write_text(json.dumps(inputs, ensure_ascii=False), encoding="utf-8")
     return target
 

@@ -26,8 +26,8 @@ def kind_of(key: str) -> str:
     head, _, rest = key.partition(":")
     if head == "long":
         return f"long:{key.rsplit(':', 1)[1]}"
-    if head == "many":
-        return f"many:{rest.split(':')[0]}"
+    if head in ("many", "hdr"):
+        return f"{head}:{rest.split(':')[0]}"
     if head in ("real", "short", "readme", "notice", "mixed", "cjk", "options"):
         return head
     if head == "stress":

@@ -41,10 +41,14 @@ def _verify(args: argparse.Namespace) -> int:
 
 def _inputs(args: argparse.Namespace) -> int:
     coretext = args.side / "src" / "licenseid" / "coretext.py"
+    headers = args.headers_tarball or args.tarball
+    if not headers.is_file():
+        print(f"headers: skipped, {headers} not found")
+        headers = None
     built = buildinputs.build_inputs(
-        args.folder, args.side / "tests" / "fixtures", args.tarball, coretext
+        args.folder, args.side / "tests" / "fixtures", args.tarball, coretext, headers
     )
-    path = buildinputs.write_inputs(args.folder, built)
+    path = buildinputs.write_inputs(args.folder, built, args.name)
     print(f"{path}: {built['counts']}")
     return 0
 
@@ -88,6 +92,12 @@ def _add_corpus_commands(sub: "Subparsers") -> None:
     inp.add_argument("folder", type=Path)
     inp.add_argument("--side", type=Path, required=True, help="tree with fixtures")
     inp.add_argument("--tarball", type=Path, required=True, help="List data tarball")
+    inp.add_argument(
+        "--headers-tarball",
+        type=Path,
+        help="List data archive of the headers set (default: --tarball)",
+    )
+    inp.add_argument("--name", default=buildinputs.INPUTS, help="inputs file name")
     inp.set_defaults(run=_inputs)
 
 

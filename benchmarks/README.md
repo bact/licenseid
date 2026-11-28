@@ -89,8 +89,10 @@ Rules, each learnt from a wrong number:
   corpus), not a scan of what is installed that day. Files and manifest are
   other people's data and stay outside the repository.
 - Both sides read one `inputs.json`; `compare` says if their digests differ.
-- Time is CPU seconds (`time.process_time`), warm (one call first). The
-  first-call cost is the One call set. Every run records the 1-minute load
+- Time is CPU seconds (`time.process_time`), warm: a set of `detect()` cases
+  runs once untimed over its own inputs (same inputs and options, results
+  discarded), then timed (see "Warm-up" below). The first-call cost is the One
+  call set. Every run records the 1-minute load
   (`uptime`) at its start and end; a run above 2.0 is flagged `loaded`.
 - An A/A twin (the same side run twice) gives the noise floor: read it before
   a ratio.
@@ -142,6 +144,7 @@ installed packages that hold "licens".
 | cjk | 24 re-wrapped Han and kana texts and fragments | Rows, `texts()` |
 | options | 6 whole texts, each under 6 option settings | Rows, `TEXTS` |
 | roadmap | Items 11, 61, 64, 68, 69, 70 (120) | Rows, `texts()`, CPU |
+| headers | 158: the standard header of each of 79 licences, as given and cut | Top 3 rows, `TEXTS`, CPU, classes |
 | stress | 18 large or odd inputs, one process each, limit 180 s | Rows, CPU |
 | onecall | 8 files, 3 value commands, a fresh process, 11 runs | Milliseconds (minimum) |
 | memory | Peak RSS at import, 1, 300 and 868 inputs | MB |
@@ -173,6 +176,54 @@ measured by this tool, so `compare` prints them as not measured: the 462 PyPI
 values, the accuracy test, the golden answers, `--diff`, storage alone and the
 platforms.
 
+### The headers set
+
+The SPDX License List gives a `standardLicenseHeader` for 79 licences in use:
+the notice a source file carries. `inputs` reads them from the List data
+archive (`json/details/<ID>.json`, licences that are not deprecated), in
+memory with `tarfile`, never extracted. The archive is `--headers-tarball`,
+default the `--tarball` of the command; where the file is missing the set is
+skipped and the command prints `headers: skipped`. `--name` writes the inputs
+to another file name, so a new set never overwrites the file others read.
+`run` skips a set that its inputs file lacks, with a printed line.
+
+Two forms of each header: `hdr:given:<ID>`, as the List gives it, and
+`hdr:cut:<ID>`, what a file's header holds word for word (rules in
+`sets_headers.py`: a pair of `"` or `*` round the whole header dropped,
+template-instruction lines dropped, each copyright statement cut up to its
+holder or dropped, a placeholder left becomes the word `Example`; `[1]` and
+`<https://...>` stay).
+
+Verdict at the answer bar (0.85): right when the top answer is the header's
+licence or one of its class, wrong for another licence, none below the bar. A
+class is one normalised text, taken from the side's own database at the end of
+the run (`headerclasses.py`, stored in the result as `classes`, so `compare`
+needs no database): the `same_text` group (`-only` and `-or-later` twins, the
+forms of GFDL whose texts are one), a deprecated ID with its replacement
+(`superseded_by`, else its `-only` or `-or-later` form). An expression with no
+row is a class of its own, so a compound answer is wrong.
+
+### Warm-up
+
+Before the timed pass, each in-process `detect` set (every set except
+`stress`, `onecall`, `memory` and `threads`; `damage` runs it on each copy)
+runs one untimed pass over its own inputs, with the same options and the
+`texts()` call where the case has one. A side that reads the stored text of a
+licence when it first becomes a candidate pays those reads in the untimed pass,
+as 0.9.4 paid them in its one warm-up call, which loaded every text. The stress
+set is a process a case and keeps one small call before the case. The one-call
+set is cold on purpose: fresh processes. The memory set is not warmed either:
+it reports the peak after the import, after one input, after the real files and
+after the core inputs, so its last peak holds everything read during the run
+and its earlier ones the growth. The threads set keeps its own first pass (one
+thread, then four).
+
+Results of 0.9.4 measured before this warm-up (`baselines/0.9.4`) stay
+comparable: one text call already warmed everything there, and the pass
+changed no answer (a `compare` of a run under the old and the new harness
+shows no field differing). Re-running 0.9.4 with the pass gave CPU within the
+noise of the stored numbers (a busy machine; run such a pair twice).
+
 ### Gates that `compare` prints
 
 Core CPU (12 times), real file median (15 ms), One call (0.3 s; MIT and
@@ -184,14 +235,19 @@ where a set records it; the `TEXTS` of the top row under the options and on
 core where the answer is the same), roadmap inputs
 (0.2 s), item 68 (no new answer on an HPND-family fragment), damage (equal to
 the intact build, or to its reference where the text itself changed), threads,
-memory (no peak over the base, 1 MB of slack), database size (under 20 MB).
+memory (no peak over the base, 1 MB of slack), database size (under 20 MB),
+headers (in each form no fewer right and no more wrong than the base; the
+headers whose verdict moved are listed under "Headers"; not applicable when the
+base has no headers results).
 
 ### Tests
 
 `tests/test_speedgate.py` (manifest, builders, comparison and gates on made-up
 results, no corpus or database needed) and `tests/test_speedgate_child.py`
 (child process on a fake side, damaged copies, tarball; POSIX only, listed in
-`tests/platform_files.py`, which skips it on Windows).
+`tests/platform_files.py`, which skips it on Windows),
+`tests/test_speedgate_headers.py` (forms, archive, classes, verdict, gate) and
+`tests/test_speedgate_warmup.py` (warm-up on a fake side; POSIX only).
 
 ## Other paths worth knowing
 

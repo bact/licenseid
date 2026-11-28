@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any, Final
 
+from benchmarks.speedgate import headergate
 from benchmarks.speedgate.gates import FAIL, TIMED_SETS, Gate, Sets, evaluate, noise
 from benchmarks.speedgate.moved import THRESHOLDS, label_counts, moved_answers
 from benchmarks.speedgate.results import cases_of, kind_times, load_folder
@@ -122,7 +123,7 @@ def compare_folders(
     base, cand = load_folder(base_dir), load_folder(cand_dir)
     twin = load_folder(twin_dir) if twin_dir else None
     labelled = json.loads(inputs.read_text("utf-8"))["labels"] if inputs else None
-    gates = evaluate(base, cand, labelled)
+    gates = headergate.with_gate(evaluate(base, cand, labelled), base, cand)
     same = {
         r.get("inputs_digest")
         for r in (*base.values(), *cand.values())
@@ -138,6 +139,7 @@ def compare_folders(
         + ("the same file" if len(same) == 1 else f"DIFFERENT ({len(same)} digests)")
     )
     lines += ["", "== Answers that moved (read first)", *moved_lines(base, cand)]
+    lines += ["", "== Headers", *headergate.section(base, cand)]
     lines += [
         "",
         "== CPU seconds (x = base over candidate)",
