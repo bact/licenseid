@@ -119,8 +119,41 @@ base took 0.994 of the base, the widest kind differed by 1.01 times.
   (real files of another ecosystem) is not part of this run.
 - 225 labelled real files, with known label errors (a declared licence is
   not the licence of every file in a package).
-- Windows was not run, nor `tools.cli_matrix`, in this measurement.
+- Windows was not run, nor `tools.cli_matrix`, in this measurement. Both
+  ran before the release: see "After the merge" below.
 - Three gates failed and were accepted or deferred: fixtures right 419 to
   418 (the plan's stated exception), the real file `real:f3b34c66:LICENSE`
   at 211 ms against a limit of 200 ms (2,059 ms in 0.9.4; roadmap item 78),
   and the headers above (item 71).
+
+## After the merge: what the release checks added
+
+Sources: PR #249 and PR #250, their CI runs, the session of 2026-11-28
+([ai-sessions-0-10.md](ai-sessions-0-10.md)).
+
+- **A database fact that depends on the SQLite version.** An FTS5 table
+  whose `data` shadow table is missing can be dropped by SQLite 3.50.4,
+  3.51.0 and 3.54.1 and not by 3.46.0 (`vtable constructor failed`);
+  without `config` none drops it. Measured with one script on four
+  interpreters of one machine. A test of damaged files written on one
+  SQLite states that SQLite's behaviour, not the package's.
+- **A defect that moved out of the harness's sight.** Loading the
+  expression parser at first use removed nine flags of the CLI matrix (a
+  crash of the parser under `ja_JP.eucJP`, roadmap item 2) and cured
+  nothing: an `AND` or `OR` value still crashes. One cell per locale now
+  resolves such a value; 2,934 executions, one known flag.
+- **How often a slash between two IDs is ambiguous.** Over all 547,600
+  ordered pairs of the 740 List IDs of the test corpus, the value `A/B`
+  reads as `A OR B` except for two pairs that the table refuses by name
+  and two that are also one List ID with a dash (`HPND-doc`,
+  `HPND-Intel`). The second two fail a benchmark that had failed since it
+  was written, in 0.8.4 (roadmap item 63, which names one of them; the
+  count over all pairs is new).
+- **Published artefacts.** Wheel 1,764,211 bytes, sdist 1,763,419 bytes,
+  both with List 3.29.0; a clean install builds a database of 17,879,040
+  bytes with no network, and one `detect` of an MIT file takes 0.08 s of
+  wall time there.
+- **Hold-out set, still open.** The engine's numbers were chosen on real
+  files of Python packages and on fixtures cut from the List. A separate
+  benchmark project holds declared values of other ecosystems today, not
+  licence files; its planned licence-text part is the hold-out set.

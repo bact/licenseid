@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-06
-Last-Modified: 2026-11-18
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -135,3 +135,25 @@ shows them.
   (#207) says so.
 - Tests that need `chmod` skip as root (`IS_ROOT`) and on Windows
   (`posix_only`).
+
+## Found by the first full run of PR #249 (2026-11-28)
+
+Every case passed on macOS; the label `test-all-os` showed them.
+
+- **A path in a record.** A record doubles a backslash, so a test that
+  expects `PATH={path}` fails on every Windows path (22 tests). Expect the
+  doubled form. To see it on macOS, run the file with a backslash in the
+  temporary path: `mkdir -p X; pytest --basetemp "X/back\\slash" <file>`;
+  the file before the fix must fail there.
+- **Device names.** A folder named `nul` cannot be made (`con`, `aux`,
+  `prn` neither).
+- **Separators.** `path.split("/")[-2]` finds nothing in a Windows path:
+  `Path(path).parent.name`.
+- **Imports at collection.** `posix_only` skips a module's tests, not its
+  imports: a module they import that needs `resource` must import it at
+  use. Check with `sys.modules["resource"] = None` before the import.
+- **The SQLite at hand.** CI's Linux and Windows had a SQLite that cannot
+  drop an FTS5 table without its `data` shadow table; 3.50.4 and later
+  can. A test of a damaged file probes a copy with `sqlite3` and holds the
+  package to that answer. Other interpreters on one machine carry other
+  SQLite versions, enough for the probe.

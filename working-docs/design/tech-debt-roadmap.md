@@ -25,16 +25,17 @@ resolved. Items 55 (PR #214, 2026-11-16), 54 (PR #217, 2026-11-16), 47
 (PR #219, 2026-11-17) and 57 (2026-11-26) are built; their leftovers stay open.
 Item 2 waits on an upstream release. Release 0.10.0 (2026-11-28) is the
 new detection engine (PR #249). Next: item 68, then items 69 and 70
-(decided 2026-11-27). Items 71 to 75 were found while that engine was
-built; 72 waits on 71. Items 76 to 78 (2026-11-28) are for after 0.10.0.
-The open items
+(decided 2026-11-27); after or beside them what Pitloom reported on
+2026-11-28: item 13 here, items 79 to 81 in the reading file. Items 71 to
+75 were found while that engine was built; 72 waits on 71. Items 76 to 78
+(2026-11-28) are for after 0.10.0. The open items
 that need a rule or a decision before a fix are grouped in
 [`matching-rules-redesign.md`](matching-rules-redesign.md) (2026-10-02); item 31
 is that revision.
 
 The open items on reading a declared value or a name (`resolve()`, the
 name tier, `--variant`, `EXACT`, the lists page: items 26, 46, 47, 49, 50,
-52, 54, 55, 58) are in
+52, 54, 55, 58, 63, 79, 80, 81) are in
 [`tech-debt-roadmap-reading.md`](tech-debt-roadmap-reading.md), split
 2026-11-24 at the size limit. This file keeps the rest: text matching,
 data, environment and docs.
@@ -288,18 +289,26 @@ cannot make, a `file://localhost/` path and symlink loops in PR #209
   0.4.2 `update` leaves WAL).
 - Impact 2, Risk 2, Effort 3.
 
-## 13. Apache-2.0 vs Pixar near-duplicate confusion — Priority 6
+## 13. Apache-2.0 vs Pixar near-duplicate confusion — Priority 15
 
-Licenses that are near-identical modifications of another license (e.g.
-`Pixar` is `Apache-2.0` with a modified section 6) can be misidentified
-as the parent license. See
-[`new-matcher.md`](new-matcher.md) for the background analysis and word-count
-statistics; for this direction no fix has been designed yet. The other way
-round, Apache-2.0 without its appendix answered Pixar: the core
-text fixed that (PR #239), and a verbatim Pixar text still answers Pixar.
+`Pixar` is `Apache-2.0` with a modified section 6 ([`new-matcher.md`](new-matcher.md)
+has the word counts). Apache-2.0 without its appendix answered Pixar until
+the core text (PR #239); a verbatim Pixar text answers Pixar.
 
-- Impact 2, Risk 2, Effort 4 (needs a design pass before an effort
-  estimate is meaningful — treat this as provisional).
+Open, from Pitloom (2026-11-28, found on 0.9.4; its known-bugs entry "A
+dependency's Apache 2.0 file with no licence stated stays unread", and
+`bact/pitloom` issues 286 and 570): a verbatim Apache 2.0 file answers
+`Apache-2.0` 1.0 with `Pixar` 0.995 beside it, a near-tie Pitloom leaves
+undecided when nothing else is stated (rfc8785 0.1.4, rfc3161-client,
+sigstore-rekor-types). Same on 0.10.0 for rfc8785's file: `Apache-2.0`
+1.0000, `Pixar` 0.9947, `ImageMagick` 0.9871, and `TEXTS=Apache-2.0` on
+each row, the evidence item 68 reads. Done when an unmodified Apache 2.0
+text is decisively `Apache-2.0` (Pixar's clause is absent), with that file
+as a fixture, and a real Pixar text still answers `Pixar`. Decided
+2026-11-28: a runner-up that `TEXTS` does not name is not listed beside a
+text found whole, so that file answers `Apache-2.0` alone.
+
+- Impact 3, Risk 2, Effort 3.
 
 ## 57. Keep the user docs true to the code — Priority 15
 

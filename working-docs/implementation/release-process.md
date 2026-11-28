@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-22
-Last-Modified: 2026-11-26
+Last-Modified: 2026-11-28
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -214,3 +214,22 @@ latest SPDX list, and `licenseid update` fetches a newer one.
 - Worktree layers: snapshot each layer with `git add -A; git write-tree`;
   a writer works in a plain `git archive` copy with `PYTHONPATH` set to that
   copy (`src`, `tests`, copy root) and hands back a `diff -ruN` patch.
+- 0.10.0: run `pytest tests/ --run-benchmark` before the preparation PR,
+  not after it. One benchmark (`test_all_pairs_read_as_or`) had failed on
+  every tag since 0.8.4; run a failing benchmark on the last tag before
+  blaming the release (PR #250). Search `working-docs/design/` for the
+  test's name too: this one was roadmap item 63 already, and a fix was
+  proposed without it.
+- A large PR gets the label `test-all-os` before its CI is read: the first
+  full run of PR #249 failed 25 tests on Windows and one on Linux that
+  20,300 local passes had not shown (`cross-platform.md`, "Found by the
+  first full run of PR #249").
+- A flag of the CLI matrix that stops flagging is read before its baseline
+  line goes: the nine locale flags of item 2 passed because an import
+  became lazy, and the crash had moved to `AND` and `OR` values. A cell
+  that reaches the defect replaced them (`E2-109`).
+- Minutes after publishing, `uv pip install licenseid==<version>` said "no
+  version" from a cached index, with `--refresh-package` too; `--refresh`
+  saw it. Check PyPI's JSON first.
+- The CITATION workflow adds a commit to the preparation branch: pull
+  before another local commit.

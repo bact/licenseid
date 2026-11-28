@@ -691,6 +691,8 @@ compares files within one run). Max line length 88.
 - R0801 flags similar inline scripts across test files: put probe scripts
   in `tests/db_asserts.py`.
 - Check `ruff --version` before calling an error known.
+- Run `mypy` plain, as CI does: with the tree root on `PYTHONPATH` it drops
+  the errors of `benchmarks/` (a module found there counts as installed).
 - Remove unused imports and trailing whitespace.
 
 ## File headers
@@ -780,7 +782,13 @@ A `working-docs/` file carries these tags in its YAML front matter, with
   database path, run `python -m tools.cli_matrix --db <copy of a real
   database> --check` (read `tools/cli_matrix/README.md`). A
   `baseline.txt` flag that stops flagging may fail earlier instead: read
-  `.cli-matrix/results.json` before deleting it, and record why.
+  `.cli-matrix/results.json` before deleting it, and record why. After an
+  import became lazy it fails later: add a cell that reaches it.
+- `pytest tests/ --run-benchmark` before a release's preparation PR; run a
+  failing benchmark on the last tag, and search `working-docs/design/` for
+  its name, before blaming the release or proposing a fix.
+- A test of what SQLite does with a damaged file probes the SQLite at hand
+  on a copy: versions differ (3.46.0, 3.50.4).
 - Accuracy: `test_accuracy.py::test_core_accuracy` every commit;
   `accuracy.yml` on matching-code PRs and weekly. A new module on the
   text-matching path goes into that workflow's `paths`.
@@ -817,6 +825,11 @@ A `working-docs/` file carries these tags in its YAML front matter, with
     `Path.home()`, or a POSIX-only test (chmod, symlinks, signals,
     `/bin/sh`), read `working-docs/implementation/cross-platform.md`. Mark
     such a test `posix_only`; build a `file://` URI with `Path.as_posix()`.
+  - A path in a record has its `\` doubled: run a test that expects one
+    with `--basetemp "<dir>/back\\slash"`. No folder named `nul`. A module
+    a test imports must import on Windows (`resource` at use). A PR with
+    new test files or database code gets `test-all-os` before its CI is
+    called green.
 
 ## Git and pull requests
 
