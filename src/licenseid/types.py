@@ -46,9 +46,11 @@ class Detection(TypedDict):
     look-alike name or a close text is not. ``similarity`` is 0-1: how alike
     the input and the text it was compared with are (the whole text, or the
     license's core when that is closer; for a fragment, its best-aligned
-    part). ``coverage`` is the input's words over the words of that text, with
-    no upper limit: below 0.8 the input is a fragment, above 1 it holds more
-    than the license's text. Both are None where nothing was measured (a tag,
+    part). ``coverage`` is the input's words over the words of that text,
+    capped to 1: below 0.8 the input is a fragment, and an input longer than
+    the license's text reads 1 (``texts`` and ``exact`` say what it holds; the
+    detector's own records keep the value above 1). Both are None where
+    nothing was measured (a tag,
     a field, an ID, a name ``resolve()`` reads); a name the name tier matches
     has a similarity but no coverage. ``expression`` is the answer: one licence
     ID, or an SPDX expression (a tag or a field may declare one), as

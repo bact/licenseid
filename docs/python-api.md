@@ -298,7 +298,9 @@ Each result is a `licenseid.Detection` with the same keys, `expression`,
 `method` (a `licenseid.Method`), `exact`, `score`, `similarity`, `coverage`,
 `is_spdx`, `is_osi_approved`, `is_fsf_libre`, `lists`, `variant_stated`,
 `same_text` and `texts`, as in the CLI's JSON ([output.md](output.md#json));
-`similarity` and `coverage` are `None` where nothing was measured. `same_text`
+`similarity` and `coverage` are `None` where nothing was measured. `coverage`
+is from 0 to 1, capped as `score` is: an input longer than the licence's text
+reads 1, and `texts` and `exact` say what else it holds. `same_text`
 is a list of the other List IDs whose text is identical to a text answer's
 (`MPL-2.0` for `MPL-2.0-no-copyleft-exception`), sorted, and `None` when there
 is none, for any other `method`, and for a compound. `texts` is a list of the

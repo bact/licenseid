@@ -5,7 +5,7 @@ SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0
-status: rule (sections 1 to 6) built 2026-11-28; cap (section 7) not built
+status: rule (sections 1 to 6) built 2026-11-28; cap (section 7) built 2026-11-28
 ---
 
 # Plan for 0.10.1: `TEXTS` as ranking evidence
@@ -344,6 +344,13 @@ other.
   behaviour change with the migration "a caller that clamped it can stop;
   a caller that read a value above 1 as 'more than one text' reads
   `texts`".
+
+As built (2026-11-28): `result._capped`, called only by `public_result`;
+`tests/test_public_coverage.py`. No golden row moves: the two rows of
+`cli.jsonl` that hold a coverage above 1 (`detect-several-texts`) were
+already replaced by `FIRSTTEXT_CLI_CHANGES`, which prints no answer.
+`tools/cli_matrix/judge.py` now refuses a `COVERAGE` above 1 in a record.
+In `docs/output.md` the guide for an empty `TEXTS` says "about 1".
 
 ## 8. As built (2026-11-28)
 

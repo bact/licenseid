@@ -18,6 +18,12 @@ and this project adheres to
   under a verbatim Apache 2.0 file): the results are the licences of that
   text and any a marker or `hint` names; the first result is unchanged
   ([#256])
+- **Behaviour change:** `coverage` (`COVERAGE`) of a `detect` result is capped
+  at 1, as `score` is. Migration: drop a clamp of your own; to learn that a
+  file holds more than one text, read `texts` ([#257])
+
+[#256]: https://github.com/bact/licenseid/pull/256
+[#257]: https://github.com/bact/licenseid/pull/257
 
 ## [0.10.0] - 2026-11-28
 
@@ -75,6 +81,8 @@ and this project adheres to
   each checked on its own: one `licenseid detect` of an MIT file takes 93 ms
   (770 ms in 0.9.4) ([#249])
 
+[#249]: https://github.com/bact/licenseid/pull/249
+
 ## [0.9.4] - 2026-11-27
 
 ### Added
@@ -98,6 +106,9 @@ and this project adheres to
 - `TEXTS` names a licence text whose copyright holder or project name is not
   the List's (sympy's BSD-3-Clause, Pillow's MIT-CMU) ([#247])
 
+[#246]: https://github.com/bact/licenseid/pull/246
+[#247]: https://github.com/bact/licenseid/pull/247
+
 ## [0.9.3] - 2026-11-26
 
 ### Added
@@ -119,6 +130,10 @@ and this project adheres to
   in it names (Pillow's `LICENSE` answered `GPL-2.0-or-later`, pandas'
   `BSD-2-Clause`); a look-alike it does not hold no longer takes its place
   (a BSD-3-Clause and a BSD-2-Clause text answered `Sleepycat`) ([#243])
+
+[#241]: https://github.com/bact/licenseid/pull/241
+[#242]: https://github.com/bact/licenseid/pull/242
+[#243]: https://github.com/bact/licenseid/pull/243
 
 ## [0.9.2] - 2026-11-24
 
@@ -152,6 +167,9 @@ and this project adheres to
 - `detect` on a copy of the LGPL-3.0 text without the GPL-3.0 text it quotes
   gives LGPL-3.0-only; it gave no answer ([#239])
 
+[#238]: https://github.com/bact/licenseid/pull/238
+[#239]: https://github.com/bact/licenseid/pull/239
+
 ## [0.9.1] - 2026-11-21
 
 ### Fixed
@@ -168,6 +186,12 @@ and this project adheres to
 - `GNU General Public License version 2.0, requires Python 3.8 or later` and
   `GNU General Public License v2.0 or MIT License` give no answer; they
   gave `Python-2.0` and `MIT` ([#235])
+
+[#231]: https://github.com/bact/licenseid/pull/231
+[#232]: https://github.com/bact/licenseid/pull/232
+[#233]: https://github.com/bact/licenseid/pull/233
+[#234]: https://github.com/bact/licenseid/pull/234
+[#235]: https://github.com/bact/licenseid/pull/235
 
 ## [0.9.0] - 2026-11-19
 
@@ -231,8 +255,6 @@ and this project adheres to
 
 ### Fixed
 
-- `detect()` `exclude` and `hint` act on free text only, ignore case and read a
-  deprecated ID (`GPL-2.0`, `GPL-2.0+`) as its twins, with a warning ([#211])
 - A database file cut short by another program (`cp`, `truncate`) while a
   lookup runs, or inside a `reading()` block, raises `DatabaseNotReadyError`;
   it killed the process with SIGBUS and no message (a database still in the
@@ -243,6 +265,8 @@ and this project adheres to
 - `update` words an unmakeable data directory `directory: write failed: ...`; a
   symlink loop in a database path is `unreadable`; `clear-cache` removes a
   looped cache link ([#209])
+- `detect()` `exclude` and `hint` act on free text only, ignore case and read a
+  deprecated ID (`GPL-2.0`, `GPL-2.0+`) as its twins, with a warning ([#211])
 - `detect()` on a text with one very long word is fast (60,000 characters of
   `the`: 20 s to 0.2 s) ([#216])
 - `"MIT\u200b"` and a TOML `"\"MIT\""` are read; a tag or field keeps
@@ -292,20 +316,6 @@ and this project adheres to
 [#227]: https://github.com/bact/licenseid/pull/227
 [#228]: https://github.com/bact/licenseid/pull/228
 [#229]: https://github.com/bact/licenseid/pull/229
-[#231]: https://github.com/bact/licenseid/pull/231
-[#232]: https://github.com/bact/licenseid/pull/232
-[#233]: https://github.com/bact/licenseid/pull/233
-[#234]: https://github.com/bact/licenseid/pull/234
-[#235]: https://github.com/bact/licenseid/pull/235
-[#238]: https://github.com/bact/licenseid/pull/238
-[#239]: https://github.com/bact/licenseid/pull/239
-[#241]: https://github.com/bact/licenseid/pull/241
-[#242]: https://github.com/bact/licenseid/pull/242
-[#243]: https://github.com/bact/licenseid/pull/243
-[#246]: https://github.com/bact/licenseid/pull/246
-[#247]: https://github.com/bact/licenseid/pull/247
-[#249]: https://github.com/bact/licenseid/pull/249
-[#256]: https://github.com/bact/licenseid/pull/256
 
 ## [0.8.4] - 2026-11-09
 

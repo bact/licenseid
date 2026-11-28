@@ -199,7 +199,7 @@ def _raw(
         exact=False,
         score=score,
         similarity=similarity,
-        coverage=coverage,  # input words over licence words: can pass 1
+        coverage=coverage,  # input words over licence words: passes 1 raw
     )
 
 
@@ -212,10 +212,13 @@ def test_the_score_is_capped_to_0_1_and_rounded(raw: float, score: float) -> Non
 
 
 def test_the_other_values_are_rounded_and_the_flags_filled() -> None:
-    """Similarity and coverage are rounded, not capped; a flag a tier did
-    not set is False; and -0.0 is 0.0, which text printed as "-0.0000"."""
+    """Similarity is rounded, coverage capped at 1 too
+    (``test_public_coverage``); a flag a tier did not set is False; and -0.0
+    is 0.0, which text printed as "-0.0000"."""
     result = public_result(_raw(0.5), [])
-    assert (result["similarity"], result["coverage"]) == (0.9877, 1.2346)
+    assert (result["similarity"], result["coverage"]) == (0.9877, 1.0)
+    part = public_result(_raw(0.5, coverage=0.123456), [])
+    assert part["coverage"] == 0.1235
     assert (result["is_spdx"], result["is_osi_approved"], result["is_fsf_libre"]) == (
         False,
         False,
@@ -245,9 +248,9 @@ def test_a_json_line_is_canonical() -> None:
 @pytest.mark.parametrize(
     ("raw", "fields"),
     [
-        (_raw(0.9876543), '"coverage":1.2346,'),
+        (_raw(0.9876543, coverage=0.123456), '"coverage":0.1235,'),
         (_raw(0.00004, similarity=0.0), '"score":0,"similarity":0,'),
-        (_raw(0.5, coverage=13.0), '"coverage":13,'),
+        (_raw(0.5, coverage=13.0), '"coverage":1,'),
     ],
     ids=["rounded", "zero", "integral"],
 )
@@ -260,8 +263,8 @@ def test_json_numbers_are_ecmascript_numbers(raw: RawMatch, fields: str) -> None
     ("similarity", "coverage", "tail"),
     [
         (None, None, "SIMILARITY=\tCOVERAGE="),
-        (0.5, 1.25, "SIMILARITY=0.5000\tCOVERAGE=1.2500"),
-        (1.0, 13.0, "SIMILARITY=1.0000\tCOVERAGE=13.0000"),
+        (0.5, 0.25, "SIMILARITY=0.5000\tCOVERAGE=0.2500"),
+        (1.0, 1.0, "SIMILARITY=1.0000\tCOVERAGE=1.0000"),
     ],
 )
 def test_a_text_line_has_every_field_and_empty_for_none(

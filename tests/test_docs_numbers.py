@@ -57,7 +57,7 @@ NUMBERS = [
         "the first {} licences that resolve",
         candidates_module.FIELD_LICENSES_KEPT,
     ),
-    ("output.md", "(`COVERAGE` above {})", MAX_WHOLE_COVERAGE),
+    ("output.md", "(a coverage above {} before the cap)", MAX_WHOLE_COVERAGE),
     ("output.md", "A List text under {} words", MIN_WORDS),
     ("output.md", "when the input has under {} words", MIN_INPUT_WORDS),
     ("cli.md", "matched as text from {} words on", MIN_TEXT_WORDS),

@@ -389,14 +389,14 @@ def _relational_fixture(
 
 
 # What detect prints, from the code that prints it.
-# Coverage, input words over licence words, can reach two digits.
+# Coverage, input words over licence words, is capped to 1 as the score is.
 RESULT = public_match(
     "GPL-2.0-only WITH Classpath-exception-2.0",
     method="text",
     exact=False,
     score=0.9908,
     similarity=1.0,
-    coverage=13.0,
+    coverage=1.0,
 )
 PLAIN_LINE = text_line(RESULT)
 TEXT = frozenset({"verbose"})  # the full record
@@ -422,7 +422,11 @@ JSON = frozenset({"json"})
         (TEXT, f"{PLAIN_LINE}\t{text_line(public_match())}", False),
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD=TEXT"), False),
         (TEXT, PLAIN_LINE.replace("METHOD=text", "METHOD="), False),
-        (TEXT, PLAIN_LINE.replace("COVERAGE=13.0000", "COVERAGE=1.02"), False),
+        (TEXT, PLAIN_LINE.replace("COVERAGE=1.0000", "COVERAGE=1.02"), False),
+        (TEXT, PLAIN_LINE.replace("COVERAGE=1.0000", "COVERAGE=0.9987"), True),
+        # Above 1: the value before the cap of the public result.
+        (TEXT, PLAIN_LINE.replace("COVERAGE=1.0000", "COVERAGE=1.0179"), False),
+        (TEXT, PLAIN_LINE.replace("COVERAGE=1.0000", "COVERAGE=13.0000"), False),
         (TERSE, "MIT", True),
         (TERSE, "MIT OR ISC\nGPL-2.0-only WITH Classpath-exception-2.0", True),
         (TERSE, PLAIN_LINE, False),  # the record without --verbose

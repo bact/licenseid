@@ -566,7 +566,8 @@ and `--json`) against these rules and checks the default output against the
   that is a file still raises `NotADirectoryError`.
 - `database.py` imports `spdx_source` lazily; `spdx_source.py` never
   imports `licenseid.__version__` at module level.
-- `detect()` returns the public form (score capped to 1, 4 places). Code or
+- `detect()` returns the public form (score and coverage capped to 1, 4
+  places). Code or
   a test that ranks or asks "above 1" reads `_match_raw`. `exact` is set
   where a result is made, never derived from the score or the trust: a text
   is exact when the whole non-empty normalised input equals the licence's

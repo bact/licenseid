@@ -30,12 +30,12 @@ GRAMMAR = re.compile(r"(ERROR|WARNING): [a-z][a-z0-9._-]*: [a-z0-9].*")
 HELP = re.compile(r"Usage: .*\n(.*\n)*Commands:\n")
 
 #: The default one-line result of ``detect``: fields joined by one tab.
-#: An expression's operators are its only spaces; a score is 0-1, and
-#: coverage passes 1 when the input is longer than the licence.
+#: An expression's operators are its only spaces; a score is 0-1, and so
+#: is coverage (capped where the input is longer than the licence).
 PLAIN = re.compile(
     r"EXPRESSION=\S+( (AND|OR|WITH) \S+)*\tMETHOD=[a-z]+\tEXACT=(true|false)"
     r"\tSCORE=(0\.\d{4}|1\.0000)\tSIMILARITY=(\d\.\d{4})?"
-    r"\tCOVERAGE=(\d+\.\d{4})?\tVARIANT_STATED=(true|false)?"
+    r"\tCOVERAGE=(0\.\d{4}|1\.0000)?\tVARIANT_STATED=(true|false)?"
     r"\tSAME_TEXT=([A-Za-z0-9.+-]+( [A-Za-z0-9.+-]+)*)?\tREASON="
     r"\tTEXTS=([A-Za-z0-9.+-]+( [A-Za-z0-9.+-]+)*)?"
 )

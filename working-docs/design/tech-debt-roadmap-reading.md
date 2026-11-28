@@ -568,7 +568,10 @@ Decided by the maintainer, 2026-11-28, each to be checked against the
 reproducer on the current release first:
 
 - 3: the public result caps `coverage` at 1, as it caps the score; ranking
-  keeps the raw value. No key changes.
+  keeps the raw value. No key changes. **Built 2026-11-28**
+  (`result.public_result`, `tests/test_public_coverage.py`): Pitloom can
+  drop its clamp, and reads `texts`, not a coverage above 1, for a file of
+  several texts (item 82).
 - 4: one message for the CLI and the API, and its action names the offline
   form too (`--source packaged`); a hint raised to an API caller names
   `db_path`, not `--db`.
