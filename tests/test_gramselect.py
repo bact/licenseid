@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The rules of ``licenseid.gramselect`` on made-up score tables: the
-filters, the none bar, the Tier 2 selection. Numbers are written literally."""
+filters, the bar of the removed, the none bar, the Tier 2 selection. Numbers
+are written literally."""
 # pylint: disable=missing-function-docstring
 
 import pytest
@@ -12,6 +13,7 @@ import pytest
 from licenseid.gramselect import (
     Filters,
     ListFlags,
+    beyond_bar,
     filtered,
     passes,
     selected,
@@ -192,3 +194,73 @@ def test_each_filter_alone_and_together(filters: Filters, expected: list[str]) -
 def test_filtered_keeps_row_order_and_drops_rows_with_no_flags() -> None:
     rows = table(0.1, 0.9, 0.5)
     assert ids(filtered(rows, {"L0": SPDX, "L2": SPDX}, NONE)) == ["L0", "L2"]
+
+
+# -- Bar of the removed ------------------------------------------------------
+
+
+def barred(rows: list[tuple[int, float]], gone: set[str]) -> list[str]:
+    """The IDs :func:`beyond_bar` keeps of rows L0, L1, ... of *rows*
+    (shared grams, score), the rows *gone* taken out by a filter."""
+    table_rows = [
+        GramScore(f"L{at}", shared, 100, score)
+        for at, (shared, score) in enumerate(rows)
+    ]
+    passed = [row for row in table_rows if row.license_id not in gone]
+    return ids(beyond_bar(table_rows, passed))
+
+
+def test_no_row_taken_out_no_bar() -> None:
+    assert barred([(9, 0.9), (5, 0.5), (1, 0.1)], set()) == ["L0", "L1", "L2"]
+
+
+def test_an_empty_table_has_no_bar() -> None:
+    assert not beyond_bar([], [])
+
+
+def test_every_row_taken_out_leaves_none() -> None:
+    assert not barred([(9, 0.9), (5, 0.5)], {"L0", "L1"})
+
+
+def test_a_removed_row_under_the_kept_ones_changes_nothing() -> None:
+    assert barred([(9, 0.9), (8, 0.8), (3, 0.3)], {"L2"}) == ["L0", "L1"]
+
+
+def test_a_removed_row_beating_the_kept_ones_on_both_counts_leaves_none() -> None:
+    assert not barred([(9, 0.9), (8, 0.8), (3, 0.3)], {"L0"})
+
+
+@pytest.mark.parametrize(
+    ("removed", "kept"),
+    [
+        ((9, 0.9), []),  # more shared, higher score: beaten
+        ((7, 0.9), ["L1"]),  # a short text held in the input: higher score only
+        ((9, 0.7), ["L1"]),  # a long text sharing more: more shared only
+        ((8, 0.9), ["L1"]),  # as many shared
+        ((9, 0.8), ["L1"]),  # the same score
+        ((9, 0.8001), []),
+        ((8, 0.8001), ["L1"]),
+        ((7, 0.7), ["L1"]),
+    ],
+    ids=str,
+)
+def test_a_row_goes_only_when_a_removed_row_beats_it_on_both_counts(
+    removed: tuple[int, float], kept: list[str]
+) -> None:
+    # L1 shares 8 grams and scores 0.8; L0 is taken out.
+    assert barred([removed, (8, 0.8)], {"L0"}) == kept
+
+
+def test_a_tie_with_the_removed_row_up_to_float_rounding_stays() -> None:
+    assert barred([(9, 0.1 + 0.2), (8, 0.3), (7, 0.2)], {"L0"}) == ["L1"]
+
+
+def test_one_removed_row_must_beat_a_row_on_both_counts() -> None:
+    # L0 shares more than L2, L1 scores higher: neither beats it on both.
+    assert barred([(9, 0.5), (5, 0.9), (7, 0.7)], {"L0", "L1"}) == ["L2"]
+    assert barred([(9, 0.5), (5, 0.9), (7, 0.7), (8, 0.8)], {"L0", "L1", "L3"}) == []
+
+
+def test_the_rows_kept_keep_their_order() -> None:
+    rows = [(1, 0.1), (9, 0.9), (7, 0.7), (8, 0.8)]
+    assert barred(rows, {"L0"}) == ["L1", "L2", "L3"]

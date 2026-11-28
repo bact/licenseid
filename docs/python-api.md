@@ -169,15 +169,36 @@ database built by `licenseid update` holds only List rows, so there
 
 The filters do not drop the same candidates. All of them drop a candidate of
 the word search and a hint. The word search scores each List text by the runs
-of three words it shares with the input; the filters take their licences out
-before the second tier's candidates are chosen from the best of the rest, so
-the rows of a filtered call are those that may answer (`exclude=["MIT"]` on
-the MIT text lists the texts nearest to it after MIT, not a ranking of every
-candidate). `exclude` also drops the candidates a heading, title or version
-reading adds; `only_common` and `only_spdx` do not: a heading that names a
-licence that `only_common` drops from the word search still answers (the JSON
-License text, with `only_common=True`, answers `JSON` first, exact, with or
-without `hint=["JSON"]`).
+of three words it shares with the input: how many, and what share of the
+shorter of the two. A filter takes its licences out of those scores, and a
+text that a text it took out beats on both counts is no candidate either: it
+fits the input less than a text you ruled out, so it is not the text the
+input holds, only a near one (on a short input any long text has a near
+one). So with `exclude=["MIT"]` the MIT text answers nothing, not `JSON`. A
+text beaten on one count only stays: excluding BSD-2-Clause, whose runs a
+BSD-3-Clause file holds nearly all of, leaves BSD-3-Clause, which shares
+more of the file. A tie stays too: one your filter has settled. A call with
+no filter is not cut:
+
+<!-- docs-example: skip: needs a database holding the whole List texts -->
+
+```python
+from licenseid import LicenseDetector
+
+detector = LicenseDetector()
+detector.detect(file_path="LICENSE")  # the MIT License text
+# [{'expression': 'MIT', 'score': 1.0, 'exact': True, ...}, JSON, ...]
+detector.detect(file_path="LICENSE", exclude=["MIT"])  # []
+detector.detect(file_path="LICENSE", exclude=["JSON"])
+# [{'expression': 'MIT', 'score': 1.0, 'exact': True, ...}, Xnet]
+```
+
+`exclude` also drops the candidates a heading, title or version reading adds;
+`only_common` and `only_spdx` do not: a heading that names a licence that
+`only_common` drops from the word search still answers (the JSON License
+text, with `only_common=True`, answers `JSON` first, exact, with or without
+`hint=["JSON"]`). The bar of a filter acts on the word search only: a hint
+and a heading are not cut by it.
 
 A hinted candidate has its own text, so it ranks on its similarity to the
 input, as any candidate does, for the first 50 entries of `hint` (a set in

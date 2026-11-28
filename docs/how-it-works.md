@@ -118,7 +118,10 @@ declared values, SPDX expressions and the matching pipeline.
     up, once, in the postings `licenseid update` stores. Every List text that
     shares a gram scores `shared / min(grams of the input, grams of the
     text)`. `exclude`, `only_spdx` and `only_common` take their licences out
-    first. A best score under 0.1 gives no candidate. Else the input is
+    first, and with them every text that one they took out beats on both
+    counts, more grams shared and a higher score: it fits the input less
+    than a text the caller ruled out.
+    A best score under 0.1 gives no candidate. Else the input is
     first searched for whole texts (`TEXTS`, below) among the texts of the
     first 20 scores and every text it holds half of the runs of three words
     of (or of its core's, where that is smaller), whatever the filters.

@@ -73,9 +73,6 @@ ROWS = (
         True,
         search_text=normalize_text(_fixture_text("X11")),
     ),
-    # Not on the List: what only_spdx (on by default) drops. A database
-    # licenseid builds has no such row, so there only_spdx does nothing.
-    Lic("Acme-MIT", "Acme MIT Licence", False, search_text=normalize_text(ACME)),
     Lic("GPL-2.0-only", GPL_ONLY, True, True, True, search_text=GPL_ONLY.lower()),
     Lic(
         "GPL-2.0",
@@ -87,20 +84,41 @@ ROWS = (
 )
 
 
+# Not on the List: what only_spdx (on by default) drops. A database licenseid
+# builds has no such row, so there only_spdx does nothing. It sits in a
+# database of its own: dropped, a text that near is the bar under which no
+# other text answers (``gramselect.beyond_bar``).
+OFF_LIST = Lic("Acme-MIT", "Acme MIT Licence", False, search_text=normalize_text(ACME))
+
+
 # Popularity, different for each row, so enable_popularity reorders a tie.
 POPULARITY = {"Acme-MIT": 2000, "MIT-0": 1000, "MIT": 50, "X11": 5, "JSON": 1}
 
 
-@pytest.fixture(scope="module")
-def db_path() -> Generator[str, None, None]:
+def _seeded(prefix: str, rows: tuple[Lic, ...]) -> Generator[str, None, None]:
     urls = [("MIT", False, MIT_URL)]
-    for path in seeded_db("test_detect_options_paths", ROWS, urls=urls):
+    for path in seeded_db(prefix, rows, urls=urls):
         with sqlite3.connect(path, uri=True) as conn:
             conn.executemany(
                 "UPDATE licenses SET pop_score = ? WHERE license_id = ?",
                 [(pop, lic) for lic, pop in POPULARITY.items()],
             )
         yield path
+
+
+@pytest.fixture(scope="module")
+def db_path() -> Generator[str, None, None]:
+    yield from _seeded("test_detect_options_paths", ROWS)
+
+
+@pytest.fixture(scope="module")
+def off_list_path() -> Generator[str, None, None]:
+    yield from _seeded("test_detect_options_paths_off_list", (*ROWS, OFF_LIST))
+
+
+@pytest.fixture(scope="module")
+def off_list_detector(off_list_path: str) -> LicenseDetector:
+    return LicenseDetector(off_list_path)
 
 
 @pytest.fixture(scope="module")
@@ -115,11 +133,10 @@ def answers(detector: LicenseDetector, **kwargs: Any) -> list[str]:
 # BODY's answers, best first: BODY holds MIT's text whole, so Tier 2 scores
 # MIT and the three runner-ups by gram score (whole text first), which rank
 # under it: FOUND. NEAR is the top 3 by gram score (X11 is fourth, over 0.05
-# under MIT). With MIT excluded no text found is left, and the selection is
-# of the rest: REST.
+# under MIT). With MIT excluded, no text of the rest shares as much of BODY as
+# MIT does, so none answers (``gramselect.beyond_bar``).
 NEAR = ["MIT", "JSON", "MIT-0"]
 FOUND = [*NEAR, "X11"]
-REST = ["JSON", "MIT-0", "X11"]
 GPL = "GPL-2.0-only"
 
 
@@ -127,9 +144,12 @@ GPL = "GPL-2.0-only"
     ("options", "expected"),
     [
         ({}, FOUND),
-        ({"exclude": ["MIT"]}, REST),
+        ({"exclude": ["MIT"]}, []),
         # DECISION: exclude and hint both fold case (IDs are case-insensitive).
-        ({"exclude": ["mit"]}, REST),
+        ({"exclude": ["mit"]}, []),
+        # A text that shares less than the one left out is no candidate.
+        ({"exclude": ["JSON"]}, ["MIT"]),
+        ({"exclude": ["X11"]}, FOUND[:3]),
         ({"exclude": ["Nope-1.0"]}, FOUND),
         ({"exclude": FOUND}, []),
         ({"hint": ["MIT"]}, FOUND),  # already a candidate: nothing added
@@ -141,19 +161,15 @@ GPL = "GPL-2.0-only"
         ({"hint": [GPL, "gpl-2.0-only"]}, [*FOUND, GPL]),
         # DECISION: every filter wins: a hint is a candidate that passes
         # them, so it never undoes exclude.
-        ({"exclude": ["MIT"], "hint": ["MIT"]}, REST),
-        ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
+        ({"exclude": ["MIT"], "hint": ["MIT"]}, []),
+        # only_common takes JSON out (0.9547 on BODY): MIT-0 and X11 share
+        # less of BODY than JSON, which is no candidate, so they go too.
+        ({"only_common": True}, ["MIT"]),
         # Nor does a hint pass only_common or only_spdx (on by default).
-        ({"only_common": True, "hint": ["JSON"]}, ["MIT", "MIT-0", "X11"]),
-        # Acme-MIT (0.99) is the first runner-up: X11 is no longer one.
-        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON", "MIT-0"]),
-        ({"only_spdx": True, "hint": ["Acme-MIT"]}, FOUND),
-        ({"hint": ["Acme-MIT"]}, FOUND),  # only_spdx is on by default
-        (
-            {"only_spdx": False, "hint": ["Acme-MIT"]},
-            ["MIT", "Acme-MIT", "JSON", "MIT-0"],
-        ),
-        ({"only_common": True, "exclude": ["MIT"]}, ["MIT-0", "X11"]),
+        ({"only_common": True, "hint": ["JSON"]}, ["MIT"]),
+        ({"only_spdx": False}, FOUND),  # no off-list row here
+        ({"hint": ["Acme-MIT"]}, FOUND),  # no row: nothing added
+        ({"only_common": True, "exclude": ["MIT"]}, []),
         # No tie here, so popularity (a nudge of 1e-4 at most) moves nothing.
         ({"enable_popularity": True}, FOUND),
     ],
@@ -163,6 +179,30 @@ def test_the_options_shape_the_text_candidates(
     detector: LicenseDetector, options: dict[str, Any], expected: list[str]
 ) -> None:
     assert answers(detector, text=BODY, **options) == expected
+
+
+@pytest.mark.parametrize(
+    ("options", "expected"),
+    [
+        # Acme-MIT (0.9968) is off the List: only_spdx takes it out, and what
+        # shares less of BODY than it is no candidate. A database licenseid
+        # builds has no such row.
+        ({}, ["MIT"]),
+        ({"only_spdx": True, "hint": ["Acme-MIT"]}, ["MIT"]),
+        ({"hint": ["Acme-MIT"]}, ["MIT"]),  # only_spdx is on by default
+        # Acme-MIT (0.99) is the first runner-up: X11 is no longer one.
+        ({"only_spdx": False}, ["MIT", "Acme-MIT", "JSON", "MIT-0"]),
+        (
+            {"only_spdx": False, "hint": ["Acme-MIT"]},
+            ["MIT", "Acme-MIT", "JSON", "MIT-0"],
+        ),
+    ],
+    ids=repr,
+)
+def test_an_off_list_text_is_a_text_a_filter_takes_out(
+    off_list_detector: LicenseDetector, options: dict[str, Any], expected: list[str]
+) -> None:
+    assert answers(off_list_detector, text=BODY, **options) == expected
 
 
 def test_a_hinted_candidate_scores_on_its_own_text(
@@ -290,7 +330,7 @@ def test_every_collection_kind_answers_alike(
     detector: LicenseDetector, kind: type[Any]
 ) -> None:
     got = answers(detector, text=BODY, exclude=kind(["MIT"]), hint=kind([GPL]))
-    assert got == [*REST, GPL]
+    assert got == [GPL]  # no text of the rest answers; the hint is added last
 
 
 def test_the_order_of_the_ids_does_not_change_the_answer(
@@ -299,7 +339,7 @@ def test_the_order_of_the_ids_does_not_change_the_answer(
     """Hinted candidates are added last, in no order that ranks them."""
     forward = answers(detector, text=BODY, hint=[GPL, "MIT"], exclude=NEAR[:2])
     backward = answers(detector, text=BODY, hint=["MIT", GPL], exclude=NEAR[1::-1])
-    assert forward == backward == ["MIT-0", "X11", GPL]
+    assert forward == backward == [GPL]
 
 
 class _Id(str):
@@ -308,7 +348,7 @@ class _Id(str):
 
 def test_a_str_subclass_is_an_id(detector: LicenseDetector) -> None:
     got = answers(detector, text=BODY, exclude=[_Id("MIT")], hint=[_Id(GPL)])
-    assert got == [*REST, GPL]
+    assert got == [GPL]
 
 
 def _ids() -> Generator[str, None, None]:
@@ -365,11 +405,12 @@ TIE = " ".join(BODY.split("\n\n")[3].split()[:40]).replace("KIND", "SORT")
 TIED = ["JSON", "MIT", "MIT-0"]
 OPTION_ANSWERS: dict[str, tuple[dict[str, Any], list[str]]] = {
     "none": ({}, TIED),
-    "exclude": ({"exclude": ["MIT"]}, ["JSON", "MIT-0", "X11"]),
-    "exclude_case": ({"exclude": ("mit",)}, ["JSON", "MIT-0", "X11"]),  # folded
+    # The tie holds: JSON and MIT-0 score as MIT does, X11 less.
+    "exclude": ({"exclude": ["MIT"]}, ["JSON", "MIT-0"]),
+    "exclude_case": ({"exclude": ("mit",)}, ["JSON", "MIT-0"]),  # folded
     "hint": ({"hint": {GPL}}, [*TIED, GPL]),
-    "exclude_hint": ({"exclude": ["MIT"], "hint": ["MIT"]}, ["JSON", "MIT-0", "X11"]),
-    "only_common": ({"only_common": True}, ["MIT", "MIT-0", "X11"]),
+    "exclude_hint": ({"exclude": ["MIT"], "hint": ["MIT"]}, ["JSON", "MIT-0"]),
+    "only_common": ({"only_common": True}, ["MIT", "MIT-0"]),
     "only_spdx": ({"only_spdx": False}, ["Acme-MIT", *TIED]),
     "enable_popularity": ({"enable_popularity": True}, ["MIT-0", "MIT", "JSON"]),
 }
@@ -381,7 +422,7 @@ WHERE = list(
 @pytest.mark.parametrize("where", WHERE, ids="-".join)
 @pytest.mark.parametrize("option", list(OPTION_ANSWERS))
 def test_api_option_matrix(
-    db_path: str,
+    request: pytest.FixtureRequest,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     option: str,
@@ -390,6 +431,10 @@ def test_api_option_matrix(
     """``LicenseDetector.detect`` and ``licenseid.detect`` take each option
     on each input, and answer alike."""
     options, text_answer = OPTION_ANSWERS[option]
+    # Only the only_spdx row has an off-list text to take out.
+    db_path = request.getfixturevalue(
+        "off_list_path" if option == "only_spdx" else "db_path"
+    )
     name, entry = where
     path = tmp_path / "LICENSE"
     path.write_text(TIE, encoding="utf-8")
@@ -425,16 +470,24 @@ def test_texts_ignores_every_option_that_filters_candidates(
     found_rows.rows = ["MIT", "X11"]
     options = EVERY_OPTION if name == "all" else {name: EVERY_OPTION[name]}
     detector = LicenseDetector(db_path)  # not the module's: it keeps a corpus
-    results = detector.detect(text=MIT + " Acme words", **options)
-    assert results, name
-    assert {tuple(r["texts"] or ()) for r in results} == {("MIT", "X11")}
+    text = MIT + " Acme words"
+    results = detector.detect(text=text, **options)
+    if name in ("exclude", "all"):
+        # MIT, the best text, is out: no other text answers (the hint, added
+        # last, does), and TEXTS still names it.
+        assert [r["expression"] for r in results] == (
+            ["GPL-2.0-only"] * (name == "all")
+        )
+        assert detector.texts(text) == ["MIT", "X11"]
+    else:
+        assert results, name
+        assert {tuple(r["texts"] or ()) for r in results} == {("MIT", "X11")}
     (rows,) = found_rows.built
     assert {row.license_id for row in rows} == {
         "MIT",
         "MIT-0",
         "JSON",
         "X11",
-        "Acme-MIT",
         "GPL-2.0-only",
         "GPL-2.0",
     }  # the deprecated one too: here it has a text

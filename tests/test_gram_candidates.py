@@ -121,20 +121,28 @@ def test_a_hint_is_scored_where_the_grams_give_none() -> None:
 # -- Filters before the selection; TEXTS unfiltered ------------------------------
 
 
-def test_the_best_text_excluded_the_next_answers() -> None:
+def test_the_best_text_excluded_gives_no_answer() -> None:
+    """No other text shares as much of the input as the one the caller
+    ruled out, so none is its text (JSON answered before 0.10.0)."""
     assert ids(MIT)[0] == "MIT"
-    assert "MIT" not in ids(MIT, exclude=["MIT"])
-    found = long_text_detector().detect(MIT, exclude=["MIT"])
-    assert found[0]["expression"] == "JSON"
-    assert "MIT" not in [r["expression"] for r in found]
+    assert not ids(MIT, exclude=["MIT"])
+    assert not long_text_detector().detect(MIT, exclude=["MIT"])
+    assert long_text_detector().texts(MIT) == ["MIT"]
 
 
-def test_only_common_drops_a_rare_text_before_the_selection() -> None:
+def test_a_text_excluded_under_the_best_leaves_the_answer() -> None:
+    assert ids(MIT, exclude=["MIT-0"])[0] == "MIT"
+    assert rows(MIT, exclude=["MIT-0"])[0][0] == "MIT"
+
+
+def test_only_common_taking_out_the_holder_gives_no_answer() -> None:
     body = _text("JSON").split("\n", 2)[2]  # no "JSON License" heading
     assert ids(body)[0] == "JSON"
     assert "JSON" not in ids(body, only_common=True)
-    # As in 0.9.4: the closest licence the filter allows answers.
-    assert rows(body, only_common=True)[0][0] == "MIT"
+    # Before 0.10.0 the closest licence the filter allows (MIT) answered; it
+    # shares less of the input than JSON, the text it holds.
+    assert not ids(body, only_common=True)
+    assert not rows(body, only_common=True)
 
 
 def test_only_spdx_off_adds_nothing_on_a_list_database() -> None:
@@ -145,8 +153,8 @@ def test_only_spdx_off_adds_nothing_on_a_list_database() -> None:
     "options",
     [
         {},
-        {"exclude": ["MIT"]},
-        {"exclude": ["MIT", "JSON", "MIT-0"]},
+        {"exclude": ["MIT-0"]},
+        {"exclude": ["JSON", "MIT-0"]},
         {"only_common": True},
         {"only_spdx": False},
         {"hint": ["ISC"]},

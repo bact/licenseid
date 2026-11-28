@@ -16,6 +16,11 @@ the text)``. Then, in this order (plan of 0.10.0, section 3.1):
    the bar and the selection see only what may answer: the best text
    excluded, the bar reads the next. ``TEXTS`` and ``texts()`` read no
    filter.
+1b. **Bar of the removed.** A text that passes the filters is no candidate
+   when a text they took out beats it on both counts, more of the input's
+   grams shared and a higher score (:func:`beyond_bar`): it fits the input
+   less than a text the caller ruled out, so it is not the text the input
+   holds.
 2. **None.** A best score under :data:`NONE_BAR` gives no candidate: no
    input that answers scores under 0.4, and the rows such an input would
    list are noise on prose.
@@ -34,8 +39,10 @@ none (``licenseid.retrieval.add_free_text``). An input of very many distinct
 grams has only its first :data:`GRAM_LIMIT` looked up.
 """
 
+from bisect import bisect_left
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from fractions import Fraction
+from itertools import accumulate
 from math import isclose
 from typing import Final, NamedTuple
 
@@ -118,6 +125,37 @@ def filtered(
         for row in rows
         if passes(row.license_id, flags.get(row.license_id), filters)
     ]
+
+
+def beyond_bar(
+    rows: Sequence[GramScore], passed: Sequence[GramScore]
+) -> list[GramScore]:
+    """The rows of *passed* (the *rows* the filters left) that no row the
+    filters took out beats on both counts: more of the input's grams shared
+    and a higher score (up to float rounding). Such a row fits the input less
+    than a text the caller ruled out, and on a short input every long text
+    has a near match. Either count alone misleads: the score favours a short
+    text held in the input (BSD-2-Clause in a BSD-3-Clause file), ``shared``
+    a long one that holds one more gram of it. A tie on either count stays.
+    No row taken out, no change."""
+    if len(passed) == len(rows):
+        return list(passed)
+    kept = {row.license_id for row in passed}
+    # The removed rows by shared grams, most first, each with the best score
+    # of those sharing as many or more: one search per row, not a scan.
+    gone = sorted(
+        (row for row in rows if row.license_id not in kept),
+        key=lambda row: -row.shared,
+    )
+    counts = [-row.shared for row in gone]
+    best = list(accumulate((row.score for row in gone), max))
+
+    def beaten(row: GramScore) -> bool:
+        more = bisect_left(counts, -row.shared)  # the removed rows sharing more
+        top = best[more - 1] if more else 0.0
+        return top > row.score and not isclose(top, row.score)
+
+    return [row for row in passed if not beaten(row)]
 
 
 def selected(rows: Sequence[GramScore]) -> list[GramScore]:

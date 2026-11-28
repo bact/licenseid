@@ -169,8 +169,9 @@ MPL-2.0-no-copyleft-exception 0.7409 (item 69).
 - Every third word replaced leaves no 3-gram in common: Apache-2.0 so
   distorted gets no row (0.9.4 listed it at 0.78, no answer either way).
   Every fourth word keeps it first.
-- A text a filter drops lets the next answer: the JSON text with
-  `only_common` answers MIT at 0.99, as in 0.9.4.
+- A text a filter drops no longer lets a worse one answer (section 8): the
+  JSON text with `only_common` answered MIT at 0.99, as in 0.9.4, and now
+  answers nothing.
 - `REASON` reads `no match` where it read `below threshold`: the far rows
   that 0.9.4 listed are not candidates.
 
@@ -185,3 +186,98 @@ run; in `tests/platform_files.py`), `tests/test_notice_recall.py`.
 Mutation: 26 mutants of the rules (bar, top, margin, cap, row order,
 filters, bound, merge, comment strip), all killed; the `isclose` mutant
 survived the first round and got two rows.
+
+### 8. A filter and the texts under the one it removed
+
+What: `gramselect.beyond_bar`, called by `retrieval.get_candidates` on the
+filtered table for both paths (the selection, and the narrowing of a text
+found whole). A row that passed the filters is no candidate when one row
+the filters took out beats it on both counts: more of the input's grams
+`shared` and a higher `score` (`math.isclose` keeps an equal score; an equal
+`shared` stays). No row taken out: no change. `TEXTS`, `texts()` and the
+guard of the narrowing read the unfiltered table, as before.
+
+Why: a text of the List that holds the input fits it better than any other.
+Take it out, and the best of the rest is only a near text, and on a short
+input every long text has one. On 12,136 slices of List texts (truth: the
+licences whose text holds the slice whole), with `only_common=True` the 9,579
+slices held by one licence gave 2,424 right and 1,075 wrong answers at 0.85;
+with the holders of each slice passed as `exclude`, 4,361 slices still got an
+answer (3,360 held by one licence, 1,001 held by several), every one wrong.
+
+Numbers (layer 12 to this rule, answer bar 0.85, the same 12,136 slices;
+CPU of the `only_common` run 92.9 s to 31.8 s, of the holders-excluded run
+80.6 s to 24.5 s, as fewer texts reach Tier 2):
+
+| Slices | Layer 12 | Rule |
+| - | - | - |
+| no option: rows differing | | 0 of 12,136 |
+| `only_common`, one holder: right / wrong / none | 2,424 / 1,075 / 6,080 | 2,427 / 41 / 7,111 |
+| `only_common`, several: holder / wrong / none | 1,237 / 109 / 1,211 | 1,237 / 2 / 1,318 |
+| holders excluded, one: answers (all wrong) | 3,360 | 319 |
+| holders excluded, several: answers (all wrong) | 1,001 | 64 |
+
+No right answer falls: slices move from wrong to none (1,031 and 107 under
+`only_common`, 3,041 and 937 with the holders excluded) or, 3 of them, from
+wrong to right. Of the 383 wrong answers left with the holders excluded, 296
+come from the name tier (section below), not from the word search. On a
+slice every text is longer than the input, so `score` is `shared` over the
+input's grams and the two counts rank alike: the three forms below give the
+same rows on all four slice runs (with the best other row excluded too:
+8,289 / 25 / 3 each, as without a bar).
+
+Whole texts tell them apart. The core set's 408 List texts (clean and
+distorted 1 to 20 %), its 160 head and tail cuts and the 225 real files with
+one label, each with no option, with `exclude` of each of the three rows
+under its answer, of all three, and with `only_common` (truth: the fixture's
+licence or the label; right / wrong / none at 0.85):
+
+| Inputs, option | No bar | Best removed score | Best removed `shared` | Both counts |
+| - | - | - | - | - |
+| fixtures, `exclude` one row under | 771 / 27 / 196 | 762 / 25 / 207 | 769 / 25 / 200 | 769 / 25 / 200 |
+| fixtures, `exclude` all three | 285 / 10 / 81 | 278 / 8 / 90 | 284 / 8 / 84 | 284 / 8 / 84 |
+| fixtures, `only_common`, rare licence | 13 / 40 / 151 | 13 / 6 / 185 | 13 / 6 / 185 | 13 / 6 / 185 |
+| real, `exclude` one row under | 557 / 37 / 8 | 546 / 40 / 16 | 503 / 42 / 57 | 556 / 37 / 9 |
+| real, `exclude` all three | 191 / 14 / 4 | 183 / 14 / 12 | 143 / 13 / 53 | 190 / 14 / 5 |
+| real, `only_common`, common licence | 193 / 14 / 16 | 191 / 14 / 18 | 137 / 23 / 63 | 192 / 14 / 17 |
+| right answers lost (calls, inputs) | | 39, 20 | 162, 106 | 6, 3 |
+
+Rejected: the bar at the best score removed (the first form built). The
+score divides by the smaller side, so a short text held in the input scores
+near 1 and more than the input's own text once that is reworded: a real
+BSD-3-Clause file with `exclude=["BSD-2-Clause"]` answered nothing, with
+`exclude=["BSD-1-Clause"]` answered `BSD-2-Clause`; the MIT text with
+`exclude=["MIT-0"]` and its condition reworded answered nothing. It cut no
+wrong answer that both counts keep. Rejected: the bar at the best `shared`
+removed. A long text that holds one more gram of a real file than its own
+licence (`BSD-3-Clause-OpenWebUI`, `FSL-1.1-MIT`, as copyright lines fill a
+template) cut the right answer from 106 inputs. Kept: both counts. Its 3
+inputs lost are a real BSD-2-Clause file that shares 171 grams with
+`BSD-2-Clause-Views` and 166 with its own text, and the MIT text distorted
+10 %, which shares 72 grams with `UPL-1.0` and 71 with MIT: the grams alone
+cannot tell them apart. Rejected too: a margin under the bar (a text stays
+if it scores within `m` of the removed text): wrong answers 34, 42, 107, 230
+and 675 for margins of 0, 0.02, 0.05, 0.10 and 0.25 on the slices, with no
+plateau. No number is tuned.
+
+Decided by the maintainer: `exclude=["MIT"]` on the MIT text answers nothing
+(layer 12 and 0.9.4 answered `JSON` at 0.99). `only_spdx` goes through the
+same rule and takes nothing out of a database of the List alone.
+
+Not covered, measured by hand on the real List, for a decision:
+
+- The name tier carries the defect. A sentence of 10 to 29 words that names
+  "Apache License, Version 2.0", with `exclude=["Apache-2.0"]`, answers
+  `Apache-1.0` at 0.9412 (method `name`), then `Apache-1.1`: the other name
+  hits that the exclusion left are near names, not names the input holds.
+- A title and prose with the title's licence excluded give no answer at
+  0.85 (MIT, BSD-3-Clause, Apache-2.0, MPL-2.0, GPL-2.0-only); the rows left
+  score under 0.5. But a licence text that names another licence brings it
+  back as a marker, which the bar does not cut: the List text of
+  GPL-3.0-only with both GPL-3.0 IDs excluded answers `AGPL-3.0-only` at
+  0.9861, of LGPL-2.1-only `LGPL-2.0-only` at 0.9846, of MPL-2.0
+  `AGPL-3.0-or-later` at 0.874, of EPL-2.0 `GPL-2.0-or-later` at 0.874.
+  Cutting markers whose row the bar cut is no plain gain: on the whole texts
+  above it would take 7 wrong answers and 5 right ones.
+- A hint is the caller's own candidate, ranked on its text:
+  `exclude=["MIT"], hint=["JSON"]` on the MIT text answers `JSON` at 0.9879.

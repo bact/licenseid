@@ -231,6 +231,10 @@ first:
 - `exclude`, `only_spdx`, `only_common` act on the score table (step 3), so
   the bar, the selection and the narrowing see only what may answer. A
   found text that is filtered out does not narrow.
+- A text that a text a filter took out beats on both counts (grams shared,
+  score) is no candidate either (`gramselect.beyond_bar`; no tuned number:
+  the score alone, `shared` alone and a margin were measured and rejected,
+  `gram-candidates.md` section 8).
 - `TEXTS` and `texts()` ignore every filter, as now ("a fact about the
   input"): the whole-text search runs on the unfiltered candidates, and the
   narrowing reads the filters afterwards.

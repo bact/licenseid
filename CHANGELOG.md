@@ -13,6 +13,10 @@ and this project adheres to
 
 ### Changed
 
+- **Behaviour change:** `detect()` with `exclude`, `only_common` or
+  `only_spdx` no longer answers a text that fits the input less than a text
+  the filter removed: `exclude=["MIT"]` on the MIT text answers nothing, not
+  `JSON`
 - **Breaking:** licenseid reads only a database of its own build; an older
   one exits 2 with `database: build vN outdated`. Migration: run `licenseid
   update` once after upgrading

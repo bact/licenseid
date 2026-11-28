@@ -28,6 +28,7 @@ from licenseid.gramselect import (
     Filters,
     ListFlags,
     Narrowed,
+    beyond_bar,
     filtered,
     narrowed,
     passes,
@@ -203,13 +204,17 @@ def get_candidates(
 ) -> Candidates:
     """The candidates of Tier 1 for *text*: the grams of :func:`gram_text`
     looked up once, the score table filtered by *options* (``exclude``,
-    ``only_spdx``, ``only_common``), then the texts ``gramselect.narrowed``
-    keeps when the whole-text search of *texts* (made here if not given)
-    finds one text, else those ``gramselect.selected`` keeps, best first,
-    each with its text and row. Neither under the none bar."""
+    ``only_spdx``, ``only_common``) without the texts a text they took out
+    beats on both counts (``gramselect.beyond_bar``), then the texts
+    ``gramselect.narrowed`` keeps when the whole-text search of *texts* (made
+    here if not given) finds one text, else those ``gramselect.selected``
+    keeps, best first, each with its text and row. Neither under the none
+    bar."""
     texts = text_candidates(db, text) if texts is None else texts
     table = texts.table
-    passed = filtered(table.rows, list_flags(db), filters_of(options))
+    passed = beyond_bar(
+        table.rows, filtered(table.rows, list_flags(db), filters_of(options))
+    )
     rows: Sequence[GramScore] = selected(passed)
     # Under the none bar no text is a candidate, found whole or not.
     narrow = _narrowed(db, texts, passed) if rows else None

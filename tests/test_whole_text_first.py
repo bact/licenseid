@@ -152,24 +152,28 @@ def test_tier_2_scores_the_group_and_three_runner_ups(
 def test_a_found_text_the_filters_take_out_does_not_narrow(
     mit_detector: LicenseDetector,
 ) -> None:
-    """``exclude`` of the text found: today's selection among the rest, and
-    the next text answers (JSON, as with every release)."""
+    """``exclude`` of the text found: no narrowing, and no text of the rest
+    answers, as none shares as much of the input (``gramselect.beyond_bar``;
+    JSON answered, in every release before 0.10.0)."""
     detector = mit_detector
     found = _candidates(detector.db, MIT_FILE, exclude=["MIT"])
     assert found.narrowed is None
-    assert "MIT" not in [c["license_id"] for c in found.found]
-    results = detector.detect(MIT_FILE, exclude=["MIT"])
-    assert results[0]["expression"] == "JSON"
-    assert results[0]["texts"] == ["MIT"]  # TEXTS reads no filter
+    assert not found.found
+    assert not detector.detect(MIT_FILE, exclude=["MIT"])
+    assert detector.texts(MIT_FILE) == ["MIT"]  # TEXTS reads no filter
 
 
-def test_an_excluded_runner_up_makes_room_for_the_next(
+def test_an_excluded_runner_up_keeps_the_texts_it_does_not_beat_twice(
     mit_detector: LicenseDetector,
 ) -> None:
+    """JSON (159 grams shared, 0.91) scores more than FSL-1.1-MIT and Xnet,
+    but they share as many grams (159), and MIT-0 scores more (0.94): no
+    runner-up is beaten on both counts, so the three stay
+    (``gramselect.beyond_bar``)."""
     found = _candidates(mit_detector.db, MIT_FILE, exclude=["JSON"])
     assert found.narrowed is not None
-    assert "JSON" not in found.narrowed.runner_ups
-    assert len(found.narrowed.runner_ups) == 3
+    assert found.narrowed.runner_ups == {"MIT-0", "FSL-1.1-MIT", "Xnet"}
+    assert found.found[0]["license_id"] == "MIT"
 
 
 # -- Guard ---------------------------------------------------------------------
