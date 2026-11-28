@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-11-16
+Last-Modified: 2026-11-27
 SPDX-FileContributor: Arthit Suriyawongkul
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
@@ -193,6 +193,29 @@ path (`_write_db_records`, which also calls `_connect()`) still works via
 a full `licenseid update --force`.
 
 ---
+
+### 6. Imports of a text-file call (0.10.0 task T8B)
+
+Measured on layer 16, Apple M-series, Python 3.10, minimum of 11 runs,
+alternating with the base the same minutes, **with the byte-code cache
+warm** (`PYTHONDONTWRITEBYTECODE` unset: an installed wheel ships its
+byte-code; the speed plan's earlier numbers were taken without it, and the
+compile of our source then adds about 55 ms to a call). One call of the MIT
+file: 101 ms; an ID value, the floor: 86 ms.
+
+| Cost at import | Used by the MIT file | Change |
+| - | - | - |
+| `py_spdx_license` (3.6 ms) | no: no expression to parse | imported in `identifiers`, `exprflags` and `exprcanon` at the function that uses it; the top import is under `TYPE_CHECKING` |
+| `fractions`, `decimal` (1.2 ms) | no: `GUARD_MARGIN` held two integers | the constant is the pair `(11, 10)` |
+| `gzip` (0.85 ms) | no: a bundle only | imported in the two bundle functions of `spdxdata` |
+
+Result, same minutes: MIT 101 to 96 ms, BSD-3-Clause 117 to 111 ms, ID value
+86 to 81 ms, `resolve MIT` 61 to 59 ms, `--version` 31 to 30 ms.
+`tests/test_startup.py` runs a text-file call in a child that must not load
+the four modules, a control that `resolve "MIT OR Apache-2.0"` loads the
+parser, and imports every module. Lazy compilation of 17 patterns that the
+MIT file never matches was measured (about 3 ms without byte-code) and not
+taken: it needs a wrapper type that mimics `re.Pattern`.
 
 ## Rejected (tried and reverted)
 

@@ -89,9 +89,18 @@ def test_the_environment_of_a_child_is_its_side_and_a_scratch_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PYTHONHOME", "/elsewhere")
-    env = _fake_side(tmp_path).env()
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    side = _fake_side(tmp_path)
+    env = side.env()
     assert env["PYTHONPATH"] == str(tmp_path / "side" / "src")
     assert env["HOME"] == str(tmp_path / "home") and "PYTHONHOME" not in env
+    assert "PYTHONDONTWRITEBYTECODE" not in env
+    assert env["PYTHONPYCACHEPREFIX"] == str(tmp_path / "home" / "pycache")
+    runner.run_child(
+        side, _job(tmp_path, [{"key": "a", "text": "x"}]), ["detect", "--set", "core"]
+    )
+    cached = [p.name for p in (tmp_path / "home" / "pycache").rglob("detector*.pyc")]
+    assert len(cached) == 1  # the side's own module, compiled once and kept
 
 
 @pytest.mark.parametrize(

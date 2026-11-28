@@ -27,6 +27,7 @@ BOOT: Final = (
 CLI_BOOT: Final = "from licenseid.cli import main; main()"
 LOAD_LIMIT: Final = 2.0
 STRESS_LIMIT_S: Final = 180.0
+NOT_INHERITED: Final = frozenset({"PYTHONHOME", "PYTHONDONTWRITEBYTECODE"})
 
 
 @dataclass(frozen=True)
@@ -40,11 +41,15 @@ class Side:
 
     def env(self) -> dict[str, str]:
         """The environment of a child: this side's ``src`` first, a scratch
-        home, no ``PYTHONHOME``, a fixed hash seed (same order every run)."""
-        env = {k: v for k, v in os.environ.items() if k != "PYTHONHOME"}
+        home, no ``PYTHONHOME``, a fixed hash seed (same order every run),
+        and a byte-code cache of its own under the home, as an installed
+        package has one: a caller's ``PYTHONDONTWRITEBYTECODE`` would add the
+        compiling of every module to each fresh process."""
+        env = {k: v for k, v in os.environ.items() if k not in NOT_INHERITED}
         env["PYTHONPATH"] = str(self.path / "src")
         env["HOME"] = str(self.home)
         env["PYTHONHASHSEED"] = "0"
+        env["PYTHONPYCACHEPREFIX"] = str(self.home / "pycache")
         return env
 
 

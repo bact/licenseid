@@ -41,7 +41,6 @@ grams has only its first :data:`GRAM_LIMIT` looked up.
 
 from bisect import bisect_left
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
-from fractions import Fraction
 from itertools import accumulate
 from math import isclose
 from typing import Final, NamedTuple
@@ -77,7 +76,9 @@ HELD: Final = 0.5
 #: text found shares: a shorter text held whole inside a fragment of a longer
 #: one (``SSH-short`` in an ``SSH-OpenSSH`` head). Any margin from 1.02 to
 #: 1.25 gives the same result.
-GUARD_MARGIN: Final = Fraction(11, 10)
+#: 11/10 as numerator and denominator: a ``Fraction`` would load ``fractions``
+#: and ``decimal`` (1 ms of start-up) for two integers.
+GUARD_MARGIN: Final = (11, 10)
 #: Texts Tier 2 scores beside a text found whole, in gram order, each scoring
 #: :data:`NONE_BAR` or more (decision D3 of the plan).
 RUNNER_UPS: Final = 3
@@ -207,8 +208,9 @@ def guarded(rows: Iterable[GramScore], group: Collection[str]) -> bool:
     rows = list(rows)
     own = max((row.shared for row in rows if row.license_id in group), default=0)
     # In whole numbers: a Fraction a row costs a millisecond on a long input.
-    limit = own * GUARD_MARGIN.numerator
-    return any(row.shared * GUARD_MARGIN.denominator > limit for row in rows)
+    numerator, denominator = GUARD_MARGIN
+    limit = own * numerator
+    return any(row.shared * denominator > limit for row in rows)
 
 
 class Narrowed(NamedTuple):

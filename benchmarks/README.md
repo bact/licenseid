@@ -222,8 +222,13 @@ runs one untimed pass over its own inputs, with the same options and the
 licence when it first becomes a candidate pays those reads in the untimed pass,
 as 0.9.4 paid them in its one warm-up call, which loaded every text. The stress
 set is a process a case and keeps one small call before the case. The one-call
-set is cold on purpose: fresh processes. The memory set is not warmed either:
-it reports the peak after the import, after one input, after the real files and
+set is cold on purpose: fresh processes, each reading the byte-code that one
+untimed call wrote (every child keeps a byte-code cache under its scratch
+home, whatever `PYTHONDONTWRITEBYTECODE` the caller has: an installed package
+has one, and without it each call compiles every module of the side, which
+added 20 to 40 ms to each call measured). The memory set is not warmed
+either: it reports the peak after the import, after one input, after the real
+files and
 after the core inputs, so its last peak holds everything read during the run
 and its earlier ones the growth. The threads set keeps its own first pass (one
 thread, then four).

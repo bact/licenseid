@@ -28,7 +28,10 @@ and this project adheres to
   3-gram postings of every licence text and a check of each stored text, and
   drops the full-text index, which nothing read
 - `import licenseid` and `licenseid --version` start in about a third of the
-  time (87 to 29 ms); `resolve MIT` saves 30 ms; every output is unchanged
+  time (87 to 29 ms); `resolve MIT` saves 30 ms; a call on a licence text
+  file saves 5 ms (MIT 101 to 96 ms, BSD-3-Clause 117 to 111 ms) by loading
+  the SPDX expression parser, `gzip` and `fractions` only where used; every
+  output is unchanged
 - `detect()` on free text finds its candidates by the word 3-grams it shares
   with each licence text, and aligns a fragment where its words place it in
   a text: 15 times faster on 868 licence texts and files (353 s to 23 s of

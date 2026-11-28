@@ -14,6 +14,7 @@ import ast
 import importlib
 import json
 import os
+import pkgutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -28,6 +29,7 @@ import licenseid
 from licenseid import cli as cli_module
 from licenseid.cli import cli
 from licenseid.clicommands import COMMANDS, LazyCommands, short_help
+from licenseid.database import LicenseDatabase
 
 # What no run of `--version`, `--help` or the package import may load.
 HEAVY = ("rapidfuzz", "requests", "sqlite3", "licenseid.detector", "licenseid.database")
@@ -327,3 +329,50 @@ def test_a_failure_that_is_not_sqlites_passes_through(
     monkeypatch.setitem(cli.commands, "boom", boom)
     result = CliRunner().invoke(cli, ["boom"])
     assert isinstance(result.exception, ValueError)
+
+
+# ---- the text-file call ---------------------------------------------------
+
+#: What a call that reads a licence text never needs: the SPDX expression
+#: parser (a text has no expression to parse), the gzip reader of a bundle
+#: (only a bundle is read through it), and ``fractions`` with ``decimal``.
+TEXT_FILE_SKIPS = ("py_spdx_license", "gzip", "fractions", "decimal")
+
+
+@pytest.fixture(name="mit_file", scope="module")
+def _mit_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A file holding the MIT licence text."""
+    fixture = Path(__file__).parent / "fixtures" / "license-text-long" / "MIT.json"
+    text = json.loads(fixture.read_text(encoding="utf-8"))["license_text"]
+    path = tmp_path_factory.mktemp("mit") / "LICENSE"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("skipped", TEXT_FILE_SKIPS)
+def test_what_a_text_file_call_does_not_load(
+    loaded: Loaded, bundle_db: LicenseDatabase, mit_file: Path, skipped: str
+) -> None:
+    argv = ("--db", str(bundle_db.db_path), "detect", str(mit_file))
+    modules = loaded(_CLI, argv)
+    assert {"rapidfuzz", "licenseid.detector"} <= modules  # the call ran
+    assert skipped not in modules
+
+
+def test_the_parser_is_loaded_when_an_expression_is_parsed(
+    loaded: Loaded, bundle_db: LicenseDatabase
+) -> None:
+    """The control: the module the text-file call skips is the one a compound
+    value loads, at its first use."""
+    argv = ("--db", str(bundle_db.db_path), "resolve", "MIT OR Apache-2.0")
+    assert "py_spdx_license" in loaded(_CLI, argv)
+
+
+def test_every_module_of_the_package_imports() -> None:
+    """Each module imports: a lazy import is a name written where it is used,
+    and a typo there would fail only when that path runs."""
+    package = Path(licenseid.__file__ or "").parent
+    names = [m.name for m in pkgutil.iter_modules([str(package)])]
+    assert len(names) > 90
+    for name in names:
+        importlib.import_module(f"licenseid.{name}")

@@ -20,7 +20,6 @@ light. It reads bytes and files; it never touches the network
 or the database.
 """
 
-import gzip
 import io
 import json
 import re
@@ -134,6 +133,8 @@ class SpdxData:
 
 def _load_document(raw: bytes) -> dict[str, Any]:
     """Gunzip (capped), parse and check the envelope of a bundle."""
+    import gzip  # pylint: disable=import-outside-toplevel  # start-up
+
     try:
         with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
             # A short read proves EOF, so gzip has checked the CRC.
@@ -262,6 +263,8 @@ def to_bundle(data: SpdxData) -> bytes:
     payload = json.dumps(
         doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+    import gzip  # pylint: disable=import-outside-toplevel  # start-up
+
     buffer = io.BytesIO()
     with gzip.GzipFile(mode="wb", fileobj=buffer, mtime=0) as gz:
         gz.write(payload)
